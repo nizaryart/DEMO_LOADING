@@ -316,18 +316,32 @@ def _egress_checks(cfg) -> List[tuple]:
         return [("fail", "egress port", err)]
 
     mitm_installed = bool(shutil.which("mitmdump"))
+    # The RECORD first. port_open answers "is something listening", never
+    # "is it ours", so an open port on its own is not evidence of coverage.
+    st = guarded.egress_status(cfg)
+    if st.recorded and st.port:
+        port = st.port
     up = guarded.port_open(port)
 
     # If mitmdump is missing and no proxy is listening, keep doctor focused
     # (deps.py already emits the single mitmdump install line).
-    if not mitm_installed and not up:
+    if not mitm_installed and not up and not st.recorded:
         return []
 
     rows: List[tuple] = []
 
     # 1. Proxy listener
-    if up:
-        rows.append(("ok", "egress proxy", f"listening on :{port}"))
+    if st.running:
+        rows.append(("ok", "egress proxy",
+                     f"listening on :{port} (pid {st.pid})"))
+    elif st.stale:
+        rows.append(("warn", "egress proxy",
+                     f"recorded on :{port} (pid {st.pid}) but NOT running - "
+                     f"nothing is being gated"))
+    elif up:
+        rows.append(("warn", "egress proxy",
+                     f"something is listening on :{port}, but demo_cli did not "
+                     f"start it and cannot confirm it is a demo_cli proxy"))
     else:
         rows.append(("warn", "egress proxy",
                      f"not running on :{port} (start: demo_cli egress --port {port}, "

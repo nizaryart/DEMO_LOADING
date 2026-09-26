@@ -381,6 +381,31 @@ def cmd_teardown(a) -> int:
                           else "no hooks to remove"})
     _show_step(steps[-1])
 
+    # The egress proxy. It could not be torn down before because nothing
+    # recorded that demo_cli had started one - the README's "teardown does not
+    # check the port" note. No elevation needed: we started it as this user.
+    est = g.egress_status(cfg)
+    if not est.recorded:
+        steps.append({"n": 5, "ok": True, "text": "no egress proxy was recorded"})
+    elif est.running and isinstance(est.pid, int):
+        try:
+            os.kill(est.pid, signal.SIGTERM)
+            g.clear_egress_state(cfg)
+            steps.append({"n": 5, "ok": True,
+                          "text": f"stopped the egress proxy (pid {est.pid}, "
+                                  f":{est.port})"})
+        except Exception as exc:
+            steps.append({"n": 5, "ok": False,
+                          "text": f"could not stop the egress proxy (pid {est.pid})",
+                          "detail": [str(exc), "The record is KEPT so it stays visible."],
+                          "remedy": f"kill {est.pid}"})
+    else:
+        g.clear_egress_state(cfg)
+        steps.append({"n": 5, "ok": True,
+                      "text": "cleared a stale egress record (the proxy was "
+                              "already gone)"})
+    _show_step(steps[-1])
+
     failed = [x for x in steps if not x["ok"]]
     if failed:
         print(render.c(f"\n  {len(failed)} step(s) did not complete: "

@@ -310,6 +310,21 @@ def resolve_egress_mode(cfg: Optional[Config],
     return "shadow"
 
 
+def egress_port_is_explicit(cfg: Optional[Config],
+                           cli_port: Optional[int] = None) -> bool:
+    """Did the user NAME a port, or are we free to pick one?
+
+    Not the same question as resolve_egress_port, which always answers with a
+    number. A named port may carry firewall rules, so it is honoured and its
+    collisions are reported; an unnamed one is chosen per run so the proxy is
+    ours by construction rather than by inference.
+    """
+    if cli_port is not None:
+        return True
+    return bool(cfg and isinstance(getattr(cfg, "egress", None), dict)
+                and "port" in cfg.egress)
+
+
 def resolve_egress_port(cfg: Optional[Config],
                         cli_port: Optional[int] = None) -> Tuple[Optional[int], Optional[str]]:
     """Resolve the egress proxy port from CLI args or .demo_cli.toml [egress] table.

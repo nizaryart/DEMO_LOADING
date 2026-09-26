@@ -141,12 +141,25 @@ def test_egress_checks_listener_states(monkeypatch, tmp_path):
     cfg = Config(project_root=str(tmp_path))
     monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/mitmdump" if cmd == "mitmdump" else None)
 
-    # 1. Listening
+    # 1. Listening, and RECORDED as ours. An open port on its own is not
+    #    evidence of coverage - that is what port_open cannot answer, and it
+    #    is how the agent's traffic used to be routed through a stranger.
     monkeypatch.setattr(guarded, "port_open", lambda port: True)
+    monkeypatch.setattr(guarded, "egress_status",
+                        lambda c: guarded.EgressStatus(recorded=True, running=True,
+                                                       port=8080, pid=4242))
     checks = doctor._egress_checks(cfg)
     proxy_check = next(c for c in checks if c[1] == "egress proxy")
     assert proxy_check[0] == "ok"
     assert "listening on :8080" in proxy_check[2]
+
+    # 1b. Listening, NOT ours. Reported, never claimed.
+    monkeypatch.setattr(guarded, "egress_status",
+                        lambda c: guarded.EgressStatus(recorded=False, running=False))
+    checks = doctor._egress_checks(cfg)
+    proxy_check = next(c for c in checks if c[1] == "egress proxy")
+    assert proxy_check[0] == "warn"
+    assert "cannot confirm" in proxy_check[2]
 
     # 2. Not running
     monkeypatch.setattr(guarded, "port_open", lambda port: False)

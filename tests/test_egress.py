@@ -372,3 +372,15 @@ def test_cmd_egress_respects_config_egress_mode(monkeypatch):
     assert cfg.resolve_egress_mode() == "shadow"
     assert cfg.resolve_egress_mode(cli_enforce=True) == "enforce"
 
+
+
+def test_an_unnamed_port_is_ours_to_choose():
+    """resolve_egress_port always answers with a number; this answers whether
+    the user NAMED one. A named port may carry firewall rules, so it is
+    honoured and its collisions reported; an unnamed one is chosen per run so
+    the proxy is ours by construction."""
+    from demo_cli.config import Config, egress_port_is_explicit
+    assert egress_port_is_explicit(Config(), None) is False
+    assert egress_port_is_explicit(Config(), 9090) is True
+    assert egress_port_is_explicit(Config(egress={"port": 9000}), None) is True
+    assert egress_port_is_explicit(Config(egress={"mode": "enforce"}), None) is False

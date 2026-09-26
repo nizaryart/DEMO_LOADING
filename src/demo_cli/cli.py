@@ -898,7 +898,10 @@ def _watch_layers(cfg, port, baseline, proc, seconds: int = 60) -> None:
             if proc.poll() is not None:
                 return
             try:
-                current = g.assess(cfg, port, _host_hook_status(cfg))
+                # From the record, not from "is the port open": a stranger
+                # taking the port after ours died is not our layer coming back.
+                current = g.assess(cfg, port, _host_hook_status(cfg),
+                                   egress_up=bool(g.egress_status(cfg).running))
             except Exception:
                 continue                      # never let the watchdog kill the run
             for layer in g.dropped(previous, current):
@@ -1104,11 +1107,33 @@ def cmd_guarded(a) -> int:
         print(render.c(f"demo_cli guarded: {err}", "red"))
         return 1
     started_egress = None
+    explicit_port = config_mod.egress_port_is_explicit(cfg, getattr(a, "port", None))
+    # The port we OWN, or None. Never inferred from "something is listening":
+    # that is how the agent's traffic, and its CA trust, used to be handed to
+    # whatever process happened to hold the port.
+    egress_port = None
 
-    # Auto-start proxy if configured and not already running.
-    if not getattr(a, "no_egress", False) and not g.port_open(port):
+    recorded = g.egress_status(cfg)
+    if recorded.running and recorded.port:
+        egress_port = recorded.port          # one we started, still alive
+    elif recorded.recorded:
+        g.clear_egress_state(cfg)            # stale record, ours to clean up
+
+    if not getattr(a, "no_egress", False) and egress_port is None:
         mitm = __import__("shutil").which("mitmdump")
+        if mitm and explicit_port and g.port_open(port):
+            # A named port may carry firewall rules, so it is honoured rather
+            # than replaced - but something else is on it, and we will not
+            # route the agent through a process we cannot account for.
+            print(render.c(f"demo_cli: port {port} is in use by something "
+                           f"demo_cli did not start.", "yellow"))
+            print(render.c("         egress is OFF for this run; the agent's "
+                           "traffic is not routed through it.", "dim"))
+            mitm = None
         if mitm:
+            # Ephemeral unless the user named one: a port we picked is ours by
+            # construction, so there is nothing to attribute afterwards.
+            port = port if explicit_port else g.free_port()
             log = os.path.join(cfg.workspace, "egress.log")
             config_mod.ensure_workspace(cfg)
             here = os.path.dirname(os.path.abspath(__file__))
@@ -1136,7 +1161,10 @@ def cmd_guarded(a) -> int:
                     # Early failure: mitmdump exited or crashed
                     break
                 time.sleep(0.2)
-            if started_egress and not g.port_open(port) and started_egress.poll() is not None:
+            if g.port_open(port) and started_egress.poll() is None:
+                egress_port = port
+                g.write_egress_state(cfg, started_egress.pid, port)
+            elif started_egress.poll() is not None:
                 err_tail = ""
                 try:
                     if os.path.exists(log):
@@ -1150,7 +1178,8 @@ def cmd_guarded(a) -> int:
                 if err_tail:
                     print(render.c(f"         {err_tail}", "dim"))
 
-    layers = g.assess(cfg, port, _host_hook_status(cfg))
+    layers = g.assess(cfg, port, _host_hook_status(cfg),
+                      egress_up=egress_port is not None)
     print(render.c(f"\ndemo_cli {__version__}  guarded  ->  {' '.join(argv)}\n", "dim"))
     for layer in layers:
         mark = render.c("[+]", "green") if layer.ok else render.c("[!]", "yellow")
@@ -1164,7 +1193,9 @@ def cmd_guarded(a) -> int:
     extra_np = None
     if getattr(cfg, "egress", None) and isinstance(cfg.egress, dict):
         extra_np = cfg.egress.get("no_proxy")
-    env = g.child_env(dict(os.environ), port, g.port_open(port), extra_no_proxy=extra_np, config=cfg)
+    # egress_port, not port_open(port): we route only through a proxy we own.
+    env = g.child_env(dict(os.environ), egress_port or port,
+                      egress_port is not None, extra_no_proxy=extra_np, config=cfg)
 
     # Resolve executable via shutil.which to honor Windows PATHEXT.
     exe = __import__("shutil").which(argv[0])
@@ -1183,6 +1214,8 @@ def cmd_guarded(a) -> int:
         if started_egress and started_egress.poll() is None:
             started_egress.terminate()
             print("\ndemo_cli: stopped the egress guard it started.")
+        if started_egress:
+            g.clear_egress_state(cfg)
 
 
 def cmd_run(a) -> int:

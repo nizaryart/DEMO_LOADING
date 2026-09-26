@@ -615,7 +615,13 @@ def cmd_egress(a) -> int:
     print()
 
     # mitmdump runs its OWN Python; add demo_cli's location so the addon imports.
-    from .guarded import proxy_process_env
+    # Record it so doctor and teardown can find a proxy started in another
+    # terminal. os.getpid() is correct on both paths: exec REPLACES this
+    # process, keeping the pid, and the Windows branch blocks while the child
+    # runs, so this process being alive means the proxy is.
+    from .guarded import proxy_process_env, write_egress_state, clear_egress_state
+    write_egress_state(cfg, os.getpid(), port)
+
     env = dict(proxy_process_env(os.environ), DEMO_CLI_EGRESS_MODE=mode,
                PYTHONPATH=pkg_parent + os.pathsep + os.environ.get("PYTHONPATH", ""))
     # --listen-host: mitmproxy binds ALL interfaces by default, so this was an
@@ -633,6 +639,8 @@ def cmd_egress(a) -> int:
             return subprocess.run(argv, env=env).returncode
         except KeyboardInterrupt:
             return 0
+        finally:
+            clear_egress_state(cfg)
     # os.execve REPLACES this process image without flushing Python's stdio
     # buffers. Redirected to a file or a pipe, stdout is block-buffered, so
     # every setup instruction printed above is discarded and the user sees

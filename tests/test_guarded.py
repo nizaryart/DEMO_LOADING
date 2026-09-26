@@ -405,3 +405,80 @@ def test_config_is_cloaked():
     assert c.is_cloaked("README.md") is False
     assert c.is_cloaked("main.py") is False
 
+
+
+# --------------------------------------------------------------------------
+# Owning the port, instead of inferring ownership from it
+# --------------------------------------------------------------------------
+
+def test_free_port_returns_something_bindable():
+    import socket
+    p = g.free_port()
+    s = socket.socket()
+    try:
+        s.bind(("127.0.0.1", p))        # free at the moment we looked
+    finally:
+        s.close()
+
+
+def test_no_record_is_not_a_running_proxy(tmp_path):
+    st = g.egress_status(Config(project_root=str(tmp_path)))
+    assert st.recorded is False and st.running is False and not st.stale
+
+
+def test_a_record_survives_a_write_and_read(tmp_path, monkeypatch):
+    cfg = Config(project_root=str(tmp_path))
+    monkeypatch.setattr(g, "port_open", lambda port, **k: True)
+    monkeypatch.setattr(g, "egress_status", g.egress_status)   # not stubbed
+    g.write_egress_state(cfg, os.getpid(), 9931)
+    st = g.egress_status(cfg)
+    assert st.recorded and st.port == 9931 and st.pid == os.getpid()
+    g.clear_egress_state(cfg)
+    assert g.egress_status(cfg).recorded is False
+
+
+def test_a_dead_pid_makes_the_record_stale(tmp_path):
+    """A record is bookkeeping, not proof. Both halves are checked: the pid
+    must be alive AND the port must answer."""
+    cfg = Config(project_root=str(tmp_path))
+    g.write_egress_state(cfg, 999_999, 9932)      # a pid that is not running
+    st = g.egress_status(cfg)
+    assert st.recorded and st.running is False and st.stale
+
+
+def test_an_open_port_alone_is_never_a_running_proxy(tmp_path, monkeypatch):
+    """THE defect this record exists for. Something is listening, nothing says
+    it is ours, so it is not ours."""
+    monkeypatch.setattr(g, "port_open", lambda port, **k: True)
+    st = g.egress_status(Config(project_root=str(tmp_path)))
+    assert st.running is False
+
+
+def test_a_record_from_the_other_host_is_cannot_tell(tmp_path):
+    """WSL and Windows share a filesystem. A pid from the other side is not a
+    pid here, and claiming either answer would be wrong."""
+    import json
+    cfg = Config(project_root=str(tmp_path))
+    os.makedirs(cfg.workspace, exist_ok=True)
+    other = "posix" if os.name == "nt" else "nt"
+    with open(g.egress_state_path(cfg), "w", encoding="utf-8") as f:
+        json.dump({"pid": os.getpid(), "port": 9933, "started": 0, "host": other}, f)
+    assert g.egress_status(cfg).running is None
+
+
+def test_guarded_never_routes_through_a_port_it_did_not_open():
+    """Asserted on the source because the decision lives inside cmd_guarded.
+
+    It used to pass g.port_open(port) as `egress_up`, so a stranger holding
+    the port got the agent's traffic AND its CA trust. The routing decision
+    must come from the port we own.
+    """
+    import inspect
+    import re as _re
+    from demo_cli import cli
+    src = inspect.getsource(cli.cmd_guarded)
+    m = _re.search(r"child_env\((.*?)\)\n", src, _re.S)
+    assert m, "cmd_guarded no longer calls child_env; this test needs rewriting"
+    assert "g.port_open(" not in m.group(1), \
+        "routing is decided by 'is something listening', not by ownership"
+    assert "egress_port" in m.group(1), "routing is not decided by the owned port"

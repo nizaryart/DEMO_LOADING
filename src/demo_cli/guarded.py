@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import os
 import socket
+import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
@@ -216,6 +217,97 @@ def proxy_process_env(base: Dict[str, str]) -> Dict[str, str]:
         env.pop(var, None)
         env.pop(var.lower(), None)
     return env
+
+
+EGRESS_STATE_NAME = "egress.json"
+
+
+def free_port(host: str = "127.0.0.1") -> int:
+    """A port the kernel says is free, on loopback.
+
+    THE POINT IS OWNERSHIP, not the number. A fixed well-known port cannot be
+    told apart from somebody else's service on it, so `guarded` used to route
+    the agent's traffic - and its CA trust - through whatever happened to be
+    listening. A port we picked for this run is ours by construction.
+    """
+    s = socket.socket()
+    try:
+        s.bind((host, 0))
+        return s.getsockname()[1]
+    finally:
+        s.close()
+
+
+@dataclass
+class EgressStatus:
+    """Is the proxy demo_cli started still running?
+
+    `running` is Optional for the reason MountStatus is: a record written on
+    another host, or a pid check that failed, is "cannot tell", and reporting
+    False there claims the guard is down when it may not be.
+    """
+    recorded: bool
+    running: Optional[bool]
+    port: Optional[int] = None
+    pid: Optional[int] = None
+    started: Optional[float] = None
+
+    @property
+    def stale(self) -> bool:
+        return self.recorded and self.running is False
+
+
+def egress_state_path(cfg: Config) -> str:
+    return os.path.join(cfg.workspace, EGRESS_STATE_NAME)
+
+
+def write_egress_state(cfg: Config, pid: int, port: int) -> Optional[str]:
+    """Record the proxy we started. Never raises: bookkeeping must not stop a
+    launch."""
+    import json
+    try:
+        os.makedirs(cfg.workspace, exist_ok=True)
+        path = egress_state_path(cfg)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"pid": pid, "port": port, "started": time.time(),
+                       "host": os.name}, f)
+        return path
+    except OSError:
+        return None
+
+
+def clear_egress_state(cfg: Config) -> None:
+    try:
+        os.unlink(egress_state_path(cfg))
+    except OSError:
+        pass
+
+
+def egress_status(cfg: Config) -> EgressStatus:
+    """What the record says, checked against reality.
+
+    Both halves are required: the pid must be alive AND the port must answer.
+    A pid alone proves nothing (pids are reused) and an open port alone is the
+    thing that cannot be attributed in the first place.
+    """
+    import json
+    from . import mountstate
+    try:
+        with open(egress_state_path(cfg), encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return EgressStatus(recorded=False, running=False)
+    except Exception:
+        return EgressStatus(recorded=False, running=False)
+
+    pid, port = data.get("pid"), data.get("port")
+    alive = mountstate.pid_alive(pid) if isinstance(pid, int) else None
+    if data.get("host") != os.name:
+        alive = None                      # a record from the other side of WSL
+    if alive and isinstance(port, int) and not port_open(port):
+        alive = False                     # the process is gone, or not listening
+    return EgressStatus(recorded=True, running=alive, port=port, pid=pid,
+                        started=data.get("started"))
 
 
 def shell_guard_script() -> Optional[str]:
