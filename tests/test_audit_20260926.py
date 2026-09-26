@@ -190,7 +190,26 @@ def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj):
     """cp-f - classify.py:62-205 has no cp rule at all, so `cp -f a b` is
     "Non-mutating action; outside the invariant" and b is overwritten with no
     recovery point. A truncating redirect to the same file IS caught
-    (fs_redirect_truncate); cp reaches the same end by another verb."""
+    (fs_redirect_truncate); cp reaches the same end by another verb.
+
+    THE FIX IS CONSTRAINED, AND THE OBVIOUS ONE IS WRONG. Adding `cp` to
+    _DESTRUCTIVE_RULES makes it an ACTING SEGMENT, and the multiplicity
+    counter then reads `rm x && cp a b` as two destructive steps, drops the
+    target and escalates a command that snapshots correctly today. That is
+    pinned, deliberately, by
+
+        test_powershell_aliases.py::test_posix_copy_does_not_count_as_a_
+        destructive_step
+
+    whose comment says exactly this. Measured here before writing the test:
+
+        rm old.txt && cp a.txt b.txt      REVERSIBLE  destructive_segments=1
+        rm old.txt && cp -f a.txt b.txt   REVERSIBLE  destructive_segments=1
+        cp -f a.txt b.txt                 ALLOW       destructive_segments=0
+
+    So a fix has to give `cp -f` a resolvable TARGET without giving it a vote
+    in destructive_segments - or scope the rule to the forced form only and
+    prove the two commands above still come back REVERSIBLE."""
     (proj / "a.txt").write_text("SOURCE")
     (proj / "b.txt").write_text("ORIGINAL - must be recoverable")
     g = Guard(Config(project_root=str(proj)), mode="enforce")
@@ -497,6 +516,34 @@ def test_quote_a_quoted_command_is_text_not_a_command():
         f"quoted text classified as {r.matched_rule}"
 
 
+def test_quote_a_commit_message_is_not_a_command(proj):
+    """QUOTE, end to end, which is where it costs something. In enforce mode:
+
+        echo "rm -rf a.txt"            -> ESCALATE, permission=deny
+        git commit -m "rm -rf a.txt"   -> ESCALATE, permission=deny
+
+    A commit message mentioning rm -rf blocks the agent. And the tool ALREADY
+    KNOWS the command touches nothing: recovery.expanded_operands returns []
+    for both, pinned by
+
+        test_affected_preview.py::test_the_preview_never_names_a_file_
+        nothing_will_touch
+
+    because targets._RM_RE is `^`-anchored. The operand layer and the
+    classifier disagree about the same string, and only one side is pinned.
+
+    DO NOT FIX THIS BY ANCHORING rm_rf. It is unanchored on purpose -
+    test_unearned_allows.py says so and
+    test_the_docker_exclusion_did_not_touch_real_rm pins what depends on it.
+    The fix is quote-awareness, which split_segments already has for
+    separators and the rule table does not have for matches."""
+    g = Guard(Config(project_root=str(proj)), mode="enforce")
+    r = g.evaluate('git commit -m "rm -rf a.txt"')
+    assert r.permission != "deny", (
+        f"a commit message was denied: {r.decision.decision} / "
+        f"{r.decision.reason}")
+
+
 @pytest.mark.parametrize("command", [
     "grep -rn 'terraform destroy' docs/",
     "terraform destroy --help",
@@ -511,7 +558,19 @@ def test_o1_reads_and_help_are_not_mutations(command):
     container_runtime and package_registry carry the _CMD_PREFIX `^` anchor at
     classify.py:244 and :255, so `cat docker_rm_notes.txt` and a commit message
     mentioning `npm unpublish` no longer fire. That anchor is the shape of the
-    fix; these four rules have not had it applied."""
+    fix; these four rules have not had it applied.
+
+    THIS IS THE THIRD INSTANCE OF A TWICE-FIXED CLASS, not a new finding. The
+    project swept it for SQL verbs on 2026-09-14 (test_sql_verb_is_not_sql.py:
+    "21 of 61 ordinary commands escalated") and for container/registry verbs on
+    2026-09-17 (test_unearned_allows.py). Both times the fix shipped with a
+    corpus of prose that must be RELEASED - BENIGN and ORDINARY respectively -
+    and test_unearned_allows.py states the rule outright: "a rule table is only
+    as good as what it releases."
+
+    Neither corpus covers the rules below. The idiomatic fix is to extend
+    ORDINARY with these four and sweep the remaining unanchored rules the same
+    way, rather than to add a fourth separate list."""
     r = classify_pipeline(command)
     assert not r.is_destructive and r.nonrecoverable_surface is None, (
         f"{command!r} reads or prints; classified {r.matched_rule} "
