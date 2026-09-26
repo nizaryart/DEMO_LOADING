@@ -552,3 +552,64 @@ def test_double_fire_an_existing_combined_matcher_is_recognised(tmp_path):
     assert fires == 1, (
         f"one Bash command would spawn the hook {fires} times; matchers are "
         f"{[b.get('matcher') for b in blocks]}")
+
+
+# ==========================================================================
+# Found 2026-09-26 by reading cli.py rather than its comments. Not in the
+# original twenty.
+# ==========================================================================
+
+def test_selfexclusion_does_not_skip_a_command_that_merely_names_the_guard(
+        tmp_path, monkeypatch):
+    """cli.py:592 - cmd_guard_shell self-excludes with a SUBSTRING test:
+
+        if not command or command.startswith("demo_cli") or "guard-shell" in command:
+            return 0
+
+    The intent is right (the guard must not recurse into itself), but the test
+    is the same unanchored-substring shape as O1, on the under-blocking side.
+    Any command whose TEXT happens to contain "guard-shell" - a log file, a
+    directory, a branch name - skips the entire shell door: no classification,
+    no snapshot, no receipt, no stderr line. Nothing records that a destructive
+    command ran unguarded.
+
+    Verified through the live DEBUG trap, enforce mode:
+        rm -f logs/ordinary.log     -> snapshot 1940e8b9, receipt written
+        rm -f logs/guard-shell.log  -> silence; file deleted; 0 receipts
+
+    NOT reachable by a trailing `# guard-shell` comment: bash strips comments
+    out of $BASH_COMMAND before the trap sees it, the same normalisation that
+    makes `cat a >b` reach the guard. This is an ordinary filename, not a
+    crafted bypass - which is what makes it worth pinning.
+
+    Driven through cmd_guard_shell itself, not the snippet: the self-exclusion
+    is in the PYTHON, so a stub demo_cli on a fake PATH cannot see it.
+    """
+    from demo_cli.cli import cmd_guard_shell
+
+    class _Args:
+        def __init__(self, argv):
+            self.argv = argv
+            self.no_color = True
+
+    (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "ordinary.log").write_text("PRECIOUS")
+    (logs / "guard-shell.log").write_text("PRECIOUS")
+    monkeypatch.chdir(tmp_path)
+
+    from demo_cli import recovery
+    from demo_cli.config import load_config
+
+    def _points():
+        return len(recovery.load_entries(load_config(str(tmp_path)).recovery_dir))
+
+    cmd_guard_shell(_Args(["rm -f logs/ordinary.log"]))
+    control = _points()
+    assert control > 0, "precondition: an ordinary delete should be captured"
+
+    cmd_guard_shell(_Args(["rm -f logs/guard-shell.log"]))
+    assert _points() > control, (
+        "a destructive command was skipped because its own text contained the "
+        "guard's subcommand name; nothing classified, snapshotted or recorded it")
