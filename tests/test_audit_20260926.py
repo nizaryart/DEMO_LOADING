@@ -630,3 +630,26 @@ def test_selfexclusion_does_not_skip_a_command_that_merely_names_the_guard(
     assert _points() > control, (
         "a destructive command was skipped because its own text contained the "
         "guard's subcommand name; nothing classified, snapshotted or recorded it")
+
+
+def test_doctor_never_opens_the_certificate_gui(monkeypatch):
+    """doctor used `certutil -viewstore`, the GUI verb. It opens a modal dialog
+    during `demo_cli doctor` and during the test suite, blocks until somebody
+    clicks it, times out, and is then reported as "not trusted" - so the CA can
+    never be confirmed and the dialog is left on screen.
+    """
+    from demo_cli import doctor as doctor_mod
+
+    seen = {}
+
+    def fake_run(args, **kw):
+        seen["args"] = list(args)
+        class R:
+            returncode, stdout, stderr = 0, "mitmproxy", ""
+        return R()
+
+    monkeypatch.setattr(doctor_mod.subprocess, "run", fake_run)
+    assert doctor_mod._ca_trusted() is True
+    assert "-store" in seen["args"], seen["args"]
+    assert not any(str(a).startswith("-view") for a in seen["args"]), (
+        f"a GUI certutil verb blocks doctor on a dialog: {seen['args']}")

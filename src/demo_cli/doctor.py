@@ -11,6 +11,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from typing import List, Optional, Tuple
@@ -284,6 +285,21 @@ def _mount_checks(cfg) -> List[tuple]:
     return out
 
 
+def _ca_trusted(name: str = "mitmproxy", timeout: float = 5.0) -> bool:
+    """Is `name` in the current user's Root store?
+
+    -store, NOT -viewstore. The view verbs open a modal GUI dialog: it blocks
+    until somebody clicks it, this call times out, the result is reported as
+    "not trusted", and the dialog is left on screen. Seen during a test run.
+    """
+    try:
+        r = subprocess.run(["certutil", "-user", "-store", "Root", name],
+                           capture_output=True, text=True, timeout=timeout)
+    except Exception:
+        return False
+    return r.returncode == 0 and name in (r.stdout or "").lower()
+
+
 def _egress_checks(cfg) -> List[tuple]:
     """Is the egress proxy running, is the CA bundle available, and is NO_PROXY sane?
 
@@ -323,15 +339,7 @@ def _egress_checks(cfg) -> List[tuple]:
         if os.name == "nt":
             cer = os.path.normpath(
                 os.path.join(os.path.expanduser("~/.mitmproxy"), "mitmproxy-ca-cert.cer"))
-            trusted = False
-            if os.path.isfile(cer):
-                try:
-                    import subprocess
-                    r = subprocess.run(["certutil", "-user", "-viewstore", "Root", "mitmproxy"],
-                                       capture_output=True, text=True, timeout=2)
-                    trusted = (r.returncode == 0 and "mitmproxy" in (r.stdout or "").lower())
-                except Exception:
-                    pass
+            trusted = os.path.isfile(cer) and _ca_trusted()
             if trusted:
                 rows.append(("ok", "egress CA", f"trusted in Windows user store ({cer})"))
             else:
@@ -491,6 +499,7 @@ __all__ = [
     "_SELFTEST_PAYLOADS",
     "_any_hook_installed",
     "_mount_checks",
+    "_ca_trusted",
     "_egress_checks",
     "cmd_doctor",
 ]
