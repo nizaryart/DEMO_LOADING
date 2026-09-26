@@ -266,15 +266,12 @@ def install_into_settings(path: str) -> List[str]:
         return {p.strip() for p in str(matcher or "").split("|") if p.strip()}
 
     def _ours(matcher: str):
-        """Our handler for `matcher`, in ANY block that covers it.
+        """Our handler for `matcher`, in any block that covers it.
 
-        Compared by ALTERNATIVE, not by the whole string. A settings.json
-        holding {"matcher": "Bash|PowerShell"} - a shape Claude Code accepts,
-        and one this project's own docs once showed - was not equal to "Bash"
-        or to "PowerShell", so neither was recognised as ours. The installer
-        appended a separate block for each, both matched the same Bash
-        command, and the hook then ran TWICE per command: two processes, two
-        snapshots, two receipts, and a doubled share of the hook budget.
+        Compared by alternative, not whole string: a block matching
+        "Bash|PowerShell" equals neither "Bash" nor "PowerShell", so the
+        installer appended a second block for each and the hook fired twice
+        per command.
         """
         want = _alternatives(matcher)
         for b in pre:

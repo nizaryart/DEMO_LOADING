@@ -1,38 +1,16 @@
-"""Audit 2026-09-26: eighteen defects confirmed live at f694dba (v1.7.0).
+"""Audit 2026-09-26: defects confirmed live at f694dba (v1.7.0).
 
-Every test here FAILS on the commit that introduced this file. That is the
-point: the suite was green at 826 passing while all eighteen were reachable,
-so nothing in it described these behaviours. Each test states the behaviour
-demo_cli claims to have, so a fix has something to turn green and a
-regression has something to break.
+Each test states the behaviour demo_cli claims to have. Red means the defect
+is still there. The suite was green at 1856 passing with all of them reachable,
+so nothing in it described these behaviours.
 
-Grouped by what the defect costs:
-
-  Tier 1  the tool reports a recovery it did not take   (R2 R4 R3 cp-f DIFF LOG-0B)
-  Tier 2  the guard is absent, bypassable or unrecorded (S1 S4 S5 KILL ASYM EGRESS)
-  Tier 3  text is judged as if it were a command        (QUOTE O1 O2), plus cost
-          (DOUBLE-FIRE S3 S2)
-
-Two defects from the audit are NOT here: ELEV-MSG and ORPHAN need Windows and
-were left unverified rather than guessed at.
-
-WHERE THIS OVERLAPS EXISTING TESTS, DELIBERATELY:
-
-  * test_symlink_snapshot.py pins `copytree(symlinks=True)` - the DIRECTORY
-    branch. R3 below is the FILE branch, `copy2(ref, bak)` at recovery.py:338,
-    which that file never reaches. The fix there was real and incomplete.
-
-  * test_ignored_dir_capture.py asserts, on purpose, that `.demo_cli` is never
-    un-ignored: un-ignoring it would copy the backup into the backup. R4 below
-    must therefore NOT be fixed by un-ignoring the name. It must be fixed by
-    telling the workspace PATH apart from a directory that merely shares its
-    name. The existing test is kept honest by test_r4_the_real_workspace_is_
-    still_ignored, which asserts the rule it protects.
-
-  * test_shell_guard.py::test_the_kill_switch_turns_the_guard_off passes
-    DEMO_CLI_DISABLE=1 into a NEW shell, where the top-level `if` sees it and
-    the trap is never installed. Its docstring claims this "still works from a
-    shell that is otherwise stuck". It does not - that is KILL below.
+Deliberate overlaps with existing tests:
+  * test_symlink_snapshot.py pins the copytree (directory) branch; R3 is the
+    copy2 (file) branch, which that file never reaches.
+  * test_ignored_dir_capture.py asserts .demo_cli is never un-ignored. R4 must
+    therefore be fixed by PATH, not by name - guarded by the companion test.
+  * test_shell_guard.py's kill-switch test uses a NEW shell; KILL here is an
+    already-open one.
 """
 import json
 import os
@@ -52,19 +30,11 @@ from demo_cli.hooks.claude_code import install_into_settings
 from demo_cli.lifecycle import _strip_hook_entries
 
 def _bash_for_this_platform():
-    """The same detection test_shell_guard.py uses, and for the same reason.
+    """Git Bash, never WSL's C:\\Windows\\system32\\bash.EXE.
 
-    A naive shutil.which("bash") on Windows finds C:\\Windows\\system32\\bash.EXE
-    - the WSL launcher. It runs in a different filesystem namespace, so a
-    Windows tmp_path, a BASH_ENV pointing at a Windows path and a stub on a
-    Windows PATH are all invisible to it. The harness then fails for reasons
-    that have nothing to do with the defect under test, and - worse - the two
-    NEGATIVE assertions (S3, KILL) pass vacuously because nothing ran at all.
-
-    Found on Nizar's Windows box, 2026-09-26: S1/S4/S5 failed on harness
-    breakage rather than on the defect, and S3/KILL went green while proving
-    nothing. Git Bash is also the one that matters - Claude Code's Bash tool on
-    Windows is Git Bash, which is where !-mode actually runs.
+    WSL bash runs in another filesystem namespace, so tmp_path, BASH_ENV and
+    the stub are invisible to it: `any(...)` tests fail and `not any(...)`
+    tests pass vacuously. Same detection as test_shell_guard.py.
     """
     if os.name != "nt":
         return shutil.which("bash")
@@ -115,10 +85,10 @@ def proj(tmp_path, monkeypatch):
 # ==========================================================================
 
 def test_r2_a_file_edit_outside_the_project_is_not_called_reversible(proj, tmp_path):
-    """R2 - guard.py:542. evaluate_file_edit abspath()s its argument and never
-    compares it to project_root, so the Edit/Write door snapshots and blesses
-    any path on the machine. The shell door refuses the identical path at
-    guard.py:302. Two doors, one project, opposite answers."""
+    """R2 - guard.py. evaluate_file_edit had no project-root bound, so it
+    snapshotted and blessed any path on the machine while the shell door
+    escalated on the same one.
+    """
     outside = tmp_path.parent / "outside_victim.txt"
     outside.write_text("precious")
     g = Guard(Config(project_root=str(proj)), mode="enforce")
@@ -130,9 +100,9 @@ def test_r2_a_file_edit_outside_the_project_is_not_called_reversible(proj, tmp_p
 
 
 def test_r2_the_project_root_itself_is_not_a_file_edit_target(proj):
-    """R2, second shape. guard.py:307 already refuses the project root as a
-    capture surface for the shell door, with a comment explaining why. The
-    file-edit door has no such refusal."""
+    """R2, second shape: evaluate() refuses the project root as a capture
+    surface; this door did not.
+    """
     g = Guard(Config(project_root=str(proj)), mode="enforce")
     r = g.evaluate_file_edit(str(proj), tool_name="Write")
     assert r.decision.decision != "REVERSIBLE", \
@@ -140,9 +110,9 @@ def test_r2_the_project_root_itself_is_not_a_file_edit_target(proj):
 
 
 def test_r2_a_home_dotfile_is_not_snapshotted_into_the_project(proj):
-    """R2, the consequence that is not only a wrong label: the file is COPIED
-    into the project's recovery directory. Pointed at /etc/hosts or an ssh
-    config, the honesty bug is also an exfiltration bug."""
+    """R2's other half: the file was COPIED into the project's recovery dir.
+    Pointed at /etc/hosts or an ssh config, a wrong label is also a leak.
+    """
     g = Guard(Config(project_root=str(proj)), mode="enforce")
     victim = os.path.join(os.path.expanduser("~"), ".bashrc")
     if not os.path.isfile(victim):
@@ -154,14 +124,10 @@ def test_r2_a_home_dotfile_is_not_snapshotted_into_the_project(proj):
 
 @requires_symlinks
 def test_r3_a_snapshotted_symlink_is_still_a_symlink_after_undo(proj):
-    """R3 - recovery.py:338. The FILE branch calls shutil.copy2(ref, bak) with
-    no follow_symlinks=False, so the snapshot holds the target's BYTES. Undo
-    then writes those bytes back as a regular file and the link is gone.
-
-    test_symlink_snapshot.py fixed exactly this for the directory branch and
-    said why: "rm link destroys the link, not its target, so restoring a link
-    is correct and restoring a regular file full of the target's bytes never
-    was." The file branch never got the same treatment."""
+    """R3 - recovery.py:338. copy2(ref, bak) has no follow_symlinks=False, so
+    the snapshot holds the target's bytes and undo writes them back as a plain
+    file. test_symlink_snapshot.py fixed this for copytree, not for copy2.
+    """
     real = proj / "real_target.txt"
     real.write_text("REAL CONTENT")
     link = proj / "link.txt"
@@ -179,13 +145,11 @@ def test_r3_a_snapshotted_symlink_is_still_a_symlink_after_undo(proj):
 
 
 def test_r4_a_decoy_dot_demo_cli_directory_is_captured(proj):
-    """R4 - recovery.py:349 + targets.py:48. IGNORED_DIRS is matched by NAME,
-    so ANY directory called .demo_cli is dropped from a directory capture -
-    including one full of a user's own files that has nothing to do with the
-    workspace. The entry is still recorded and the decision is still
-    REVERSIBLE, which is the part that makes it a lie rather than a limit.
-
-    THE FIX MUST NOT BE to un-ignore the name: see the companion test below."""
+    """R4 - recovery.py:349 + targets.py:48. IGNORED_DIRS matches by NAME, so
+    any directory called .demo_cli is dropped from a capture still reported
+    REVERSIBLE. Fix by path identity, not by un-ignoring the name - see the
+    companion test.
+    """
     payload = proj / "payload"
     (payload / ".demo_cli").mkdir(parents=True)
     (payload / ".demo_cli" / "user_data.txt").write_text("NOT THE WORKSPACE")
@@ -202,10 +166,9 @@ def test_r4_a_decoy_dot_demo_cli_directory_is_captured(proj):
 
 
 def test_r4_the_real_workspace_is_still_ignored(proj):
-    """The capability R4's fix must not cost, and the reason the obvious fix is
-    wrong. Copying the recovery store into the recovery store is the bug
-    test_ignored_dir_capture.py::test_the_recovery_store_is_never_un_ignored
-    exists to prevent. This passes today and must keep passing."""
+    """What R4's fix must not cost: copying the recovery store into itself.
+    Passes today and must keep passing.
+    """
     rec = str(proj / ".demo_cli" / "recovery")
     os.makedirs(rec, exist_ok=True)
     (proj / "src").mkdir()
@@ -220,29 +183,15 @@ def test_r4_the_real_workspace_is_still_ignored(proj):
 
 
 def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj):
-    """cp-f - classify.py:62-205 has no cp rule at all, so `cp -f a b` is
-    "Non-mutating action; outside the invariant" and b is overwritten with no
-    recovery point. A truncating redirect to the same file IS caught
-    (fs_redirect_truncate); cp reaches the same end by another verb.
+    """cp-f - classify.py has no cp rule, so `cp -f a b` is "non-mutating" and
+    b is overwritten with no recovery point.
 
-    THE FIX IS CONSTRAINED, AND THE OBVIOUS ONE IS WRONG. Adding `cp` to
-    _DESTRUCTIVE_RULES makes it an ACTING SEGMENT, and the multiplicity
-    counter then reads `rm x && cp a b` as two destructive steps, drops the
-    target and escalates a command that snapshots correctly today. That is
-    pinned, deliberately, by
-
-        test_powershell_aliases.py::test_posix_copy_does_not_count_as_a_
-        destructive_step
-
-    whose comment says exactly this. Measured here before writing the test:
-
-        rm old.txt && cp a.txt b.txt      REVERSIBLE  destructive_segments=1
-        rm old.txt && cp -f a.txt b.txt   REVERSIBLE  destructive_segments=1
-        cp -f a.txt b.txt                 ALLOW       destructive_segments=0
-
-    So a fix has to give `cp -f` a resolvable TARGET without giving it a vote
-    in destructive_segments - or scope the rule to the forced form only and
-    prove the two commands above still come back REVERSIBLE."""
+    CONSTRAINT: adding cp to _DESTRUCTIVE_RULES makes it an acting segment,
+    and the multiplicity counter then escalates `rm x && cp a b`, which
+    snapshots correctly today. Pinned by test_powershell_aliases.py::
+    test_posix_copy_does_not_count_as_a_destructive_step. A fix must give
+    `cp -f` a resolvable target without a vote in destructive_segments.
+    """
     (proj / "a.txt").write_text("SOURCE")
     (proj / "b.txt").write_text("ORIGINAL - must be recoverable")
     g = Guard(Config(project_root=str(proj)), mode="enforce")
@@ -253,11 +202,10 @@ def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj):
 
 
 def test_diff_shows_an_ignored_directory_that_the_capture_holds(proj):
-    """DIFF - diff.py:106. The capture lift works: when a command destroys a
-    parent holding .git, unignorable_dirs lifts the ignore and .git IS copied.
-    _manifest() then filters IGNORED_DIRS from BOTH sides, so `demo_cli diff`
-    renders that capture as though it had no .git - in front of the person
-    deciding whether to undo."""
+    """DIFF - diff.py:106. The capture lift works and .git IS copied, but
+    _manifest() filters IGNORED_DIRS from both sides, so `demo_cli diff` shows
+    the capture as if it had none - to the person deciding whether to undo.
+    """
     from demo_cli import diff as diff_mod
     sub = proj / "sub"
     (sub / ".git").mkdir(parents=True)
@@ -278,13 +226,10 @@ def test_diff_shows_an_ignored_directory_that_the_capture_holds(proj):
 
 
 def test_log_tells_unreadable_apart_from_empty(proj):
-    """LOG-0B - recovery.py:544. entry_size() returns 0 both for "this recovery
-    point is zero bytes" and for "I cannot stat it", and `log` renders both as
-    0B under a footer offering `undo <id>`. The README has listed this under
-    Known issues since the beta; it is still true.
-
-    "0 bytes" and "I cannot see it" are different facts. This test only asks
-    that they be distinguishable - it does not prescribe the rendering."""
+    """LOG-0B - recovery.py:544. entry_size() returns 0 both for "zero bytes"
+    and "cannot stat it", and log renders both as 0B under an undo footer.
+    Asks only that the two be distinguishable, not how to render it.
+    """
     f = proj / "data.txt"
     f.write_text("X" * 4000)
     rec = str(proj / ".demo_cli" / "recovery")
@@ -317,10 +262,14 @@ def _run_guarded(tmp_path, stub_body, command, env_extra=None, preload=True):
     """
     binn = tmp_path / "bin"
     binn.mkdir(exist_ok=True)
-    calls = tmp_path / "calls.log"
+    calls = binn / "calls.log"                     # beside the stub; see _LOG
+    # Truncate per run: two _run_guarded calls share one tmp_path, so a control
+    # run's entries would otherwise still be in `seen` for the run after it.
+    if calls.exists():
+        calls.unlink()
     stub = binn / "demo_cli"
     with open(stub, "w", newline="\n") as fh:      # CRLF makes the shebang "/bin/sh\r"
-        fh.write(stub_body.replace("@CALLS@", str(calls)))
+        fh.write(stub_body)
     stub.chmod(0o755)
 
     script = tmp_path / "guard.sh"
@@ -346,14 +295,28 @@ def _run_guarded(tmp_path, stub_body, command, env_extra=None, preload=True):
     return r, seen
 
 
+# $0, NOT A PATH WE SUBSTITUTE IN. The previous version baked the calls-log
+# path into the script text unquoted:
+#
+#     echo "$@" >> C:\Users\pc\AppData\Local\Temp\...\calls.log
+#
+# On Windows bash reads those backslashes as escapes, the redirect lands
+# somewhere else, and `seen` comes back EMPTY for every test - which fails the
+# `any(...)` assertions (S1, S5) and silently PASSES the `not any(...)` ones
+# (S3, KILL). The second is the dangerous half: four tests went green on
+# Windows while proving nothing, 2026-09-26. Second time this harness has
+# produced a vacuous pass; deriving the path from $0 removes the class.
+_LOG = 'CALLS="$(dirname "$0")/calls.log"\n'
 RECORDS = ('#!/bin/sh\n'
            'if [ "$1" = "--version" ]; then echo 1.7.0; exit 0; fi\n'
-           'echo "$@" >> @CALLS@\n'
+           + _LOG +
+           'echo "$@" >> "$CALLS"\n'
            'exit 0\n')
 BROKEN = '#!/bin/sh\necho "SyntaxError: broken" >&2\nexit 1\n'
 BLOCKS = ('#!/bin/sh\n'
           'if [ "$1" = "--version" ]; then echo 1.7.0; exit 0; fi\n'
-          'echo "$@" >> @CALLS@\n'
+          + _LOG +
+          'echo "$@" >> "$CALLS"\n'
           'exit 1\n')
 
 
@@ -365,22 +328,16 @@ BLOCKS = ('#!/bin/sh\n'
 ])
 def test_s1_the_prefilter_submits_what_the_classifier_calls_destructive(
         tmp_path, command, rule):
-    """S1 - cli.py:557. The bash pre-filter is a `case` over a handful of
-    substrings; the classifier is a rule table. Where they disagree the
-    pre-filter wins, silently, because the guard is never spawned at all.
+    """S1 - the bash pre-filter is narrower than the classifier, and what it
+    drops no layer on this path ever sees.
 
-    Each command below is classified destructive by classify.py and never
-    reaches the guard through the bash door. Verified through the LIVE DEBUG
-    trap, not a replayed `case`: bash normalises $BASH_COMMAND (`cat a >b`
-    becomes `cat a > b`, which the `*> *` pattern does catch), so only the
-    live trap is authoritative about this frontier.
+    Driven through the live DEBUG trap: bash normalises $BASH_COMMAND, so a
+    replayed `case` is not authoritative (`cat a >b` becomes `cat a > b`,
+    which the `*> *` pattern does catch).
 
-    THERE IS A FLOOR, AND IT IS OPT-IN. syscall_guard.py traps rename(2) and
-    unlinkat(2), which is precisely what `mv` and `find -delete` do, so those
-    two ARE caught - but only under `demo_cli run <cmd>` (cli.py:1110), an
-    explicit per-command wrapper. Nothing an agent runs through the Bash tool,
-    and nothing typed into an ordinary shell, goes through it. This test is
-    about the door that is always open, not the one you have to ask for."""
+    syscall_guard traps rename(2) and unlinkat(2), so mv and find -delete have
+    a floor - but only under `demo_cli run <cmd>`, never the agent's Bash tool.
+    """
     assert classify_pipeline(command).needs_recovery, \
         f"precondition: the classifier should call this {rule}"
     (tmp_path / "keep.txt").write_text("k")
@@ -396,23 +353,29 @@ def test_s1_the_prefilter_submits_what_the_classifier_calls_destructive(
     "git status", "git log --oneline -1", "git diff", "git branch",
 ])
 def test_s3_reading_git_commands_do_not_spawn_the_guard(tmp_path, command):
-    """S3 - cli.py:557 matches `*git *`, so EVERY git command pays a Python
-    start-up. Measured on this machine: ~200ms per git command against ~4ms
-    for the command itself, a ~50x tax on the most frequent verb in the
-    repository. None of these four can destroy anything."""
-    _r, seen = _run_guarded(tmp_path, RECORDS, command)
-    assert not any("guard-shell" in c for c in seen), (
+    """S3 - `*git *` matches every git command, so a read pays a Python
+    start-up: ~200ms against ~4ms for the command itself.
+    """
+    # A CONTROL IN THE SAME SHELL. This assertion is a NEGATIVE, so it passes
+    # for free whenever the harness is broken and nothing was recorded - which
+    # is exactly what happened on Windows on 2026-09-26, where four of these
+    # went green while the stub could not write its log at all. The `rm` proves
+    # the trap fired and the stub was reached before the negative means
+    # anything.
+    (tmp_path / "control.txt").write_text("c")
+    _r, seen = _run_guarded(tmp_path, RECORDS, f"rm -f control.txt; {command}")
+    assert any("control.txt" in c for c in seen), (
+        "harness precondition failed: the stub was never reached, so the "
+        "assertion below would pass without proving anything")
+    assert not any(command in c for c in seen), (
         f"{command!r} spawned the guard; nothing it can do needs gating")
 
 
 @requires_bash
 def test_s2_the_guard_call_is_bounded(tmp_path):
-    """S2 - receipts.py:77 gives the receipt lock a 10s timeout and cli.py:558
-    calls the guard with no bound at all, so one stuck lock costs 10s on EVERY
-    command that matches the pre-filter. Measured: 192ms free, 10253ms held.
-
-    It does fail open and say so, which is the right shape. The cost is the
-    defect."""
+    """S2 - the ledger lock waits 10s and this call had no bound, so a stuck
+    lock cost 10s on every matching command. Measured 192ms free, 10253ms held.
+    """
     assert "timeout" in _SHELL_GUARD_SNIPPET, (
         "the snippet spawns demo_cli with no time bound; a stuck receipt lock "
         "stalls every matching command for the full DEMO_CLI_LOCK_TIMEOUT")
@@ -420,14 +383,10 @@ def test_s2_the_guard_call_is_bounded(tmp_path):
 
 @requires_bash
 def test_s4_a_broken_guard_leaves_a_record(tmp_path):
-    """S4 - cli.py:562. When demo_cli cannot run, the snippet prints to stderr
-    and returns 0. Correct: a broken guard must not lock the user out. But
-    nothing is written anywhere, so the receipts - the audit trail this tool
-    exists to produce - contain no trace that a destructive command ran
-    unguarded. Verified: 0 receipts and no .demo_cli directory at all, against
-    1 receipt for the same command with a working guard.
-
-    This test does not prescribe WHERE the record goes; only that one exists."""
+    """S4 - when demo_cli cannot run, the hatch allows the command (correct)
+    and records nothing (not correct): 0 receipts for a destructive command
+    that ran unguarded. Does not prescribe where the record goes.
+    """
     (tmp_path / "victim.txt").write_text("v")
     r, _seen = _run_guarded(tmp_path, BROKEN, "rm -f victim.txt")
     assert "not working" in r.stderr, "precondition: the escape hatch fired"
@@ -442,11 +401,9 @@ def test_s4_a_broken_guard_leaves_a_record(tmp_path):
 
 @requires_bash
 def test_s5_installing_demo_cli_protects_an_already_open_shell(tmp_path):
-    """S5 - cli.py:529. `command -v demo_cli` is evaluated once, when the
-    snippet is sourced. A shell open at install time never installs the trap
-    and never will, and nothing tells the user their session is unguarded.
-    Verified: trap -p DEBUG is empty at load and still empty after demo_cli
-    becomes resolvable."""
+    """S5 - `command -v demo_cli` was evaluated once, at load, so a shell open
+    at install time never armed the trap and nothing said so.
+    """
     (tmp_path / "victim.txt").write_text("v")
     binn = tmp_path / "bin"
     binn.mkdir(exist_ok=True)
@@ -467,15 +424,18 @@ def test_s5_installing_demo_cli_protects_an_already_open_shell(tmp_path):
 
 @requires_bash
 def test_kill_the_disable_switch_works_in_an_already_open_shell(tmp_path):
-    """KILL - cli.py:529 checks DEMO_CLI_DISABLE once, at load; the trap body
-    at cli.py:551 never looks at it again. Setting it in a running shell does
-    nothing, and the stderr the guard itself prints - "silence it with export
-    DEMO_CLI_DISABLE=1" - is advice that does not work where it is given.
-
-    test_shell_guard.py::test_the_kill_switch_turns_the_guard_off passes the
-    variable into a NEW shell, where the top-level `if` sees it and no trap is
-    installed. That path works and is not this one."""
+    """KILL - DEMO_CLI_DISABLE was read once at load, so setting it in a
+    running shell did nothing - and that is the shell the guard's own stderr
+    tells you to set it in.
+    """
     (tmp_path / "victim.txt").write_text("v")
+    # Control first: with the switch UNSET the guard must be reached. Without
+    # this the `not any(...)` below passes whenever the harness is broken.
+    (tmp_path / "control.txt").write_text("c")
+    _c, control_seen = _run_guarded(tmp_path, RECORDS, "rm -f control.txt")
+    assert any("control.txt" in c for c in control_seen), (
+        "harness precondition failed: the stub was never reached")
+
     r, seen = _run_guarded(
         tmp_path, BLOCKS,
         'export DEMO_CLI_DISABLE=1; rm -f victim.txt; echo RAN')
@@ -487,11 +447,10 @@ def test_kill_the_disable_switch_works_in_an_already_open_shell(tmp_path):
 
 
 def test_asym_uninstall_does_not_remove_a_hook_that_is_not_ours(tmp_path):
-    """ASYM - install compares by == (hooks/claude_code.py:269), uninstall by
-    substring (lifecycle.py:161). A third-party entry that merely MENTIONS
-    `demo_cli hook` is invisible to install and deleted by teardown. Teardown
-    is supposed to remove what setup added; here it removes someone else's
-    tooling and says nothing."""
+    """ASYM - install compares by ==, uninstall by substring, so a third-party
+    entry that merely mentions `demo_cli hook` is invisible to install and
+    deleted by teardown.
+    """
     foreign = {"hooks": {"PreToolUse": [
         {"matcher": "Bash", "hooks": [
             {"type": "command", "command": "my-audit-tool --wrap 'demo_cli hook' --log"},
@@ -507,17 +466,14 @@ def test_asym_uninstall_does_not_remove_a_hook_that_is_not_ours(tmp_path):
 
 
 def test_egress_does_not_claim_an_unattributable_listener(tmp_path, monkeypatch):
-    """EGRESS - guarded.py:102. port_open() answers "is anything listening",
-    and doctor.py:312 renders that as a green "egress proxy listening on
-    :PORT". A stale mitmdump from another project, or any unrelated service,
-    earns this project a tick for a proxy that is not gating its traffic.
+    """EGRESS - port_open() answers "is anything listening" and doctor renders
+    that as a green tick, so a stranger's socket earns this project credit for
+    a proxy that is not gating its traffic.
 
-    FIXING THIS NEEDS A DESIGN DECISION, not just a patch: demo_cli has to be
-    able to tell ITS proxy from a stranger's - a health endpoint, a pidfile
-    checked against the listener, or an explicit "cannot attribute" state. The
-    assertion is deliberately weak: doctor may say ok, or warn, or say it
-    cannot tell, but it must not report an unqualified green for a socket it
-    has never identified."""
+    NEEDS A DESIGN DECISION: demo_cli must be able to tell its proxy from a
+    stranger's. The assertion is weak on purpose - ok, warn or "cannot tell"
+    are all acceptable; an unqualified green is not.
+    """
     from demo_cli import doctor as doctor_mod
     (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
     monkeypatch.chdir(tmp_path)
@@ -547,35 +503,27 @@ def test_egress_does_not_claim_an_unattributable_listener(tmp_path, monkeypatch)
 # ==========================================================================
 
 def test_quote_a_quoted_command_is_text_not_a_command():
-    """QUOTE - classify.py:100. `echo "rm -rf /"` prints eight characters. The
-    rm_rf rule searches the raw string, so the quoting that makes it inert is
-    exactly the thing the classifier ignores."""
+    """QUOTE - `echo "rm -rf /"` prints eight characters, but rm_rf searches
+    the raw string, so the quoting that makes it inert is what is ignored.
+    """
     r = classify_pipeline('echo "rm -rf /"')
     assert not r.is_destructive, \
         f"quoted text classified as {r.matched_rule}"
 
 
 def test_quote_a_commit_message_is_not_a_command(proj):
-    """QUOTE, end to end, which is where it costs something. In enforce mode:
+    """QUOTE end to end, where it costs something: in enforce mode
+    `git commit -m "rm -rf a.txt"` is ESCALATE / deny.
 
-        echo "rm -rf a.txt"            -> ESCALATE, permission=deny
-        git commit -m "rm -rf a.txt"   -> ESCALATE, permission=deny
+    recovery.expanded_operands returns [] for the same string (pinned by
+    test_affected_preview.py) because targets._RM_RE is ^-anchored - the
+    operand layer and the classifier disagree, and only one side is pinned.
 
-    A commit message mentioning rm -rf blocks the agent. And the tool ALREADY
-    KNOWS the command touches nothing: recovery.expanded_operands returns []
-    for both, pinned by
-
-        test_affected_preview.py::test_the_preview_never_names_a_file_
-        nothing_will_touch
-
-    because targets._RM_RE is `^`-anchored. The operand layer and the
-    classifier disagree about the same string, and only one side is pinned.
-
-    DO NOT FIX THIS BY ANCHORING rm_rf. It is unanchored on purpose -
+    CONSTRAINT: do not fix by anchoring rm_rf. It is unanchored on purpose;
     test_unearned_allows.py says so and
     test_the_docker_exclusion_did_not_touch_real_rm pins what depends on it.
-    The fix is quote-awareness, which split_segments already has for
-    separators and the rule table does not have for matches."""
+    The fix is quote-awareness.
+    """
     g = Guard(Config(project_root=str(proj)), mode="enforce")
     r = g.evaluate('git commit -m "rm -rf a.txt"')
     assert r.permission != "deny", (
@@ -590,26 +538,14 @@ def test_quote_a_commit_message_is_not_a_command(proj):
     'echo "we use stripe charge in prod"',
 ])
 def test_o1_reads_and_help_are_not_mutations(command):
-    """O1 - classify.py:66 and the surface table at classify.py:212. Rules that
-    search anywhere in the string fire on greps, --help, filenames and prose.
+    """O1 - unanchored rules fire on greps, --help and prose.
 
-    PARTLY FIXED ALREADY, which is why the anchored rules are not listed here:
-    container_runtime and package_registry carry the _CMD_PREFIX `^` anchor at
-    classify.py:244 and :255, so `cat docker_rm_notes.txt` and a commit message
-    mentioning `npm unpublish` no longer fire. That anchor is the shape of the
-    fix; these four rules have not had it applied.
-
-    THIS IS THE THIRD INSTANCE OF A TWICE-FIXED CLASS, not a new finding. The
-    project swept it for SQL verbs on 2026-09-14 (test_sql_verb_is_not_sql.py:
-    "21 of 61 ordinary commands escalated") and for container/registry verbs on
-    2026-09-17 (test_unearned_allows.py). Both times the fix shipped with a
-    corpus of prose that must be RELEASED - BENIGN and ORDINARY respectively -
-    and test_unearned_allows.py states the rule outright: "a rule table is only
-    as good as what it releases."
-
-    Neither corpus covers the rules below. The idiomatic fix is to extend
-    ORDINARY with these four and sweep the remaining unanchored rules the same
-    way, rather than to add a fourth separate list."""
+    Third instance of a twice-fixed class: SQL verbs (test_sql_verb_is_not_sql
+    .py) and container/registry verbs (test_unearned_allows.py) were both swept
+    and both shipped a corpus of prose that must be RELEASED. Neither corpus
+    covers these four. The idiomatic fix is to extend ORDINARY and sweep the
+    remaining unanchored rules, not to add a fourth list.
+    """
     r = classify_pipeline(command)
     assert not r.is_destructive and r.nonrecoverable_surface is None, (
         f"{command!r} reads or prints; classified {r.matched_rule} "
@@ -617,10 +553,10 @@ def test_o1_reads_and_help_are_not_mutations(command):
 
 
 def test_o2_a_heredoc_body_is_data_not_commands():
-    """O2 - classify.py:786. The pipeline splitter treats every line as a
-    segment, so the BODY of a heredoc - which bash passes to a command as
-    stdin, never executes - is classified as commands. Writing documentation
-    about `git push --force` is reported as performing it."""
+    """O2 - split_segments splits on newlines with no concept of a heredoc, so
+    the BODY - which bash passes as stdin and never executes - is classified
+    as commands.
+    """
     cmd = "cat <<'EOF' > notes.md\ngit push --force origin main\nEOF"
     r = classify_pipeline(cmd)
     assert r.nonrecoverable_surface is None, (
@@ -629,12 +565,10 @@ def test_o2_a_heredoc_body_is_data_not_commands():
 
 
 def test_double_fire_an_existing_combined_matcher_is_recognised(tmp_path):
-    """DOUBLE-FIRE - hooks/claude_code.py:266. _ours() compares the matcher by
-    equality, so a settings.json holding {"matcher": "Bash|PowerShell"} - a
-    shape Claude Code accepts, and one earlier demo_cli docs showed - is not
-    recognised as ours. The installer appends separate Bash and PowerShell
-    blocks and both now match: two hook processes, two snapshots and two
-    receipts for one command."""
+    """DOUBLE-FIRE - _ours() compared the matcher by equality, so a block
+    holding "Bash|PowerShell" was not recognised and the installer appended a
+    second block for each: two hook processes per command.
+    """
     p = tmp_path / "settings.json"
     p.write_text(json.dumps({"hooks": {"PreToolUse": [
         {"matcher": "Bash|PowerShell",
@@ -659,29 +593,14 @@ def test_double_fire_an_existing_combined_matcher_is_recognised(tmp_path):
 
 def test_selfexclusion_does_not_skip_a_command_that_merely_names_the_guard(
         tmp_path, monkeypatch):
-    """cli.py:592 - cmd_guard_shell self-excludes with a SUBSTRING test:
+    """cmd_guard_shell self-excluded by substring, so any command whose text
+    contained "guard-shell" - a log file, a directory, a branch name - skipped
+    the whole shell door with no classification, snapshot or receipt.
 
-        if not command or command.startswith("demo_cli") or "guard-shell" in command:
-            return 0
-
-    The intent is right (the guard must not recurse into itself), but the test
-    is the same unanchored-substring shape as O1, on the under-blocking side.
-    Any command whose TEXT happens to contain "guard-shell" - a log file, a
-    directory, a branch name - skips the entire shell door: no classification,
-    no snapshot, no receipt, no stderr line. Nothing records that a destructive
-    command ran unguarded.
-
-    Verified through the live DEBUG trap, enforce mode:
-        rm -f logs/ordinary.log     -> snapshot 1940e8b9, receipt written
-        rm -f logs/guard-shell.log  -> silence; file deleted; 0 receipts
-
-    NOT reachable by a trailing `# guard-shell` comment: bash strips comments
-    out of $BASH_COMMAND before the trap sees it, the same normalisation that
-    makes `cat a >b` reach the guard. This is an ordinary filename, not a
-    crafted bypass - which is what makes it worth pinning.
-
-    Driven through cmd_guard_shell itself, not the snippet: the self-exclusion
-    is in the PYTHON, so a stub demo_cli on a fake PATH cannot see it.
+    Not reachable via a trailing `# guard-shell` comment: bash strips comments
+    from $BASH_COMMAND. An ordinary filename is enough, which is the point.
+    Driven through cmd_guard_shell itself - the check is in the Python, so a
+    stub on a fake PATH cannot see it.
     """
     from demo_cli.cli import cmd_guard_shell
 

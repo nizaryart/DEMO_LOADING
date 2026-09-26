@@ -543,23 +543,11 @@ class Guard:
         exists = os.path.exists(ap)
         is_dir = exists and os.path.isdir(ap)
 
-        # THE SAME BOUND THE OTHER TWO DOORS ALREADY HAVE. evaluate() refuses a
-        # target outside the project root (and the root itself) before it will
-        # capture anything; syscall_guard._in_scope applies the identical
-        # commonpath test; fsguard.in_scope gets it for free because the mount
-        # IS the root. This door had no bound at all, so an Edit/Write door
-        # pointed anywhere on the machine - /etc/hosts, ~/.ssh/config, the
-        # project root itself - was snapshotted and reported REVERSIBLE while
-        # the shell door ESCALATED on the identical path. Two doors, one
-        # project, opposite answers.
-        #
-        # The copy is the other half. Refusing only the LABEL would still have
-        # read the file and written it into this project's recovery directory,
-        # so the bound is applied before the snapshot, not after it.
-        #
-        # The root itself is refused for the reason guard.py:307 already gives
-        # for the shell door and test_hook_cwd.py pins: deep-copying the whole
-        # tree on every edit is "neither honest nor cheap".
+        # Bound to the project root, like evaluate() and syscall_guard.
+        # _in_scope. Applied BEFORE the snapshot, so an out-of-root file is
+        # never copied into this project's recovery dir. The root itself is
+        # refused for evaluate()'s reason: copying the whole tree on every
+        # edit is neither honest nor cheap.
         root = os.path.abspath(self.config.project_root or os.getcwd())
         try:
             within = os.path.commonpath([ap, root]) == root

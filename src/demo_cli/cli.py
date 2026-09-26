@@ -528,12 +528,8 @@ _SHELL_GUARD_SNIPPET = r'''# >>> demo_cli shell guard >>>
 # Escape hatches (fail-open if guard is broken):
 #   DEMO_CLI_DISABLE=1   turns the guard off entirely.
 #   the sanity probe     distinguishes guard block from an unrunnable guard.
-# DELIBERATELY ONLY "is this bash". DEMO_CLI_DISABLE and `command -v demo_cli`
-# used to be tested here, once, which made both of them un-answerable in a
-# shell that was already open: the kill switch did not work in the shell it is
-# advertised in, and installing demo_cli afterwards left that session unguarded
-# forever with nothing to say so. Both questions moved INTO the trap, where
-# they are re-asked per command and cost two builtins.
+# Only "is this bash". DEMO_CLI_DISABLE and `command -v demo_cli` are asked
+# per command in the trap instead, so both work in an already-open shell.
 if [ -n "$BASH_VERSION" ]; then
   # Fail-safe egress probe: if proxy is configured for localhost but nothing is listening,
   # unset the proxy so child network commands do not fail with Connection Refused.
@@ -556,11 +552,8 @@ if [ -n "$BASH_VERSION" ]; then
 
   case $- in *i*) shopt -s extdebug 2>/dev/null ;; esac
 
-  # A destructive command that ran UNGUARDED is the one event the receipts
-  # most need to show, and it is exactly the event demo_cli cannot record -
-  # it is not running. So the shell writes a plain line itself. Never a
-  # hash-chained receipt (that needs the tool); an honest breadcrumb that
-  # says the ledger has a hole and where it is.
+  # demo_cli cannot write a receipt when demo_cli is what failed, so the
+  # shell leaves a plain breadcrumb marking the hole in the ledger.
   __demo_cli_note() {
     __demo_cli_log="${DEMO_CLI_FALLBACK_LOG:-$HOME/.demo_cli-shell-guard.log}"
     mkdir -p "$(dirname "$__demo_cli_log")" 2>/dev/null
@@ -570,12 +563,8 @@ if [ -n "$BASH_VERSION" ]; then
   }
 
   __demo_cli_shell_guard() {
-    # RE-CHECKED HERE, NOT ONLY AT LOAD. Both of these used to be tested once,
-    # in the `if` that installs this trap, so in a shell that was already open:
-    #   * `export DEMO_CLI_DISABLE=1` did nothing - and it is the very line the
-    #     guard prints when it tells you how to turn it off;
-    #   * installing demo_cli afterwards never armed the guard, silently.
-    # Both are builtins, so the cost is a string test per command.
+    # Re-checked per command, not once at load: both must work in a shell
+    # that is already open. Builtins, so the cost is a string test.
     [ -n "$DEMO_CLI_DISABLE" ] && return 0
     command -v demo_cli >/dev/null 2>&1 || return 0
     case "$BASH_COMMAND" in
@@ -584,17 +573,14 @@ if [ -n "$BASH_VERSION" ]; then
       # is handled there exactly once. Processing the wrapper too = double
       # snapshot. (guard-shell keeps an eval-unwrap for direct/test calls.)
       demo_cli\ *|demo_cli|__demo_cli_*|eval\ *) return 0 ;;
-      # The pre-filter is a cheap OVER-approximation of the classifier: it may
-      # submit something harmless (the guard then allows it), but anything it
-      # drops is never seen by any layer on this path. mv, dd, find -delete and
-      # rsync --delete are all classified destructive and were all dropped here.
+      # A cheap over-approximation of the classifier. Submitting something
+      # harmless costs a call; dropping something destructive costs the guard.
       *rm\ *|*rmdir*|*mkfs*|*shred*|*truncate*|*\ dd\ *|dd\ *|*mv\ *|*cp\ *\
       |*find\ *|*rsync*|*git\ *|*Remove-Item*|*\>\ *|*DROP\ *|*TRUNCATE\ *\
       |*DELETE\ FROM*|*shutil.rmtree*)
-        # BOUNDED. receipts.py gives the ledger lock a 10s timeout, and this
-        # call had none, so one stuck lock cost 10s on EVERY matching command.
-        # A timeout is OUR failure, so it fails OPEN and says so - the same
-        # posture as the broken-guard hatch below.
+        # Bounded: the ledger lock waits 10s, and this call had no bound, so
+        # a stuck lock cost 10s per command. A timeout is our failure, so it
+        # fails open like the broken-guard hatch below.
         if command -v timeout >/dev/null 2>&1; then
           timeout "${DEMO_CLI_GUARD_TIMEOUT:-10}" demo_cli guard-shell "$BASH_COMMAND"
         else
@@ -640,21 +626,12 @@ _SELF_ASSIGN = re.compile(r"^[A-Za-z_]\w*=")
 
 
 def _is_self_invocation(command: str) -> bool:
-    """Is this command demo_cli ITSELF, rather than one that merely names it?
+    """Is this command demo_cli itself, not one that merely names it?
 
-    The guard must not recurse into its own `guard-shell` call, and the test
-    for that used to be `command.startswith("demo_cli") or "guard-shell" in
-    command` - an unanchored substring, the same shape as the O1 rules but on
-    the UNDER-blocking side. Any command whose text happened to contain
-    "guard-shell" skipped the entire shell door:
-
-        rm -f logs/ordinary.log      snapshot taken, receipt written
-        rm -f logs/guard-shell.log   silence; deleted; 0 receipts
-
-    A log file, a directory or a branch name was enough, and nothing recorded
-    that a destructive command had run unguarded. Decided on the command WORD
-    now, after leading env assignments and sudo, which is the same prefix the
-    classifier's own rm_local rule already skips.
+    The old test was `startswith("demo_cli") or "guard-shell" in command` - an
+    unanchored substring, so `rm -f logs/guard-shell.log` skipped the whole
+    shell door with no classification, snapshot or receipt. Decided on the
+    command word now, after env assignments and sudo.
     """
     try:
         toks = shlex.split(command)
@@ -681,7 +658,6 @@ def cmd_guard_shell(a) -> int:
     shell use - still get classified, snapshotted, and gated. In enforce mode a
     blocking decision returns exit 1, which under `shopt -s extdebug` aborts the
     command. Fail-open on our own errors: never brick the user's shell."""
-    import re
     from .guard import Guard
     from .context import Intent
     command = " ".join(getattr(a, "argv", None) or []).strip()
