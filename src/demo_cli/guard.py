@@ -543,12 +543,37 @@ class Guard:
         exists = os.path.exists(ap)
         is_dir = exists and os.path.isdir(ap)
 
+        # THE SAME BOUND THE OTHER TWO DOORS ALREADY HAVE. evaluate() refuses a
+        # target outside the project root (and the root itself) before it will
+        # capture anything; syscall_guard._in_scope applies the identical
+        # commonpath test; fsguard.in_scope gets it for free because the mount
+        # IS the root. This door had no bound at all, so an Edit/Write door
+        # pointed anywhere on the machine - /etc/hosts, ~/.ssh/config, the
+        # project root itself - was snapshotted and reported REVERSIBLE while
+        # the shell door ESCALATED on the identical path. Two doors, one
+        # project, opposite answers.
+        #
+        # The copy is the other half. Refusing only the LABEL would still have
+        # read the file and written it into this project's recovery directory,
+        # so the bound is applied before the snapshot, not after it.
+        #
+        # The root itself is refused for the reason guard.py:307 already gives
+        # for the shell door and test_hook_cwd.py pins: deep-copying the whole
+        # tree on every edit is "neither honest nor cheap".
+        root = os.path.abspath(self.config.project_root or os.getcwd())
+        try:
+            within = os.path.commonpath([ap, root]) == root
+        except ValueError:                      # different drives on Windows
+            within = False
+        in_scope = within and ap != root
+
         c = Classification(
             is_mutating=True, action_type="filewrite",
             matched_rule=f"file_{tool_name.lower()}", segments=[ap],
         )
 
-        target = recovery.Target("dir" if is_dir else "file", ap, ap) if exists else None
+        target = (recovery.Target("dir" if is_dir else "file", ap, ap)
+                  if exists and in_scope else None)
         label = target.label if target else None
         config_env = self.config.declared_env(label)
         ctx = build_context(f"{tool_name} {ap}", target_label=label,
@@ -560,12 +585,33 @@ class Guard:
         entry = (recovery.snapshot(target, self.config.recovery_dir, strategy,
                                    action=f"{tool_name} {os.path.basename(ap)}",
                                    notes=snap_notes)
-                 if exists else None)
+                 if exists and in_scope else None)
         recovery_captured = entry is not None
 
         if not exists:
             decision = Decision(ALLOW, "New file; creation has nothing to overwrite.",
                                 recoverable=False)
+        elif ap == root:
+            decision = Decision(
+                ESCALATE,
+                f"{ap} is the project root itself; capturing the whole tree "
+                f"before an edit is neither honest nor cheap, so nothing was "
+                f"captured and nothing is claimed.",
+                recoverable=False,
+                next_steps=["Name the file to edit, not the project root."],
+            )
+        elif not in_scope:
+            decision = Decision(
+                ESCALATE,
+                f"{ap} is outside the project root ({root}); no recovery point "
+                f"was captured for it and none is claimed.",
+                recoverable=False,
+                next_steps=[
+                    "Edit a path inside the project, or open that project "
+                    "directly so demo_cli can cover it.",
+                    "Take an independent backup if the edit must go ahead.",
+                ],
+            )
         elif recovery_captured:
             decision = Decision(REVERSIBLE, "File snapshotted before the edit; reversible.",
                                 recoverable=True)

@@ -160,3 +160,4 @@ def test_e2e_invalid_subcommand_handling(tmp_path: Path):
     proc = run_cli(["nonexistent-command-xyz"], cwd=tmp_path, check=False)
     assert proc.returncode != 0
     assert "invalid choice" in proc.stderr or "invalid choice" in proc.stdout
+

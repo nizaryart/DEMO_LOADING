@@ -148,6 +148,18 @@ def _strip_hook_entries(data, event: str, command: str) -> bool:
 
     Handles both shapes: Claude Code / Codex nest handlers in a group
     ({matcher, hooks:[{type, command}]}); Cursor lists them flat.
+
+    MATCHED THE SAME WAY INSTALL MATCHES. This compared by SUBSTRING while
+    install compares by equality (hooks/claude_code.py:_ours), so the two
+    disagreed about what "ours" means in the one direction that deletes
+    things. A third-party entry that merely MENTIONED our command -
+
+        {"command": "my-audit-tool --wrap 'demo_cli hook' --log"}
+
+    - was invisible to install, which appended a duplicate beside it, and was
+    then deleted outright by teardown, which is supposed to remove only what
+    setup added. Equality in both directions means the worst case is an entry
+    we decline to clean up, not one we destroy.
     """
     hooks = data.get("hooks")
     if not isinstance(hooks, dict) or event not in hooks:
@@ -158,13 +170,14 @@ def _strip_hook_entries(data, event: str, command: str) -> bool:
     for group in groups:
         if isinstance(group, dict) and "hooks" in group:
             inner = [h for h in group.get("hooks", [])
-                     if command not in str(h.get("command", ""))]
+                     if str(h.get("command", "")).strip() != command]
             if len(inner) != len(group.get("hooks", [])):
                 changed = True
             if inner:
                 group["hooks"] = inner
                 kept.append(group)
-        elif isinstance(group, dict) and command in str(group.get("command", "")):
+        elif (isinstance(group, dict)
+              and str(group.get("command", "")).strip() == command):
             changed = True
         else:
             kept.append(group)

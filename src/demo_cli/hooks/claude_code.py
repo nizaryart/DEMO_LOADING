@@ -261,9 +261,26 @@ def install_into_settings(path: str) -> List[str]:
     pre = event_list(settings, "PreToolUse")
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
+    def _alternatives(matcher) -> set:
+        """A Claude Code matcher is a `|`-separated set of tool names."""
+        return {p.strip() for p in str(matcher or "").split("|") if p.strip()}
+
     def _ours(matcher: str):
+        """Our handler for `matcher`, in ANY block that covers it.
+
+        Compared by ALTERNATIVE, not by the whole string. A settings.json
+        holding {"matcher": "Bash|PowerShell"} - a shape Claude Code accepts,
+        and one this project's own docs once showed - was not equal to "Bash"
+        or to "PowerShell", so neither was recognised as ours. The installer
+        appended a separate block for each, both matched the same Bash
+        command, and the hook then ran TWICE per command: two processes, two
+        snapshots, two receipts, and a doubled share of the hook budget.
+        """
+        want = _alternatives(matcher)
         for b in pre:
-            if not isinstance(b, dict) or b.get("matcher") != matcher:
+            if not isinstance(b, dict):
+                continue
+            if not (want & _alternatives(b.get("matcher"))):
                 continue
             for h in b.get("hooks") or []:
                 if isinstance(h, dict) and h.get("command") == "demo_cli hook":

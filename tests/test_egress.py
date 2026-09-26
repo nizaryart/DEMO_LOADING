@@ -217,6 +217,13 @@ def test_cmd_egress_fails_cleanly_when_port_already_in_use(monkeypatch, capsys):
 def test_egress_non_interactive_stdin_falls_back_to_timeout_action(monkeypatch):
     import asyncio
     import types
+    import pytest
+    # mitmproxy is an OPTIONAL extra (pyproject: [egress]). _build_addon
+    # imports it directly, so without it this raises ModuleNotFoundError
+    # rather than reporting a missing prerequisite. Found on Windows
+    # 2026-09-26, where the extra is not installed and this was one of three
+    # failures invisible from Linux.
+    pytest.importorskip("mitmproxy")
     from demo_cli import egress
     monkeypatch.setattr("sys.stdin", None)
     addons = egress._build_addon()

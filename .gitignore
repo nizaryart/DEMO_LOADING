@@ -15,3 +15,6 @@ demo_cli_receipts.jsonl
 build/
 dist/
 .pytest_cache/
+# graphify's AST cache, written wherever it is run. Hash-named JSON blobs,
+# regenerated on demand; 37 of them were swept into a commit by `git add -A src`.
+graphify-out/

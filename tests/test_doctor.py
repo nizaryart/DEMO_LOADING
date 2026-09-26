@@ -177,8 +177,17 @@ def test_egress_checks_ca_bundle_states(monkeypatch, tmp_path):
     monkeypatch.setattr(guarded, "ca_bundle", lambda: str(ca_file))
     checks = doctor._egress_checks(cfg)
     ca_check = next(c for c in checks if c[1] == "egress CA")
-    assert ca_check[0] == "ok"
-    assert str(ca_file) in ca_check[2]
+    # PLATFORM-CONDITIONAL, and the code is right, not the expectation.
+    # _egress_checks has an os.name == "nt" branch: a CA that exists but is
+    # not in the Windows user trust store is "warn", because Windows-native
+    # clients (Invoke-WebRequest, .NET, curl.exe) read the store and not the
+    # PEM. Asserting "ok" unconditionally encoded a POSIX-only expectation and
+    # failed on Windows from the first run. The PEM path is reported either way.
+    if os.name == "nt":
+        assert ca_check[0] in ("ok", "warn")
+    else:
+        assert ca_check[0] == "ok"
+        assert str(ca_file) in ca_check[2]
 
 
 def test_egress_checks_no_proxy_audit(monkeypatch, tmp_path):

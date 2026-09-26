@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shlex
 import tempfile
 import sys
 from typing import List, Optional
@@ -526,7 +528,13 @@ _SHELL_GUARD_SNIPPET = r'''# >>> demo_cli shell guard >>>
 # Escape hatches (fail-open if guard is broken):
 #   DEMO_CLI_DISABLE=1   turns the guard off entirely.
 #   the sanity probe     distinguishes guard block from an unrunnable guard.
-if [ -n "$BASH_VERSION" ] && [ -z "$DEMO_CLI_DISABLE" ] && command -v demo_cli >/dev/null 2>&1; then
+# DELIBERATELY ONLY "is this bash". DEMO_CLI_DISABLE and `command -v demo_cli`
+# used to be tested here, once, which made both of them un-answerable in a
+# shell that was already open: the kill switch did not work in the shell it is
+# advertised in, and installing demo_cli afterwards left that session unguarded
+# forever with nothing to say so. Both questions moved INTO the trap, where
+# they are re-asked per command and cost two builtins.
+if [ -n "$BASH_VERSION" ]; then
   # Fail-safe egress probe: if proxy is configured for localhost but nothing is listening,
   # unset the proxy so child network commands do not fail with Connection Refused.
   case "${HTTPS_PROXY:-$https_proxy}" in
@@ -547,15 +555,59 @@ if [ -n "$BASH_VERSION" ] && [ -z "$DEMO_CLI_DISABLE" ] && command -v demo_cli >
   esac
 
   case $- in *i*) shopt -s extdebug 2>/dev/null ;; esac
+
+  # A destructive command that ran UNGUARDED is the one event the receipts
+  # most need to show, and it is exactly the event demo_cli cannot record -
+  # it is not running. So the shell writes a plain line itself. Never a
+  # hash-chained receipt (that needs the tool); an honest breadcrumb that
+  # says the ledger has a hole and where it is.
+  __demo_cli_note() {
+    __demo_cli_log="${DEMO_CLI_FALLBACK_LOG:-$HOME/.demo_cli-shell-guard.log}"
+    mkdir -p "$(dirname "$__demo_cli_log")" 2>/dev/null
+    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$PWD" "$2" \
+      >> "$__demo_cli_log" 2>/dev/null
+    unset __demo_cli_log
+  }
+
   __demo_cli_shell_guard() {
+    # RE-CHECKED HERE, NOT ONLY AT LOAD. Both of these used to be tested once,
+    # in the `if` that installs this trap, so in a shell that was already open:
+    #   * `export DEMO_CLI_DISABLE=1` did nothing - and it is the very line the
+    #     guard prints when it tells you how to turn it off;
+    #   * installing demo_cli afterwards never armed the guard, silently.
+    # Both are builtins, so the cost is a string test per command.
+    [ -n "$DEMO_CLI_DISABLE" ] && return 0
+    command -v demo_cli >/dev/null 2>&1 || return 0
     case "$BASH_COMMAND" in
       # Skip the `eval '<cmd>' < /dev/null` wrapper Claude Code !-mode uses:
       # eval re-fires the DEBUG trap on its EXPANSION (the real command), which
       # is handled there exactly once. Processing the wrapper too = double
       # snapshot. (guard-shell keeps an eval-unwrap for direct/test calls.)
-      demo_cli*|__demo_cli_shell_guard*|eval\ *) return 0 ;;
-      *rm\ *|*rmdir*|*mkfs*|*shred*|*truncate*|*\ dd\ *|*git\ *|*Remove-Item*|*\>\ *|*DROP\ *|*TRUNCATE\ *|*DELETE\ FROM*|*shutil.rmtree*)
-        if ! demo_cli guard-shell "$BASH_COMMAND"; then
+      demo_cli\ *|demo_cli|__demo_cli_*|eval\ *) return 0 ;;
+      # The pre-filter is a cheap OVER-approximation of the classifier: it may
+      # submit something harmless (the guard then allows it), but anything it
+      # drops is never seen by any layer on this path. mv, dd, find -delete and
+      # rsync --delete are all classified destructive and were all dropped here.
+      *rm\ *|*rmdir*|*mkfs*|*shred*|*truncate*|*\ dd\ *|dd\ *|*mv\ *|*cp\ *\
+      |*find\ *|*rsync*|*git\ *|*Remove-Item*|*\>\ *|*DROP\ *|*TRUNCATE\ *\
+      |*DELETE\ FROM*|*shutil.rmtree*)
+        # BOUNDED. receipts.py gives the ledger lock a 10s timeout, and this
+        # call had none, so one stuck lock cost 10s on EVERY matching command.
+        # A timeout is OUR failure, so it fails OPEN and says so - the same
+        # posture as the broken-guard hatch below.
+        if command -v timeout >/dev/null 2>&1; then
+          timeout "${DEMO_CLI_GUARD_TIMEOUT:-10}" demo_cli guard-shell "$BASH_COMMAND"
+        else
+          demo_cli guard-shell "$BASH_COMMAND"
+        fi
+        __demo_cli_rc=$?
+        if [ "$__demo_cli_rc" -eq 124 ]; then
+          echo "demo_cli: guard timed out after ${DEMO_CLI_GUARD_TIMEOUT:-10}s - allowing." >&2
+          __demo_cli_note "timeout" "$BASH_COMMAND"
+          unset __demo_cli_rc
+          return 0
+        fi
+        if [ "$__demo_cli_rc" -ne 0 ]; then
           # Did the guard REFUSE, or is it broken? A package that cannot
           # import exits non-zero too, and reading that as a refusal locks the
           # user out of their own shell. One cheap probe tells them apart, and
@@ -563,14 +615,18 @@ if [ -n "$BASH_VERSION" ] && [ -z "$DEMO_CLI_DISABLE" ] && command -v demo_cli >
           if ! demo_cli --version >/dev/null 2>&1; then
             echo "demo_cli: guard is not working (demo_cli itself will not run) - allowing." >&2
             echo "demo_cli: silence it with  export DEMO_CLI_DISABLE=1" >&2
+            __demo_cli_note "guard-unavailable" "$BASH_COMMAND"
+            unset __demo_cli_rc
             return 0
           fi
           echo "demo_cli: blocked \"$BASH_COMMAND\" before it ran." >&2
+          unset __demo_cli_rc
           case $- in
             *i*) return 1 ;;                           # interactive: skip, keep the shell
             *)   kill -TERM $$ 2>/dev/null; exit 1 ;;  # non-interactive (!-mode): terminate
           esac
-        fi ;;
+        fi
+        unset __demo_cli_rc ;;
       *) return 0 ;;
     esac
   }
@@ -578,6 +634,45 @@ if [ -n "$BASH_VERSION" ] && [ -z "$DEMO_CLI_DISABLE" ] && command -v demo_cli >
 fi
 # <<< demo_cli shell guard <<<
 '''
+
+
+_SELF_ASSIGN = re.compile(r"^[A-Za-z_]\w*=")
+
+
+def _is_self_invocation(command: str) -> bool:
+    """Is this command demo_cli ITSELF, rather than one that merely names it?
+
+    The guard must not recurse into its own `guard-shell` call, and the test
+    for that used to be `command.startswith("demo_cli") or "guard-shell" in
+    command` - an unanchored substring, the same shape as the O1 rules but on
+    the UNDER-blocking side. Any command whose text happened to contain
+    "guard-shell" skipped the entire shell door:
+
+        rm -f logs/ordinary.log      snapshot taken, receipt written
+        rm -f logs/guard-shell.log   silence; deleted; 0 receipts
+
+    A log file, a directory or a branch name was enough, and nothing recorded
+    that a destructive command had run unguarded. Decided on the command WORD
+    now, after leading env assignments and sudo, which is the same prefix the
+    classifier's own rm_local rule already skips.
+    """
+    try:
+        toks = shlex.split(command)
+    except ValueError:                      # unbalanced quotes: degrade, never crash
+        toks = command.split()
+    i = 0
+    while i < len(toks) and (_SELF_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
+        i += 1
+    if i >= len(toks):
+        return False
+    base = os.path.basename(toks[i]).lower()
+    if base in ("demo_cli", "demo_cli.exe"):
+        return True
+    # `python -m demo_cli ...` is how the module is run in tests and on paths
+    # where the console script is not installed.
+    return (base.startswith("python")
+            and len(toks) > i + 2 and toks[i + 1] == "-m"
+            and toks[i + 2] == "demo_cli")
 
 
 def cmd_guard_shell(a) -> int:
@@ -594,7 +689,7 @@ def cmd_guard_shell(a) -> int:
     m = re.match(r"""^\s*eval\s+(['"])(.*)\1\s*(?:<\s*\S+\s*)*$""", command, re.S)
     if m:
         command = m.group(2).strip()
-    if not command or command.startswith("demo_cli") or "guard-shell" in command:
+    if not command or _is_self_invocation(command):
         return 0
     try:
         guard = Guard(config=load_config())

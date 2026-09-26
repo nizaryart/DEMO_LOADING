@@ -124,4 +124,12 @@ def test_recoverable_mutation_snapshots_normally(tmp_path):
 
     index_file = tmp_path / ".demo_cli" / "recovery" / "index.jsonl"
     assert index_file.exists()
-    assert res.recovery_entry["recovery_point"] in index_file.read_text()
+    # Compare the FIELD, not a substring of the file. JSON escapes a backslash
+    # as \\, so a raw `in` test can never match a Windows path - it passed on
+    # Linux only because POSIX paths carry no backslashes. Found on Windows
+    # 2026-09-26.
+    import json as _json
+    recorded = [_json.loads(line) for line in
+                index_file.read_text().splitlines() if line.strip()]
+    assert any(e.get("recovery_point") == res.recovery_entry["recovery_point"]
+               for e in recorded), recorded

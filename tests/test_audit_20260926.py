@@ -51,8 +51,41 @@ from demo_cli.guard import Guard
 from demo_cli.hooks.claude_code import install_into_settings
 from demo_cli.lifecycle import _strip_hook_entries
 
-BASH = shutil.which("bash")
-requires_bash = pytest.mark.skipif(BASH is None, reason="no bash on this platform")
+def _bash_for_this_platform():
+    """The same detection test_shell_guard.py uses, and for the same reason.
+
+    A naive shutil.which("bash") on Windows finds C:\\Windows\\system32\\bash.EXE
+    - the WSL launcher. It runs in a different filesystem namespace, so a
+    Windows tmp_path, a BASH_ENV pointing at a Windows path and a stub on a
+    Windows PATH are all invisible to it. The harness then fails for reasons
+    that have nothing to do with the defect under test, and - worse - the two
+    NEGATIVE assertions (S3, KILL) pass vacuously because nothing ran at all.
+
+    Found on Nizar's Windows box, 2026-09-26: S1/S4/S5 failed on harness
+    breakage rather than on the defect, and S3/KILL went green while proving
+    nothing. Git Bash is also the one that matters - Claude Code's Bash tool on
+    Windows is Git Bash, which is where !-mode actually runs.
+    """
+    if os.name != "nt":
+        return shutil.which("bash")
+    for candidate in (r"C:\Program Files\Git\bin\bash.exe",
+                      r"C:\Program Files (x86)\Git\bin\bash.exe"):
+        if os.path.exists(candidate):
+            return candidate
+    git = shutil.which("git")
+    if git:
+        cand = os.path.join(os.path.dirname(os.path.dirname(git)), "bin", "bash.exe")
+        if os.path.exists(cand):
+            return cand
+    found = shutil.which("bash")
+    if found and "system32" not in found.lower():
+        return found
+    return None                          # WSL only: not a Windows bash
+
+
+BASH = _bash_for_this_platform()
+requires_bash = pytest.mark.skipif(
+    BASH is None, reason="no Windows-native bash (WSL's bash is not Windows)")
 
 
 def _symlinks_available() -> bool:
@@ -286,11 +319,13 @@ def _run_guarded(tmp_path, stub_body, command, env_extra=None, preload=True):
     binn.mkdir(exist_ok=True)
     calls = tmp_path / "calls.log"
     stub = binn / "demo_cli"
-    stub.write_text(stub_body.replace("@CALLS@", str(calls)), newline="\n")
+    with open(stub, "w", newline="\n") as fh:      # CRLF makes the shebang "/bin/sh\r"
+        fh.write(stub_body.replace("@CALLS@", str(calls)))
     stub.chmod(0o755)
 
     script = tmp_path / "guard.sh"
-    script.write_text(_SHELL_GUARD_SNIPPET, newline="\n")
+    with open(script, "w", newline="\n") as fh:
+        fh.write(_SHELL_GUARD_SNIPPET)
 
     env = dict(os.environ)
     env.pop("DEMO_CLI_DISABLE", None)
@@ -300,6 +335,10 @@ def _run_guarded(tmp_path, stub_body, command, env_extra=None, preload=True):
     base = env["PATH"] if preload else os.pathsep.join(["/usr/bin", "/bin"])
     env["PATH"] = f"{binn}{os.pathsep}{base}" if preload else base
     env["BASH_ENV"] = str(script)
+    # Point the broken-guard breadcrumb inside tmp_path. Without this the
+    # snippet's default is $HOME/.demo_cli-shell-guard.log and the suite would
+    # write to the developer's real home directory.
+    env["DEMO_CLI_FALLBACK_LOG"] = str(tmp_path / "shell-guard.log")
     env.update(env_extra or {})
     r = subprocess.run([BASH, "-c", command], capture_output=True, text=True,
                        env=env, timeout=60, cwd=str(tmp_path))
