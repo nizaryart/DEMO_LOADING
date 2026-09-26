@@ -18,6 +18,7 @@ import os
 import socket
 
 import pytest
+import pytest as _pytest
 
 from demo_cli import guarded as g
 from demo_cli.config import Config
@@ -141,10 +142,71 @@ def test_the_ca_bundle_is_only_set_when_the_file_exists(monkeypatch):
     """Naming a CA file that is not there makes every TLS handshake fail,
     which reads as 'the guard broke the internet'."""
     monkeypatch.setattr(g, "ca_bundle", lambda: None)
-    assert "REQUESTS_CA_BUNDLE" not in g.child_env({}, 8080, egress_up=True)
-    monkeypatch.setattr(g, "ca_bundle", lambda: "/home/x/ca.pem")
+    monkeypatch.setattr(g, "combined_ca_bundle", lambda: None)
     env = g.child_env({}, 8080, egress_up=True)
-    assert env["REQUESTS_CA_BUNDLE"] == env["NODE_EXTRA_CA_CERTS"] == "/home/x/ca.pem"
+    assert "REQUESTS_CA_BUNDLE" not in env
+    assert "NODE_EXTRA_CA_CERTS" not in env
+
+
+def test_replacing_vars_get_the_bundle_and_node_gets_the_bare_ca(monkeypatch):
+    """This used to give BOTH the bare CA, and that is a bug, not a detail.
+
+    REQUESTS_CA_BUNDLE, SSL_CERT_FILE, CURL_CA_BUNDLE and friends REPLACE the
+    trust store - measured, one root against the default 150 - so the bare CA
+    makes every DIRECT connection fail. That is precisely the traffic NO_PROXY
+    exists to protect: the agent reaches api.anthropic.com off-proxy and the
+    only root it may trust is not the one that signed it.
+
+    NODE_EXTRA_CA_CERTS ADDS to Node's roots, so the bare CA is right there.
+    """
+    monkeypatch.setattr(g, "ca_bundle", lambda: "/home/x/ca.pem")
+    monkeypatch.setattr(g, "combined_ca_bundle", lambda: "/home/x/bundle.pem")
+    env = g.child_env({}, 8080, egress_up=True)
+    assert env["NODE_EXTRA_CA_CERTS"] == "/home/x/ca.pem"
+    for var in g._REPLACING_CA_VARS:
+        assert env[var] == "/home/x/bundle.pem", var
+
+
+def test_no_replacing_var_is_set_when_the_bundle_cannot_be_built(monkeypatch):
+    """The safe direction. Without an override a client still reaches the
+    internet on its own roots; it just cannot see through the proxy. Handing
+    it a one-root bundle would break both."""
+    monkeypatch.setattr(g, "ca_bundle", lambda: "/home/x/ca.pem")
+    monkeypatch.setattr(g, "combined_ca_bundle", lambda: None)
+    env = g.child_env({}, 8080, egress_up=True)
+    assert env["NODE_EXTRA_CA_CERTS"] == "/home/x/ca.pem"
+    for var in g._REPLACING_CA_VARS:
+        assert var not in env, var
+
+
+def test_the_bundle_holds_the_mitm_root_and_the_public_ones(tmp_path, monkeypatch):
+    """The whole point: proxied connections validate AND direct ones still do."""
+    ca = tmp_path / "mitmproxy-ca-cert.pem"
+    real = __import__("ssl").create_default_context().get_ca_certs(binary_form=True)
+    if not real:
+        _pytest.skip("this machine exposes no default roots to build against")
+    import ssl as _ssl
+    ca.write_text(_ssl.DER_cert_to_PEM_cert(real[0]).replace(
+        "BEGIN CERTIFICATE", "BEGIN CERTIFICATE"))  # a real, parseable PEM
+    monkeypatch.setattr(g, "ca_bundle", lambda: str(ca))
+    out = g.combined_ca_bundle()
+    assert out and os.path.exists(out)
+    assert open(out).read().count("BEGIN CERTIFICATE") > 1, \
+        "the bundle holds only one root; direct TLS would fail"
+
+
+def test_the_proxy_process_never_inherits_a_ca_override():
+    """mitmdump inherits os.environ. A shell that exported SSL_CERT_FILE -
+    which the setup lines tell people to do - would hand the proxy a trust
+    store it must not use for its own upstream connections."""
+    dirty = {"SSL_CERT_FILE": "/x/one-root.pem",
+             "REQUESTS_CA_BUNDLE": "/x/one-root.pem",
+             "curl_ca_bundle": "/x/one-root.pem",
+             "PATH": "/usr/bin"}
+    clean = g.proxy_process_env(dirty)
+    assert clean["PATH"] == "/usr/bin"
+    for var in g._REPLACING_CA_VARS:
+        assert var not in clean and var.lower() not in clean, var
 
 
 # --------------------------------------------------------------------------
@@ -171,9 +233,22 @@ def test_a_down_proxy_is_reported_with_its_port(cfg):
     assert not egress.ok and "8123" in egress.detail
 
 
-def test_a_live_proxy_is_reported_active(cfg):
+def test_a_live_proxy_is_reported_active(cfg, monkeypatch):
+    # ca_bundle is stubbed so the result does not depend on whether the
+    # machine running the tests happens to have ~/.mitmproxy.
+    monkeypatch.setattr(g, "ca_bundle", lambda: "/home/x/ca.pem")
     layers = g.assess(cfg, 8080, [], egress_up=True)
     assert next(x for x in layers if x.name == "egress").ok
+
+
+def test_a_proxy_with_no_ca_is_not_a_protecting_layer(cfg, monkeypatch):
+    """Every TLS handshake through it fails. This was reported ok with the
+    problem buried in the detail string, so coverage counted it."""
+    monkeypatch.setattr(g, "ca_bundle", lambda: None)
+    egress = next(x for x in g.assess(cfg, 8080, [], egress_up=True)
+                  if x.name == "egress")
+    assert not egress.ok
+    assert "no CA" in egress.detail
 
 
 def test_a_stale_mount_record_is_reported_as_not_running(cfg, tmp_path):

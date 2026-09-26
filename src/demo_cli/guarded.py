@@ -119,6 +119,105 @@ def ca_bundle() -> Optional[str]:
     return path if os.path.exists(path) else None
 
 
+BUNDLE_NAME = "demo_cli-ca-bundle.pem"
+
+# Variables that REPLACE a client's trust store rather than adding to it.
+# They must be given the combined bundle, never the bare CA.
+_REPLACING_CA_VARS = ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE",
+                      "GIT_SSL_CAINFO", "AWS_CA_BUNDLE")
+
+
+def _pem_blocks(text: str) -> List[str]:
+    out, cur = [], []
+    for line in text.splitlines():
+        if line.startswith("-----BEGIN CERTIFICATE"):
+            cur = [line]
+        elif cur:
+            cur.append(line)
+            if line.startswith("-----END CERTIFICATE"):
+                out.append("\n".join(cur))
+                cur = []
+    return out
+
+
+def _public_roots() -> List[str]:
+    """The machine's normal trust anchors, as PEM blocks.
+
+    Both sources, unioned. certifi is the curated set requests itself uses;
+    the OS store carries corporate roots certifi does not. On Windows the OS
+    store is populated ON DEMAND, so it reported 52 roots where Linux reported
+    150 - building from it alone would omit roots the machine would otherwise
+    fetch, and we would cause TLS failures that do not happen without us.
+    """
+    blocks: List[str] = []
+    try:
+        import certifi
+        with open(certifi.where(), encoding="utf-8") as fh:
+            blocks += _pem_blocks(fh.read())
+    except Exception:
+        pass
+    try:
+        import ssl
+        for der in ssl.create_default_context().get_ca_certs(binary_form=True):
+            blocks.append(ssl.DER_cert_to_PEM_cert(der).strip())
+    except Exception:
+        pass
+    return blocks
+
+
+def combined_ca_bundle() -> Optional[str]:
+    """Path to `public roots + the mitmproxy CA`, or None.
+
+    REQUESTS_CA_BUNDLE and friends REPLACE the trust store - measured, 1 root
+    against the default 150. Pointing them at the bare CA makes every DIRECT
+    connection fail, which is exactly the traffic NO_PROXY exists to protect:
+    the agent reaches api.anthropic.com without the proxy, and the one root it
+    is allowed to trust is not the one that signed it.
+
+    Rebuilt on every call and replaced atomically: it is cheap, it cannot go
+    stale against a rotated CA, and concurrent runs cannot see a partial file.
+    None on any failure, so the caller sets nothing - a client with no override
+    still reaches the internet, it just cannot see through the proxy.
+    """
+    ca = ca_bundle()
+    if not ca:
+        return None
+    try:
+        with open(ca, encoding="utf-8") as fh:
+            mitm = _pem_blocks(fh.read())
+        if not mitm:
+            return None
+        seen, ordered = set(), []
+        for block in _public_roots() + mitm:
+            if block not in seen:
+                seen.add(block)
+                ordered.append(block)
+        dest = os.path.join(os.path.dirname(ca), BUNDLE_NAME)
+        tmp = dest + f".{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(ordered) + "\n")
+        os.replace(tmp, dest)
+        return dest
+    except Exception:
+        return None
+
+
+def proxy_process_env(base: Dict[str, str]) -> Dict[str, str]:
+    """The environment mitmdump itself is started with.
+
+    The CA overrides are STRIPPED. mitmdump inherits os.environ, so a shell
+    that exported REQUESTS_CA_BUNDLE or SSL_CERT_FILE - which the setup lines
+    tell people to do - would hand the proxy a trust store it must not use for
+    its own upstream connections. Pointed at a bare CA it could then verify no
+    server at all.
+    """
+    env = dict(base)
+    for var in _REPLACING_CA_VARS:
+        env.pop(var, None)
+        env.pop(var.lower(), None)
+    return env
+
+
 def shell_guard_script() -> Optional[str]:
     path = os.path.expanduser("~/.demo_cli_shellguard.sh")
     return path if os.path.exists(path) else None
@@ -146,11 +245,14 @@ def child_env(base: Dict[str, str], port: int, egress_up: bool,
         env["NO_PROXY"] = env["no_proxy"] = no_p
         ca = ca_bundle()
         if ca:
-            # Python (requests/httpx) and Node respectively. Without these the
-            # proxy is in the path but every TLS handshake fails, which looks
-            # like the guard broke the internet.
-            env["REQUESTS_CA_BUNDLE"] = ca
+            # NODE_EXTRA_CA_CERTS ADDS to Node's built-in roots, so the bare
+            # CA is correct for it. Everything else REPLACES the trust store
+            # and needs the combined bundle - see combined_ca_bundle.
             env["NODE_EXTRA_CA_CERTS"] = ca
+            bundle = combined_ca_bundle()
+            if bundle:
+                for var in _REPLACING_CA_VARS:
+                    env[var] = bundle
     guard = shell_guard_script()
     if guard and os.name != "nt":
         # Makes a non-interactive `bash -c` source the DEBUG trap - the same
@@ -208,9 +310,13 @@ def assess(cfg: Config, port: int, hooks: List[tuple],
 
     up = port_open(port) if egress_up is None else egress_up
     ca = ca_bundle()
+    # A proxy with no CA is not a layer that protects anything: every TLS
+    # handshake through it fails. It used to be reported ok with the problem
+    # in the detail string, so coverage counted it.
     layers.append(Layer(
-        "egress", up,
-        (f"proxy on :{port}" + ("" if ca else ", but no CA yet - TLS will fail"))
+        "egress", up and bool(ca),
+        (f"proxy on :{port}" if ca
+         else f"proxy on :{port}, but no CA yet - TLS will fail")
         if up else f"nothing listening on :{port}",
         None if up else f"demo_cli egress --port {port}"))
 

@@ -499,24 +499,38 @@ def egress_setup_lines(port: int, windows: bool) -> List[str]:
     with Out-File - it looks helpful and does not work.
     """
     pem = _ca_path(_CA_PEM_NAME)
+    # The BUNDLE for everything that replaces the trust store, the bare CA
+    # only for Node, which appends. Built here so the path exists when it is
+    # printed; falls back to the CA if it cannot be written.
+    from .guarded import combined_ca_bundle
+    bundle = combined_ca_bundle() or pem
     if windows:
         return [
             "1) point the agent's traffic at the proxy:",
             f'     $env:HTTPS_PROXY = "http://localhost:{port}"',
             f'     $env:HTTP_PROXY  = "http://localhost:{port}"',
-            "2) let it read TLS. Python and Node honour these:",
-            f'     $env:REQUESTS_CA_BUNDLE = "{pem}"',
+            "2) let it read TLS. These REPLACE the trust store, so they get the",
+            "   combined bundle (public roots + mitmproxy), not the bare CA:",
+            f'     $env:REQUESTS_CA_BUNDLE = "{bundle}"',
+            f'     $env:SSL_CERT_FILE      = "{bundle}"',
+            f'     $env:CURL_CA_BUNDLE     = "{bundle}"',
+            "   Node ADDS to its built-in roots, so it takes the CA itself:",
             f'     $env:NODE_EXTRA_CA_CERTS = "{pem}"',
-            "   Windows-native clients (Invoke-WebRequest, .NET, curl.exe) ignore",
-            "   those and read the certificate store instead:",
+            "   Windows-native clients (Invoke-WebRequest, .NET, curl.exe) and",
+            "   Java ignore all of those and read the certificate store:",
             "     demo_cli egress --trust-ca        (undo: --untrust-ca)",
             "3) relaunch the agent from that shell. Ctrl-C here stops the guard.",
         ]
     return [
         "1) point the agent's traffic at the proxy:",
         f"     export HTTPS_PROXY=http://localhost:{port}  HTTP_PROXY=http://localhost:{port}",
-        "2) let it read TLS by trusting mitmproxy's CA (first run generates it):",
-        f"     export REQUESTS_CA_BUNDLE={pem}   NODE_EXTRA_CA_CERTS={pem}",
+        "2) let it read TLS. These REPLACE the trust store, so they get the",
+        "   combined bundle (public roots + mitmproxy), not the bare CA:",
+        f"     export REQUESTS_CA_BUNDLE={bundle}  SSL_CERT_FILE={bundle}",
+        f"     export CURL_CA_BUNDLE={bundle}  GIT_SSL_CAINFO={bundle}",
+        "   Node ADDS to its built-in roots, so it takes the CA itself:",
+        f"     export NODE_EXTRA_CA_CERTS={pem}",
+        "   Java and .NET read neither; they need their own trust store.",
         "3) relaunch the agent from that shell. Ctrl-C here stops the guard.",
     ]
 
@@ -601,9 +615,13 @@ def cmd_egress(a) -> int:
     print()
 
     # mitmdump runs its OWN Python; add demo_cli's location so the addon imports.
-    env = dict(os.environ, DEMO_CLI_EGRESS_MODE=mode,
+    from .guarded import proxy_process_env
+    env = dict(proxy_process_env(os.environ), DEMO_CLI_EGRESS_MODE=mode,
                PYTHONPATH=pkg_parent + os.pathsep + os.environ.get("PYTHONPATH", ""))
-    argv = [mitm, "-s", loader, "--listen-port", str(port), "-q"]
+    # --listen-host: mitmproxy binds ALL interfaces by default, so this was an
+    # open proxy reachable from the LAN, backed by a CA the machine trusts.
+    argv = [mitm, "-s", loader, "--listen-host", "127.0.0.1",
+            "--listen-port", str(port), "-q"]
 
     if os.name == "nt":
         # NOT os.execve. On Windows the exec family does not replace the

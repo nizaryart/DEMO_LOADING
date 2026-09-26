@@ -1113,7 +1113,8 @@ def cmd_guarded(a) -> int:
             config_mod.ensure_workspace(cfg)
             here = os.path.dirname(os.path.abspath(__file__))
             egress_mode = cfg.resolve_egress_mode()
-            env = dict(os.environ, DEMO_CLI_EGRESS_MODE=egress_mode,
+            env = dict(g.proxy_process_env(os.environ),
+                       DEMO_CLI_EGRESS_MODE=egress_mode,
                        PYTHONPATH=os.path.dirname(here) + os.pathsep
                        + os.environ.get("PYTHONPATH", ""))
             # Detached process creation flags (CREATE_NO_WINDOW without DETACHED_PROCESS).
@@ -1121,7 +1122,11 @@ def cmd_guarded(a) -> int:
                 if os.name == "nt" else {"start_new_session": True}
             with open(log, "a", encoding="utf-8") as fh:
                 started_egress = subprocess.Popen(
+                    # --listen-host: mitmproxy binds ALL interfaces by default,
+                    # so this was an open proxy reachable from the LAN, backed
+                    # by a CA the machine trusts. Loopback only.
                     [mitm, "-s", os.path.join(here, "egress_addon.py"),
+                     "--listen-host", "127.0.0.1",
                      "--listen-port", str(port), "-q"],
                     stdout=fh, stderr=fh, stdin=subprocess.DEVNULL, env=env, **kwargs)
             for _ in range(40):                 # up to ~8s for the port to open
