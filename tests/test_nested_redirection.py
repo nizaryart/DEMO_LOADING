@@ -91,11 +91,21 @@ def test_the_cmd_payload_is_unwrapped_even_when_no_rule_matches(suffix):
 
 
 def test_unquoted_payload_still_stops_at_the_redirection():
-    """`-Command rm -rf x 2>&1` has no quotes to lean on: the payload is every
-    token up to the redirection."""
+    """PowerShell `-Command rm -rf x 2>&1` has no quotes to lean on: the
+    payload is every token up to the redirection."""
+    c = classify_pipeline("powershell -Command Remove-Item -Recurse -Force ./out 2>&1")
+    assert c.is_destructive
+    assert c.matched_rule == "ps_remove_item_rf"
+
+
+def test_bash_c_takes_exactly_one_command_string():
+    """Rewritten 2026-09-27. This used to assert the PowerShell rule for bash:
+    `bash -c rm -rf ./out` runs `rm` alone - `-rf` and `./out` become $0 and
+    $1 - so ./out is never passed to rm. Still destructive (rm runs), and the
+    operand the old reading invented is not claimed."""
     c = classify_pipeline("bash -c rm -rf ./out 2>&1")
     assert c.is_destructive
-    assert c.matched_rule == "rm_rf"
+    assert c.segments == ["rm"]
 
 
 def test_encoded_command_was_already_immune_and_stays_immune():

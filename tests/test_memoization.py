@@ -83,8 +83,9 @@ def test_guard_evaluate_multi_call_cache_acceleration():
     """Verify that evaluating a complex pipeline hits the memoized caches multiple times."""
     from demo_cli.guard import Guard
 
+    from demo_cli.model import posix_units
     _tokenize_cached.cache_clear()
-    _split_segments_cached.cache_clear()
+    posix_units.cache_clear()
 
     guard = Guard()
     cmd = "git clean -fd && rm -rf target/"
@@ -93,10 +94,13 @@ def test_guard_evaluate_multi_call_cache_acceleration():
     res = guard.evaluate(cmd)
     assert res is not None
 
-    # Within a single evaluation, split_segments and _tokenize should have had multiple cache hits
-    seg_info = _split_segments_cached.cache_info()
+    # Within a single evaluation the command is parsed once and served from
+    # cache to every reader. For POSIX that parse is model.posix_units (it
+    # replaced the text splitter on 2026-09-27); PowerShell still splits.
+    from demo_cli.model import posix_units
+    seg_info = posix_units.cache_info()
     tok_info = _tokenize_cached.cache_info()
 
-    assert seg_info.hits >= 1, f"Expected cache hits for split_segments, got {seg_info}"
+    assert seg_info.hits >= 1, f"Expected cache hits for the parse, got {seg_info}"
     assert tok_info.hits >= 1, f"Expected cache hits for _tokenize, got {tok_info}"
 

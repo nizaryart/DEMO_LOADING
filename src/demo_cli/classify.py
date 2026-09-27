@@ -711,6 +711,14 @@ def _effective_segments(cmd: str, dialect: str, substitute: bool,
         cmd = strip_ps_escapes(cmd)
     if substitute:
         cmd = substitute_assignments(cmd, dialect)
+    if dialect == POSIX:
+        # ONE PARSE for POSIX (model.py): comments, $( ) / backticks / <( )
+        # as commands that run, heredoc bodies, keywords and wrappers - read
+        # by the classifier and target resolution alike.
+        # An empty result is an answer - a comment, a bare `for x in a b` -
+        # never a cue to hand the raw text back to the regexes.
+        from .model import posix_units
+        return list(posix_units(cmd, outer_sep))
     out: List[Tuple[str, str, str]] = []
     for raw, sep in _split_segments_cached(cmd, dialect) or ((cmd, ""),):
         sep = sep or outer_sep
@@ -960,8 +968,23 @@ def redirect_target(cmd: str) -> Optional[str]:
                 i += 2
                 continue
             # Truncating redirects (1>, 2>, &>); fd duplications (2>&1, >&2) are skipped.
-            if nxt == "&":                   # 2>&1, >&2 - duplication, not truncation
-                i += 2
+            # `>&` is a duplication only when a number or `-` follows; `>& out.txt`
+            # sends stdout AND stderr to out.txt and truncates it.
+            if nxt == "&":
+                dup = re.match(r"[ \t]*(?:\d+|-)(?=$|[\s;&|<>])", cmd[i + 2:])
+                if dup:
+                    i += 2 + dup.end()
+                    continue
+                j = i + 2
+                while j < n and cmd[j] in " \t":
+                    j += 1
+                end = j
+                while end < n and cmd[end] not in " \t|;&<>\n\r":
+                    end += 1
+                tgt = cmd[j:end].strip("'\"")
+                if tgt and not tgt.startswith("/dev/"):
+                    return tgt
+                i = max(end, i + 2)
                 continue
             # Read target token, skipping spaces and leading '|' (>| noclobber override).
             j = i + 1
@@ -1128,6 +1151,10 @@ def classify_pipeline(cmd: str, dialect: str = POSIX) -> Classification:
     rebuilt = " ".join(p + (" " + sep if sep else "")
                        for p, (_, _, sep) in zip(probes, triples))
     if not seg_results:
+        if dialect == POSIX:
+            # The parse found nothing that runs (`# rm -rf /`). Classifying
+            # the raw line here is what made a comment a delete.
+            return Classification(segments=[cmd.strip()])
         segments = [cmd]
         seg_results = [_classify_segment(cmd, dialect)]
         probes, rebuilt = [cmd], cmd
