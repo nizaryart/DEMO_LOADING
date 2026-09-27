@@ -111,6 +111,277 @@ def _writer_hit(seg: str, _dialect: str) -> bool:
 
 
 _MV_RE = re.compile(r"^\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:sudo\s+)?mv\b", re.I)
+# POSIX cp. Deliberately NOT a classifier rule: the classifier is
+# filesystem-blind, and `cp a new.txt` destroys nothing - a rule there would
+# vote in the multiplicity count and escalate an ordinary `rm x && cp a b`
+# (test_posix_copy_does_not_count_as_a_destructive_step). Whether a cp
+# destroys anything is a question about the DESTINATION ON DISK, so it is
+# answered here and by the guard, where we can stat.
+_CP_RE = re.compile(r"^\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:sudo\s+)?cp\b", re.I)
+
+
+def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
+    """(existing paths this POSIX `cp` would overwrite, resolved?).
+
+    GNU semantics: the last operand is the destination unless -t names a
+    directory; an existing directory destination receives dir/basename(src)
+    for each source unless -T; -n / --no-clobber / --update=none never
+    overwrite. -f changes nothing here - plain `cp a b` overwrites b too.
+
+    Unresolved (an unexpanded variable, an unbalanced cd) returns ([], False)
+    and the caller changes nothing: that is today's behaviour, not a claim.
+    """
+    toks = _tokenize(seg)
+    i = 0
+    while i < len(toks) and (_ENV_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
+        i += 1
+    if i >= len(toks) or toks[i].lower() != "cp":
+        return [], True
+    tdir, no_target_dir, operands = None, False, []
+    opts_done, want = False, None
+    for tok in toks[i + 1:]:
+        if want:
+            if want == "t":
+                tdir = tok
+            want = None
+            continue
+        if not opts_done and tok == "--":
+            opts_done = True
+            continue
+        if not opts_done and tok.startswith("--"):
+            if tok == "--no-clobber" or tok.startswith("--update=none"):
+                return [], True
+            if tok.startswith("--target-directory="):
+                tdir = tok.split("=", 1)[1]
+            elif tok == "--target-directory":
+                want = "t"
+            elif tok == "--no-target-directory":
+                no_target_dir = True
+            elif tok == "--suffix":
+                want = "S"
+            continue
+        if not opts_done and tok.startswith("-") and len(tok) > 1:
+            body = tok[1:]
+            for j, ch in enumerate(body):
+                if ch == "n":
+                    return [], True
+                if ch == "T":
+                    no_target_dir = True
+                if ch in "tS":
+                    rest = body[j + 1:]
+                    if ch == "t" and rest:
+                        tdir = rest
+                    elif not rest:
+                        want = ch
+                    break
+            continue
+        operands.append(tok)
+
+    def _abs(p: str) -> Optional[str]:
+        p = _expanduser_any(p)
+        if _UNEXPANDED.search(p):
+            return None
+        if base and not os.path.isabs(p):
+            p = os.path.join(base, p)
+        return os.path.normpath(os.path.abspath(p))
+
+    if tdir is not None:
+        dest, sources = _abs(tdir), operands
+        into_dir = True
+    else:
+        if len(operands) < 2:
+            return [], True                      # cp will refuse; nothing clobbered
+        dest, sources = _abs(operands[-1]), operands[:-1]
+        if dest is None:
+            return [], False
+        into_dir = not no_target_dir and os.path.isdir(dest)
+    if dest is None:
+        return [], False
+    if not into_dir:
+        return ([dest] if os.path.lexists(dest) else []), True
+    hits = []
+    for src in sources:
+        # Sources resolve from the same directory as the destination. Globbed
+        # from our own directory after a `cd`, they matched nothing and the
+        # overwrite went unseen: `cd sub && cp *.txt dest/` was ALLOW while it
+        # replaced sub/dest/a.txt (review 2026-09-27).
+        src = _expanduser_any(src)
+        if base and not os.path.isabs(src):
+            src = os.path.join(base, src)
+        for piece in _expand_braces(src):
+            names = sorted(_glob.glob(piece)) if any(c in piece for c in "*?[") else [piece]
+            for name in names:
+                if _UNEXPANDED.search(name):
+                    return [], False
+                hit = os.path.join(dest, os.path.basename(name.rstrip("/\\")))
+                if os.path.lexists(hit) and hit not in hits:
+                    hits.append(hit)
+    return sorted(hits), True
+
+
+# In-place editors: the file operands are rewritten, and nothing in the rule
+# table said so (`sed -i 's/a/b/' f.txt` was ALLOW with nothing captured).
+# Same shape as cp and for the same reason: whether anything is destroyed
+# depends on the operand existing, so it is judged where we can stat.
+_SED_RE = re.compile(r"^\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:sudo\s+)?sed\b", re.I)
+_PERL_RE = re.compile(r"^\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:sudo\s+)?perl\b", re.I)
+
+
+def _sed_files(args: List[str]) -> List[str]:
+    """The files GNU sed rewrites, or [] without -i. In a flag cluster
+    everything after `i` is the backup suffix (`-ie` is in-place with suffix
+    "e", not -i -e); the first operand is the script unless -e/-f gave one."""
+    in_place, have_script, want, done, ops = False, False, None, False, []
+    for tok in args:
+        if want:
+            have_script = have_script or want in "ef"
+            want = None
+            continue
+        if not done and tok == "--":
+            done = True
+            continue
+        if not done and tok.startswith("--"):
+            if tok == "--in-place" or tok.startswith("--in-place="):
+                in_place = True
+            elif tok in ("--expression", "--file"):
+                want = "e"
+            elif tok.startswith(("--expression=", "--file=")):
+                have_script = True
+            elif tok == "--line-length":
+                want = "l"
+            continue
+        if not done and tok.startswith("-") and len(tok) > 1:
+            body = tok[1:]
+            for j, ch in enumerate(body):
+                if ch == "i":
+                    in_place = True
+                    break
+                if ch in "efl":
+                    if body[j + 1:]:
+                        have_script = have_script or ch in "ef"
+                    else:
+                        want = ch
+                    break
+            continue
+        ops.append(tok)
+    if not have_script:
+        ops = ops[1:]
+    return ops if in_place else []
+
+
+def _perl_files(args: List[str]) -> List[str]:
+    """The files `perl -i` rewrites, or [] without -i. After `i` the rest of
+    a cluster is the backup extension (`-pie` is -p -i with extension "e");
+    the first operand is the program file unless -e/-E gave the code."""
+    in_place, have_code, want, done, ops = False, False, None, False, []
+    for tok in args:
+        if want:
+            have_code = have_code or want in "eE"
+            want = None
+            continue
+        if not done and tok == "--":
+            done = True
+            continue
+        if not done and tok.startswith("-") and len(tok) > 1:
+            body = tok[1:]
+            for j, ch in enumerate(body):
+                if ch == "i":
+                    in_place = True
+                    break
+                if ch in "eEIMmxdDlF0C":
+                    rest = body[j + 1:]
+                    if ch in "eE":
+                        if rest:
+                            have_code = True
+                        else:
+                            want = ch
+                    elif not rest and ch in "IM":
+                        want = ch
+                    break
+            continue
+        ops.append(tok)
+    if not have_code:
+        ops = ops[1:]
+    return ops if in_place else []
+
+
+def in_place_targets(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
+    """(existing files a POSIX sed -i / perl -i rewrites, resolved?)."""
+    toks = _tokenize(seg)
+    i = 0
+    while i < len(toks) and (_ENV_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
+        i += 1
+    if i >= len(toks):
+        return [], True
+    verb = toks[i].lower()
+    files = (_sed_files(toks[i + 1:]) if verb == "sed"
+             else _perl_files(toks[i + 1:]) if verb == "perl" else [])
+    hits = []
+    for f in files:
+        f = _expanduser_any(f)
+        if _UNEXPANDED.search(f):
+            return [], False
+        if base and not os.path.isabs(f):
+            f = os.path.join(base, f)
+        for piece in _expand_braces(f):
+            names = sorted(_glob.glob(piece)) if any(c in piece for c in "*?[") else [piece]
+            for name in names:
+                ap = os.path.normpath(os.path.abspath(name))
+                if os.path.isfile(ap) and ap not in hits:
+                    hits.append(ap)
+    return sorted(hits), True
+
+
+# rule id reported for each verb that overwrites what it names
+_OVERWRITERS = (("cp_overwrite", _CP_RE, cp_clobbers),
+                ("sed_in_place", _SED_RE, in_place_targets),
+                ("perl_in_place", _PERL_RE, in_place_targets))
+
+
+def _overwrite_hit_map(cmd: str, pairs, segments, moved) -> dict:
+    """{segment index: (rule id, paths)} for every POSIX segment that would
+    overwrite something that exists now."""
+    out = {}
+    for idx, (seg, d) in enumerate(pairs):
+        if d != POSIX:
+            continue
+        for rule, rx, resolve in _OVERWRITERS:
+            if not rx.search(seg):
+                continue
+            base, ok = _base_at(cmd, segments, idx, moved)
+            if not ok:
+                break                            # cannot model it: change nothing
+            hits, resolved = resolve(seg, base)
+            if resolved and hits:
+                out[idx] = (rule, hits)
+            break
+    return out
+
+
+def overwrites(cmd: str, dialect: str = POSIX) -> List[str]:
+    """One rule id per segment that overwrites something that exists (cp,
+    sed -i, perl -i). Never raises: a parse we did not foresee must degrade
+    to today's answer."""
+    try:
+        pairs, moved = _operand_context(cmd, dialect)
+        hit = _overwrite_hit_map(cmd, pairs, [s for s, _ in pairs], moved)
+        return [hit[i][0] for i in sorted(hit)]
+    except Exception:
+        return []
+
+
+def target_writer_segments(cmd: str, dialect: str = POSIX) -> int:
+    """How many segments are an in-place formatter writing a named path
+    (prettier --write, black, ...). They destroy the old content as surely as
+    rm does, and were never counted: `git reset --hard; prettier --write f.js`
+    snapshotted f.js and reported the whole line REVERSIBLE."""
+    try:
+        pairs, _ = _operand_context(cmd, dialect)
+        return sum(1 for seg, d in pairs if _writer_hit(seg, d))
+    except Exception:
+        return 0
+
+
 _PS_REMOVE_RE = re.compile(r"^\s*Remove-Item\b", re.I)
 # 'ri' alias is Remove-Item only under PowerShell.
 _PS_REMOVE_ALIAS_RE = re.compile(rf"^\s*(?:{PS_REMOVE_ALIASES})\b", re.I)
@@ -652,13 +923,16 @@ def expanded_operands(cmd: str, dialect: str = POSIX) -> List[str]:
     pairs, moved = _operand_context(cmd, dialect)
     segments = [seg for seg, _ in pairs]
     seen, out = set(), []
-    for index, seg in enumerate(segments):
-        if not (_RM_RE.search(seg) or _MV_RE.search(seg)):
+    for index, (seg, seg_dialect) in enumerate(pairs):
+        over = next((resolve for _r, rx, resolve in _OVERWRITERS
+                     if seg_dialect == POSIX and rx.search(seg)), None)
+        if not (_RM_RE.search(seg) or _MV_RE.search(seg) or over):
             continue
         base, ok = _base_at(cmd, segments, index, moved)
         if not ok:
             return []                   # unmodellable cd: nothing honest to show
-        for path in _path_operands(seg, base):
+        paths = over(seg, base)[0] if over else _path_operands(seg, base)
+        for path in paths:
             real = os.path.normpath(os.path.abspath(path))
             if real not in seen and os.path.exists(real):
                 seen.add(real)
@@ -752,8 +1026,10 @@ def extract_path_operand(cmd: str, dialect: str = POSIX) -> Optional[str]:
                  (_ps_content_hit, _existing(_ps_write_target)),
                  (_ps_dest_hit, _existing(_ps_dest_target)))
 
+    over_hits = _overwrite_hit_map(cmd, pairs, segments, moved)
     acting = {i for i, (seg, d) in enumerate(pairs)
               if any(m(seg, d) for m, _ in _MATCHERS) or redirect_target(seg)}
+    acting |= set(over_hits)
     if len(acting) > 1:
         return None
 
@@ -772,6 +1048,10 @@ def extract_path_operand(cmd: str, dialect: str = POSIX) -> Optional[str]:
         if target and moved and base and not os.path.isabs(target):
             return None
         return target
+
+    if over_hits:
+        _rule, hits = next(iter(over_hits.values()))
+        return hits[0] if len(hits) == 1 else _common_capture_root(hits)
 
     # Truncating output redirection ('> file'): snapshot target if exactly one segment redirects.
     tgt, _ = resolve_redirect_target(cmd, dialect, moved=moved)
@@ -942,9 +1222,11 @@ def is_fs_delete(cmd: str, dialect: str = POSIX) -> bool:
     """True if cmd is a local filesystem delete/move whose target THIS module
     resolves by operand extraction (rm / mv / PowerShell Remove-Item). Used by
     the guard to refuse a partial .db-name capture for such a command (#004)."""
+    # Effective segments, not the raw split: `do rm x` is an rm, and the
+    # partial-capture refusal has to see it the same way extraction does.
     return any(
-        bool(_RM_RE.search(s) or _MV_RE.search(s) or _ps_remove_hit(s, dialect))
-        for s in split_segments(cmd, dialect) or [cmd]
+        bool(_RM_RE.search(s) or _MV_RE.search(s) or _ps_remove_hit(s, d))
+        for s, d in effective_segments(cmd, dialect) or [(cmd, dialect)]
     )
 
 

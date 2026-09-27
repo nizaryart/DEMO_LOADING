@@ -241,6 +241,25 @@ class Guard:
 
         c = classify_pipeline(command, dialect)
 
+        # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
+        # classifier rule says so. The rule cannot live in the classifier: it
+        # is filesystem-blind, and a vote there for `cp a new.txt` escalates an
+        # ordinary `rm x && cp a b` (test_posix_copy_does_not_count_as_a_
+        # destructive_step). So the vote is cast here, where we can stat, and
+        # only for a target that exists. It IS a vote: without it
+        # `DROP TABLE t; cp -f a b` would snapshot b and call the whole line
+        # REVERSIBLE - see multi_destructive below.
+        #
+        # In-place formatters (prettier --write f.js, black f.py) vote too.
+        # They were classified as writers and counted by nobody, so
+        # `git reset --hard; prettier --write f.js` came back REVERSIBLE.
+        overwriting = recovery.overwrites(command, dialect)
+        if overwriting:
+            c.is_destructive = c.is_mutating = True
+            c.matched_rule = c.matched_rule or overwriting[0]
+        c.destructive_segments += (len(overwriting)
+                                   + recovery.target_writer_segments(command, dialect))
+
         # Writing to a path that does NOT yet exist CREATES it - there is nothing
         # to destroy. classify.py is filesystem-blind (string only), so the
         # correction happens here, where we can stat.
@@ -300,16 +319,14 @@ class Guard:
             if cand:
                 ap = os.path.abspath(cand)
                 root = os.path.abspath(self.config.project_root or os.getcwd())
-                try:
-                    within = os.path.commonpath([ap, root]) == root
-                except ValueError:
-                    within = False
-                # Refuse the project root itself as a capture surface: a two-file
-                # rm at the top level collapses to a common root of the whole
-                # project, and silently deep-copying the entire tree on every such
-                # rm is neither honest nor cheap. Escalate instead - same spirit
-                # as _too_broad refusing $HOME / the filesystem root.
-                if within and ap != root and os.path.exists(ap):
+                # Strictly inside the root, by path and by real path. The root
+                # itself is refused as a capture surface: a two-file rm at the
+                # top level collapses to a common root of the whole project,
+                # and silently deep-copying the entire tree on every such rm is
+                # neither honest nor cheap. Escalate instead - same spirit as
+                # _too_broad refusing $HOME / the filesystem root. A link out of
+                # the project is refused too - see recovery.within_project.
+                if recovery.within_project(ap, root) and os.path.exists(ap):
                     target_path = ap
 
         target = recovery.resolve_target(command, explicit_db, db_url, target_path)
@@ -553,7 +570,9 @@ class Guard:
             within = os.path.commonpath([ap, root]) == root
         except ValueError:                      # different drives on Windows
             within = False
-        in_scope = within and ap != root
+        in_scope = recovery.within_project(ap, root)
+        # Inside by path, outside by where the bytes live: a link out.
+        links_out = within and ap != root and not in_scope
 
         c = Classification(
             is_mutating=True, action_type="filewrite",
@@ -589,10 +608,13 @@ class Guard:
                 next_steps=["Name the file to edit, not the project root."],
             )
         elif not in_scope:
+            where = (f"{ap} links to {os.path.realpath(ap)}, outside the project "
+                     f"root ({root})" if links_out else
+                     f"{ap} is outside the project root ({root})")
             decision = Decision(
                 ESCALATE,
-                f"{ap} is outside the project root ({root}); no recovery point "
-                f"was captured for it and none is claimed.",
+                f"{where}; no recovery point was captured for it and none is "
+                f"claimed.",
                 recoverable=False,
                 next_steps=[
                     "Edit a path inside the project, or open that project "

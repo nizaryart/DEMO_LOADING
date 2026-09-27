@@ -100,6 +100,19 @@ ORDINARY = [
     "cat docker-compose.yml",
     "rg 'npm unpublish' docs/",
     "man docker-rm",
+    # Audit 2026-09-26, QUOTE and O1: the same class, found in the rules this
+    # corpus did not yet cover. Released by quote-awareness for commands that
+    # only print, search or record text - not by anchoring (see
+    # test_nested_redirection's still_see_quoted_code for why).
+    'echo "rm -rf /"',
+    'git commit -m "rm -rf a.txt"',
+    "grep -rn 'terraform destroy' docs/",
+    'echo "we use stripe charge in prod"',
+    'git commit -m "fix: never eval user input"',
+    "rg 'kubectl delete' -n",
+    # --help directly after the verb, and nothing after it.
+    "terraform destroy --help",
+    "gh repo delete --help",
 ]
 
 

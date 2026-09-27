@@ -196,16 +196,32 @@ def test_a_verb_inside_a_string_is_still_not_a_command(cmd):
     assert not classify_pipeline(cmd).is_destructive
 
 
-def test_the_unanchored_posix_rules_still_false_positive():
-    """Not a wish - a record of the standing trade.
+@pytest.mark.parametrize("cmd", [
+    "sudo sh -c 'rm -rf later'",
+    "su -c 'rm -rf later'",
+    "ssh host 'rm -rf later'",
+    "docker exec c sh -c 'rm -rf later'",
+    "watch 'rm -rf later'",
+    "trap 'rm -rf later' EXIT",
+    "echo 'rm -rf later' | sh",
+    'git commit -m "$(rm -rf later)"',
+])
+def test_the_unanchored_posix_rules_still_see_quoted_code(cmd):
+    """A record of the standing trade, rewritten 2026-09-26.
 
-    `rm_rf` is unanchored by design (classify.py:39), so `echo "run rm -rf
-    later"` is flagged. That over-fires, and the cost was accepted for the
-    coverage. It is ALSO why the two nested-shell bugs survived: unanchored
-    rules kept firing on the mangled payload, so the command still looked
-    destructive and only its operand went missing.
+    `rm_rf` is unanchored by design (classify.py), and these are what that
+    buys: a quoted argument that another program RUNS. Every one of them is
+    caught only because the rule does not care about the quotes. Anchoring
+    rm_rf, or blanking quoted text everywhere, silently allows all of them.
 
-    Pinned here so that if someone anchors these rules later, this test fails
-    and they are told what else that changes.
+    What changed: `echo "run rm -rf later"` used to be pinned here as the
+    accepted false positive. It is no longer flagged - quoted text is inert
+    for the short list of commands that only print, search or record it
+    (classify._data_sink), and for nothing else. See test_audit_20260926's
+    QUOTE tests.
     """
-    assert classify_pipeline('echo "run rm -rf later"').matched_rule == "rm_rf"
+    assert classify_pipeline(cmd).matched_rule == "rm_rf", cmd
+
+
+def test_printed_text_is_no_longer_the_accepted_false_positive():
+    assert classify_pipeline('echo "run rm -rf later"').matched_rule is None

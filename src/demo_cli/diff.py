@@ -10,7 +10,7 @@ import hashlib
 import os
 import sqlite3
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from . import recovery
 
@@ -95,15 +95,28 @@ def diff_sqlite(before: str, after: str, limit: int = 8) -> List[DiffLine]:
 
 # ---- dir / file ----
 
-def _manifest(root: str):
+def _manifest(root: str, against: Optional[str] = None):
+    """relative path -> hash for every file under `root`.
+
+    With no `against`, `root` is a CAPTURE and is listed whole: the copy
+    already left out what it ignored, so anything still in it - a lifted .git,
+    a directory that merely shares an ignored name - is part of what undo
+    restores, and hiding it from the person deciding whether to undo was the
+    audit's DIFF finding.
+
+    With `against` (the capture), `root` is the LIVE tree and the ignore list
+    applies - except where the capture holds that directory too.
+    """
     manifest = {}
     for dirpath, dirnames, filenames in os.walk(root):
         # The shared constant, not a fourth copy of it. IGNORED_DIRS' own
         # comment: "Three separate copies had already drifted apart before
         # this was unified; adding an entry must fix every platform at once."
-        # This was the fourth. No behaviour change today - the names were
-        # identical - which is precisely why it would have drifted unnoticed.
-        dirnames[:] = [d for d in dirnames if d not in recovery.IGNORED_DIRS]
+        if against is not None:
+            rel_dir = os.path.relpath(dirpath, root)
+            dirnames[:] = [d for d in dirnames
+                           if d not in recovery.IGNORED_DIRS
+                           or os.path.isdir(os.path.join(against, rel_dir, d))]
         for name in filenames:
             full = os.path.join(dirpath, name)
             rel = os.path.relpath(full, root)
@@ -131,7 +144,7 @@ def _text_diff(before_path: str, after_path: str, rel: str) -> List[DiffLine]:
 
 
 def diff_dir(snap: str, current: str) -> List[DiffLine]:
-    before, after = _manifest(snap), _manifest(current)
+    before, after = _manifest(snap), _manifest(current, against=snap)
     out: List[DiffLine] = []
     for k in sorted(set(after) - set(before)):
         out.append(DiffLine(f"{k}: added", "add"))

@@ -140,6 +140,11 @@ _DESTRUCTIVE_RULES = [
     # Whole-device filesystem format (non-recoverable).
     ("fs_mkfs", "shell", r"\bmkfs(?:\.\w+)?\b"),
     ("fs_find_delete", "shell", r"\bfind\b[^|;&]*\s-delete\b"),
+    # `find ... -exec rm {} \;` - the delete is an argument, never the command
+    # word, so no anchored rule can see it and rm_rf needs both flags.
+    ("fs_find_delete", "shell",
+     r"\bfind\b[^|;&]*\s-(?:exec|execdir|ok|okdir)\s+(?:sudo\s+)?"
+     r"(?:rm|unlink|shred|truncate)\b"),
     ("git_clean", "git", r"\bgit\s+clean\b[^|;&]*-[a-z]*d"),
     # Destructive git actions (history rewrites, discarding uncommitted work, reflog expiry).
     ("git_worktree_remove", "git", r"\bgit\s+worktree\s+remove\b[^|;&]*(?:--force|\s-f)\b"),
@@ -530,35 +535,329 @@ def effective_command(cmd: str, dialect: str = POSIX) -> Tuple[str, str]:
 def effective_segments(cmd: str, dialect: str = POSIX,
                        substitute: bool = False) -> List[Tuple[str, str]]:
     """Recursively split and unwrap nested command segments with their effective dialects."""
-    return _effective_segments(cmd, dialect, substitute, 0)
+    return [(seg, d) for seg, d, _ in
+            _effective_segments(cmd, dialect, substitute, 0, "")]
+
+
+# --------------------------------------------------------------------------
+# Command position
+#
+# Half the rule table is anchored to the start of a segment (`^\s*rm`,
+# _CMD_PREFIX + docker, `^\s*Remove-Item`), and so is target resolution. The
+# command word is not always first: measured 2026-09-26, every one of these
+# was ALLOW with nothing captured -
+#
+#     for f in a b; do rm $f; done        find . | xargs rm
+#     if true; then rm x; fi              sudo -u root rm x
+#     timeout 60 docker volume rm v       nohup / nice / env / time ...
+#     gci | ForEach-Object { Remove-Item $_ }
+#
+# Rather than widen every anchor (the unanchored rules show what that costs
+# in prose false positives), the segment is moved to its command word once,
+# here, where the classifier and target resolution both read it.
+#
+# ONLY WORDS THAT CANNOT CARRY CODE ARE REMOVED: keywords, wrapper names and
+# their plain options. A token holding $( ), a backtick, a quote or a paren
+# stops the walk and the segment is left exactly as it was - `timeout $(rm
+# -rf x) ls` must keep its rm in view.
+# --------------------------------------------------------------------------
+_KEYWORDS = frozenset({"then", "do", "else", "elif", "if", "while", "until", "!", "{"})
+# wrapper -> its short options that take a separate value
+_WRAPPERS = {
+    "sudo": "ugCDhprtUTR", "doas": "uC", "nohup": "", "builtin": "",
+    "command": "", "exec": "a", "nice": "n", "time": "fo", "timeout": "sk",
+    "env": "uCS", "stdbuf": "ioe", "ionice": "cnp", "xargs": "nIPdLsEa",
+}
+_WRAPPER_LONG_VALUE = frozenset({
+    "--user", "--group", "--signal", "--kill-after", "--unset", "--chdir",
+    "--split-string", "--adjustment", "--max-args", "--max-procs",
+    "--delimiter", "--max-lines", "--max-chars", "--eof", "--arg-file",
+    "--input", "--output", "--error", "--class", "--classdata", "--format",
+    "--prompt", "--close-from", "--host", "--role", "--type", "--other-user",
+})
+_WORD = re.compile(r"\s*(\S+)")
+_CARRIES_CODE = re.compile(r"[$`'\"()]")
+_PLAIN_ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*=[^\s$`'\"()]*$")
+
+
+def _skip_wrapper(rest: str, name: str) -> Optional[str]:
+    """What follows a wrapper once its options are consumed, or None when it
+    is not wrapping a command after all (`command -v rm` is a lookup)."""
+    opts = _WRAPPERS[name]
+    while True:
+        m = _WORD.match(rest)
+        if not m:
+            return rest
+        tok = m.group(1)
+        if _CARRIES_CODE.search(tok):
+            return None
+        if tok == "--":
+            return rest[m.end():]
+        if name == "command" and tok in ("-v", "-V"):
+            return None
+        if name == "env" and _PLAIN_ASSIGNMENT.match(tok):
+            rest = rest[m.end():]
+            continue
+        if not tok.startswith("-") or tok == "-":
+            break
+        rest = rest[m.end():]
+        takes_value = (tok in _WRAPPER_LONG_VALUE if tok.startswith("--")
+                       else len(tok) == 2 and tok[1] in opts)
+        if takes_value:
+            v = _WORD.match(rest)
+            if not v or _CARRIES_CODE.search(v.group(1)):
+                return None
+            rest = rest[v.end():]
+    if name == "timeout":                      # the DURATION operand
+        m = _WORD.match(rest)
+        if not m or _CARRIES_CODE.search(m.group(1)):
+            return None
+        rest = rest[m.end():]
+    return rest
+
+
+def _posix_command_position(seg: str) -> List[str]:
+    s = seg
+    for _ in range(32):                        # bounded: a prefix is short
+        m = _WORD.match(s)
+        if not m:
+            break
+        w = m.group(1)
+        if w in _KEYWORDS or _PLAIN_ASSIGNMENT.match(w):
+            s = s[m.end():]
+            continue
+        if w.startswith("(") and not w.startswith("(("):
+            s = s[m.start(1) + 1:]             # subshell: `( rm x )`, `(rm x`
+            continue
+        name = w.rsplit("/", 1)[-1]
+        if name in _WRAPPERS and not _CARRIES_CODE.search(w):
+            rest = _skip_wrapper(s[m.end():], name)
+            if rest is None:
+                return [seg]                   # leave it exactly as it was
+            s = rest
+            continue
+        break
+    s = s.strip()
+    while s.endswith(")") and s.count(")") > s.count("("):
+        s = s[:-1].rstrip()                    # the subshell's closing paren
+    return [s or seg]
+
+
+_PS_BLOCK = re.compile(
+    r"\s*(?:(?:ForEach-Object|foreach|%|Where-Object|\?)\s+(?:-Process\s+)?\{"
+    r"|(?:else|try|finally|do|begin|process|end)\s*\{|[&.]\s*\{|\{)", re.I)
+_PS_CONDITION = re.compile(r"\s*(?:foreach|if|elseif|while|switch)\s*\(", re.I)
+
+
+def _ps_command_position(seg: str) -> List[str]:
+    """PowerShell scriptblocks. A condition RUNS, so it is returned as a
+    segment of its own rather than stripped: `if (Remove-Item x) {...}`."""
+    out: List[str] = []
+    s = seg
+    for _ in range(16):
+        m = _PS_BLOCK.match(s)
+        if m:
+            s = s[m.end():]
+            continue
+        m = _PS_CONDITION.match(s)
+        if m:
+            depth, j, q = 1, m.end(), None
+            while j < len(s) and depth:
+                ch = s[j]
+                if q:
+                    q = None if ch == q else q
+                elif ch in "'\"":
+                    q = ch
+                elif ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                j += 1
+            if depth:
+                return [seg]                   # unbalanced: leave it alone
+            cond = s[m.end():j - 1].strip()
+            if cond:
+                out.append(cond)
+            s = s[j:]
+            b = re.match(r"\s*\{", s)
+            if b:
+                s = s[b.end():]
+            continue
+        break
+    s = s.strip()
+    while s.endswith("}") and s.count("}") > s.count("{"):
+        s = s[:-1].rstrip()
+    if s:
+        out.append(s)
+    return out or [seg]
+
+
+def command_position(seg: str, dialect: str = POSIX) -> List[str]:
+    """The segment from its command word on (a PowerShell condition becomes
+    a segment of its own)."""
+    if dialect == POWERSHELL:
+        return _ps_command_position(seg)
+    return _posix_command_position(seg)
 
 
 def _effective_segments(cmd: str, dialect: str, substitute: bool,
-                        depth: int) -> List[Tuple[str, str]]:
+                        depth: int, outer_sep: str) -> List[Tuple[str, str, str]]:
+    """(segment, dialect, separator that follows it). The last segment of an
+    unwrapped `bash -c "..."` inherits the separator after the wrapper: in
+    `bash -c "echo x" | sh` it is the inner echo whose output reaches sh."""
     cmd = join_continuations(cmd, dialect)
     if dialect == POWERSHELL:
         # Strip character escapes after continuations have been folded.
         cmd = strip_ps_escapes(cmd)
     if substitute:
         cmd = substitute_assignments(cmd, dialect)
-    out: List[Tuple[str, str]] = []
-    for seg in split_segments(cmd, dialect) or [cmd]:
-        nested = unwrap_nested(seg) if depth < _MAX_NESTING else None
-        if nested and nested[0].strip():
-            out.extend(_effective_segments(nested[0], nested[1],
-                                           substitute, depth + 1))
-        else:
-            out.append((seg, dialect))
+    out: List[Tuple[str, str, str]] = []
+    for raw, sep in _split_segments_cached(cmd, dialect) or ((cmd, ""),):
+        sep = sep or outer_sep
+        parts = command_position(raw, dialect)
+        for k, seg in enumerate(parts):
+            seg_sep = sep if k == len(parts) - 1 else ";"
+            nested = unwrap_nested(seg) if depth < _MAX_NESTING else None
+            if nested and nested[0].strip():
+                out.extend(_effective_segments(nested[0], nested[1],
+                                               substitute, depth + 1, seg_sep))
+            else:
+                out.append((seg, dialect, seg_sep))
     return out
 
 
+# --------------------------------------------------------------------------
+# Text that is data, not commands
+#
+# The rule table searches a segment's raw text, so `echo "rm -rf /"` - eight
+# printed characters - was judged as a delete (audit 2026-09-26, QUOTE). The
+# unanchored rules cannot simply be anchored or made quote-blind: eleven
+# measured forms pass CODE through a quoted argument - `sudo sh -c '...'`,
+# `ssh h '...'`, `su -c`, `docker exec ... sh -c`, `find -exec sh -c`,
+# `watch`, `trap`, `echo '...' | sh` - and are caught today only because the
+# rule does not care about the quotes.
+#
+# So quoted text is inert only where the COMMAND makes it inert: a short
+# allowlist of commands that print, search or record their arguments and
+# never run them. Unknown commands keep today's behaviour, so the list can
+# only ever release, never open a gap. Three exceptions keep it honest:
+#   * a double-quoted argument holding $( ) or backticks - that part runs;
+#   * a segment whose output is piped onward (`echo '...' | sh`);
+#   * `rg --pre`, which runs a command per file.
+# --------------------------------------------------------------------------
+_DATA_SINKS = frozenset({"echo", "printf", "cat", "grep", "egrep", "fgrep", "rg"})
+_ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*=")
+
+
+def _data_sink(seg: str) -> bool:
+    """Does this segment's command only print, search or record its text?
+
+    Judged from the command word, not the first word: the heredoc check reads
+    raw text, and `nohup cat <<'EOF'` had its body judged as commands while
+    `cat <<'EOF'` did not (review 2026-09-27). Idempotent on a segment that
+    is already at its command word.
+    """
+    seg = _posix_command_position(seg)[0]
+    try:
+        toks = shlex.split(seg, posix=True)
+    except ValueError:
+        toks = seg.split()
+    i = 0
+    while i < len(toks) and (_ASSIGNMENT.match(toks[i]) or toks[i] == "sudo"):
+        i += 1
+    if i >= len(toks):
+        return False
+    word = toks[i].rsplit("/", 1)[-1]
+    if word == "rg":
+        return not any(t == "--pre" or t.startswith("--pre=") for t in toks)
+    if word in _DATA_SINKS:
+        return True
+    return word == "git" and i + 1 < len(toks) and toks[i + 1] == "commit"
+
+
+def _mask_quoted(seg: str) -> str:
+    """`seg` with the inside of every inert quoted argument blanked, same
+    length. Escape-aware, because a quote the splitter mistook for an opening
+    one must not hide real commands: in `echo \"; rm -rf x` the rm runs."""
+    out = list(seg)
+    i, n = 0, len(seg)
+    while i < n:
+        ch = seg[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == "'":
+            j = seg.find("'", i + 1)
+            if j == -1:
+                break                          # unbalanced: mask nothing further
+            out[i + 1:j] = "_" * (j - i - 1)
+            i = j + 1
+            continue
+        if ch == '"':
+            j = i + 1
+            while j < n and seg[j] != '"':
+                j += 2 if seg[j] == "\\" else 1
+            if j >= n:
+                break
+            inner = seg[i + 1:j]
+            if "$(" not in inner and "`" not in inner:
+                out[i + 1:j] = "_" * (j - i - 1)
+            i = j + 1
+            continue
+        i += 1
+    return "".join(out)
+
+
+# `<<WORD`, `<<-WORD`, `<<'WORD'`, `<<"WORD"`, `<<\WORD`. A delimiter in any
+# other shape is not recognised, and the body is then split into segments
+# exactly as before - the conservative reading.
+_HEREDOC = re.compile(
+    r"<<(-?)[ \t]*(?:'([^'\n]*)'|\"([^\"\n]*)\"|\\([A-Za-z_][\w.-]*)|([A-Za-z_][\w.-]*))")
+
+
+def _take_heredocs(cmd: str, i: int, pending, recs, dialect: str) -> int:
+    """Consume the bodies of the heredocs opened on the line just ended.
+
+    A body is stdin, never executed - but only a DATA consumer makes it inert
+    (audit O2). `bash <<EOF`, `psql <<EOF`, `ssh h <<EOF` run their body, so
+    those bodies are still split into segments exactly as before. An unquoted
+    delimiter also expands $( ) and backticks inside the body, so such a body
+    stays in view even for cat.
+    """
+    for delim, strip_tabs, quoted, idx in pending:
+        lines = []
+        while i < len(cmd):
+            j = cmd.find("\n", i)
+            j = len(cmd) if j == -1 else j
+            line = cmd[i:j]
+            i = j + 1
+            if (line.lstrip("\t") if strip_tabs else line) == delim:
+                break
+            lines.append(line)
+        body = "\n".join(lines)
+        text, sep = recs[idx]
+        inert = (sep != "|" and _data_sink(text)
+                 and (quoted or ("$(" not in body and "`" not in body)))
+        if not inert:
+            recs.extend([t, sp] for t, sp in _split_segments_cached(body, dialect))
+    return i
+
+
 @functools.lru_cache(maxsize=512)
-def _split_segments_cached(cmd: str, dialect: str) -> Tuple[str, ...]:
+def _split_segments_cached(cmd: str, dialect: str) -> Tuple[Tuple[str, str], ...]:
+    """((segment, separator that follows it), ...). The separator is what
+    lets the classifier tell `echo '...'` from `echo '...' | sh`."""
     cmd = join_continuations(cmd, dialect)
-    segments: List[str] = []
+    recs: List[List[str]] = []
     buf: List[str] = []
+    pending: List[tuple] = []
     quote = None
     i, n = 0, len(cmd)
+
+    def flush(sep: str) -> None:
+        recs.append(["".join(buf), sep])
+        buf.clear()
+
     while i < n:
         ch = cmd[i]
         nxt = cmd[i + 1] if i + 1 < n else ""
@@ -573,15 +872,26 @@ def _split_segments_cached(cmd: str, dialect: str) -> Tuple[str, ...]:
             buf.append(ch)
             i += 1
             continue
+        if (dialect == POSIX and ch == "<" and nxt == "<"
+                and cmd[i + 2:i + 3] != "<" and (i == 0 or cmd[i - 1] != "<")):
+            m = _HEREDOC.match(cmd, i)
+            if m:
+                delim = next(g for g in m.groups()[1:] if g is not None)
+                quoted = m.group(5) is None
+                pending.append((delim, m.group(1) == "-", quoted, len(recs)))
+                buf.append(m.group(0))
+                i = m.end()
+                continue
         if ch in ("&", "|") and nxt == ch:  # && or ||
-            segments.append("".join(buf))
-            buf = []
+            flush(ch * 2)
             i += 2
             continue
         if ch in ("|", ";", "\n"):  # single pipe, semicolon, newline
-            segments.append("".join(buf))
-            buf = []
+            flush(ch)
             i += 1
+            if ch == "\n" and pending:
+                i = _take_heredocs(cmd, i, pending, recs, dialect)
+                pending = []
             continue
         if ch == "&" and dialect != POWERSHELL:
             # Single & separator/background operator in POSIX (excluding &>, >&, <&, or \&).
@@ -605,22 +915,21 @@ def _split_segments_cached(cmd: str, dialect: str) -> Tuple[str, ...]:
             is_escaped = (num_slashes % 2 == 1)
 
             if not is_redirect and not is_escaped:
-                segments.append("".join(buf))
-                buf = []
+                flush("&")
                 i += 1
                 continue
 
         buf.append(ch)
         i += 1
-    segments.append("".join(buf))
-    return tuple(s.strip() for s in segments if s.strip())
+    flush("")
+    return tuple((t.strip(), sep) for t, sep in recs if t.strip())
 
 
 def split_segments(cmd: str, dialect: str = POSIX) -> List[str]:
     """Split a command line on shell separators (| || && ; newline, and single & in POSIX)
     while respecting single and double quotes. Returns trimmed, non-empty segments.
     """
-    return list(_split_segments_cached(cmd, dialect))
+    return [seg for seg, _ in _split_segments_cached(cmd, dialect)]
 
 
 def redirect_target(cmd: str) -> Optional[str]:
@@ -713,12 +1022,29 @@ class Classification:
         return self.is_mutating or self.is_destructive
 
 
-def _classify_segment(cmd: str, dialect: str = POSIX) -> dict:
+# `terraform destroy --help` prints help and destroys nothing (audit O1).
+# Released only when --help comes IMMEDIATELY after what the rule matched and
+# ends the segment: there it can be neither a flag's value (`curl ... -H
+# --help` still sends the request) nor follow an operand (a non-permuting
+# `rm -rf dir --help` deletes dir).
+_HELP_TAIL = re.compile(r"\s+--help\s*")
+
+
+def _fires(rx, text: str) -> bool:
+    return any(not _HELP_TAIL.fullmatch(text, m.end())
+               for m in rx.finditer(text))
+
+
+def _classify_segment(cmd: str, dialect: str = POSIX, inert: bool = False) -> dict:
+    """`inert`: the segment's command only prints, searches or records its
+    quoted arguments (see _data_sink), so the rules see those arguments
+    blanked. Redirections are still read from the real text."""
+    probe = _mask_quoted(cmd) if inert else cmd
     matched, atype = None, "shell"
     for rid, action_type, rx, only_in in _DESTRUCTIVE:
         if only_in is not None and only_in != dialect:
             continue
-        if rx.search(cmd):
+        if _fires(rx, probe):
             matched, atype = rid, action_type
             break
 
@@ -726,15 +1052,15 @@ def _classify_segment(cmd: str, dialect: str = POSIX) -> dict:
     if matched is None and redirect_target(cmd):
         matched, atype = "fs_redirect_truncate", "shell"
 
-    is_sql_read = bool(_SQL_READ.search(cmd))
-    is_sql_mutating = bool(_SQL_MUTATING.search(cmd))
-    is_file_writer = bool(_FILE_WRITERS.search(cmd))
+    is_sql_read = bool(_SQL_READ.search(probe))
+    is_sql_mutating = bool(_SQL_MUTATING.search(probe))
+    is_file_writer = _fires(_FILE_WRITERS, probe)
     is_destructive = matched is not None
 
     # Non-recoverable surfaces count as mutations.
     surface = None
     for label, rx in _NONRECOVERABLE:
-        if rx.search(cmd):
+        if _fires(rx, probe):
             surface = label
             break
     # External/remote destructive rules cannot be covered by local snapshot.
@@ -787,12 +1113,24 @@ def classify_pipeline(cmd: str, dialect: str = POSIX) -> Classification:
     execution is detected on the full string because the pipe *is* the payload.
     """
     # Judge each segment in its own effective dialect.
-    pairs = effective_segments(cmd, dialect)
-    segments = [seg for seg, _ in pairs]
-    seg_results = [_classify_segment(seg, d) for seg, d in pairs]
+    triples = _effective_segments(cmd, dialect, False, 0, "")
+    segments = [seg for seg, _, _ in triples]
+    inert = [d == POSIX and sep != "|" and _data_sink(seg)
+             for seg, d, sep in triples]
+    seg_results = [_classify_segment(seg, d, f)
+                   for (seg, d, _), f in zip(triples, inert)]
+    # Opaque remote execution is searched across segments, because the pipe
+    # IS the payload (`curl ... | bash`). Rebuilt from the segments rather
+    # than read off the raw line, so an inert argument - a commit message
+    # that mentions eval - is blanked here too.
+    probes = [_mask_quoted(seg) if f else seg
+              for (seg, _, _), f in zip(triples, inert)]
+    rebuilt = " ".join(p + (" " + sep if sep else "")
+                       for p, (_, _, sep) in zip(probes, triples))
     if not seg_results:
         segments = [cmd]
         seg_results = [_classify_segment(cmd, dialect)]
+        probes, rebuilt = [cmd], cmd
 
     def any_of(key):
         return any(s[key] for s in seg_results)
@@ -810,8 +1148,8 @@ def classify_pipeline(cmd: str, dialect: str = POSIX) -> Classification:
         is_sql_mutating=any_of("is_sql_mutating"),
         is_file_writer=any_of("is_file_writer"),
         # Inspect full command string and all effective segments for remote execution.
-        remote_exec=bool(_REMOTE_EXEC.search(cmd))
-        or any(_REMOTE_EXEC.search(s) for s in segments),
+        remote_exec=bool(_REMOTE_EXEC.search(rebuilt))
+        or any(_REMOTE_EXEC.search(p) for p in probes),
         is_pipeline=len(seg_results) > 1,
         matched_rule=matched_rule,
         action_type=action_type,
@@ -820,9 +1158,129 @@ def classify_pipeline(cmd: str, dialect: str = POSIX) -> Classification:
     )
 
 
+# --------------------------------------------------------------------------
+# The bash pre-filter, derived from the rules
+#
+# The DEBUG-trap snippet (cli._SHELL_GUARD_SNIPPET) decides in pure bash
+# whether a command is worth a ~160 ms Python start-up. `*git\ *` sent every
+# git read to the guard (audit S3). A hand-narrowed list would be the silent-
+# gap class all over again - a git rule added here and not there drops out of
+# the shell path with nothing to say so - so the git patterns are GENERATED
+# from the git rules below, and a test pins the correspondence.
+#
+# For each rule: the literal text any match must contain, in order. Anything
+# that is not a literal becomes "*"; a positive lookahead contributes its own
+# literals and ends the chain; anchors, word boundaries and negative
+# assertions are dropped. Every step can only widen, so the glob matches a
+# superset of what the rule matches - which is the direction a pre-filter
+# must err in.
+# --------------------------------------------------------------------------
+try:                                        # Python 3.11+
+    from re import _constants as _sre_c, _parser as _sre_p
+except ImportError:                         # pragma: no cover - 3.9 / 3.10
+    import sre_constants as _sre_c
+    import sre_parse as _sre_p
+
+_GAP = None
+_CHAIN_LIMIT = 64
+
+
+def _chain_concat(chains, sub):
+    if len(chains) * len(sub) > _CHAIN_LIMIT:
+        return [c + [_GAP] for c in chains]        # too many: widen, never narrow
+    return [c + t for c in chains for t in sub]
+
+
+def _chain_seq(items):
+    chains = [[]]
+    for op, av in items:
+        if op is _sre_c.LITERAL:
+            chains = [c + [chr(av)] for c in chains]
+        elif op is _sre_c.SUBPATTERN:
+            sub, stop = _chain_seq(av[-1])
+            chains = _chain_concat(chains, sub)
+            if stop:
+                return chains, True
+        elif op is _sre_c.BRANCH:
+            alts, stop = [], False
+            for alt in av[1]:
+                a, st = _chain_seq(alt)
+                alts += a
+                stop = stop or st
+            chains = _chain_concat(chains, alts)
+            if stop:
+                return chains, True
+        elif op in (_sre_c.MAX_REPEAT, _sre_c.MIN_REPEAT):
+            lo, hi, body = av
+            if lo == 0:
+                chains = [c + [_GAP] for c in chains]
+            else:
+                sub, stop = _chain_seq(body)
+                chains = _chain_concat(chains, sub)
+                if stop:
+                    return chains, True
+                if hi != 1:
+                    chains = [c + [_GAP] for c in chains]
+        elif op is _sre_c.ASSERT:
+            direction, body = av
+            if direction == 1:                     # lookahead: starts right here
+                sub, _ = _chain_seq(body)
+                return _chain_concat(chains, sub), True
+        elif op in (_sre_c.ASSERT_NOT, _sre_c.AT):
+            pass                                   # zero-width: drop it
+        else:
+            chains = [c + [_GAP] for c in chains]  # one unknown character
+    return chains, False
+
+
+def required_literals(pattern: str) -> List[Tuple[str, ...]]:
+    """The ordered literal runs every match of `pattern` contains - one
+    tuple per alternative. An empty tuple means "no literal is required",
+    which would make any glob built from it match everything."""
+    chains, _ = _chain_seq(_sre_p.parse(pattern))
+    out = set()
+    for chain in chains:
+        runs, cur = [], ""
+        for tok in chain:
+            if tok is _GAP:
+                if cur:
+                    runs.append(cur)
+                cur = ""
+            else:
+                cur += tok
+        if cur:
+            runs.append(cur)
+        out.add(tuple(runs))
+    return sorted(out)
+
+
+def _glob_char(ch: str) -> str:
+    if ch.isalpha():
+        return f"[{ch.lower()}{ch.upper()}]"       # the rules are re.I
+    return ch if ch.isdigit() else "\\" + ch
+
+
+def git_prefilter_globs() -> List[str]:
+    """bash `case` patterns covering every git rule, derived from the rules."""
+    out = []
+    for rid, action_type, rx, only_in in _DESTRUCTIVE:
+        if action_type != "git" or only_in not in (None, POSIX):
+            continue
+        for runs in required_literals(rx.pattern):
+            glob = "*" + "*".join("".join(_glob_char(c) for c in r) for r in runs) + "*"
+            if glob not in out:
+                out.append(glob)
+    return out
+
+
 def is_file_writer_command(cmd: str) -> bool:
-    """Test if command matches mutating file-writer pattern (shared with recovery.py)."""
-    return bool(_FILE_WRITERS.search(cmd))
+    """Test if command matches mutating file-writer pattern (shared with recovery.py).
+
+    Through _fires, the classifier's own test, so `black --help` is not a
+    writer here while the classifier says it is not one: the two used to
+    disagree and `black --help && rm x` escalated on a phantom second step.
+    """
+    return _fires(_FILE_WRITERS, cmd)
 
 
 def is_sql_preview_candidate(cmd: str) -> bool:

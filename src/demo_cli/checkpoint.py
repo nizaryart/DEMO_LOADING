@@ -169,7 +169,8 @@ def capture(cfg: Config, action: str) -> CheckpointResult:
     # neither the cause nor the knob and describes a copy that never began.
     cap = recovery._max_snapshot_bytes()
     file_cap = recovery._max_snapshot_files()
-    nbytes, nfiles = recovery._walk_cost(root, cap, file_cap, CHECKPOINT_IGNORE)
+    names, skip = recovery.capture_filter(root, cfg.recovery_dir, CHECKPOINT_IGNORE)
+    nbytes, nfiles = recovery._walk_cost(root, cap, file_cap, names, skip_path=skip)
     if nbytes > cap:
         return CheckpointResult(skipped=TOO_LARGE)
     if file_cap is not None and nfiles > file_cap:

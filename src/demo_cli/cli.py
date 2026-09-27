@@ -575,9 +575,14 @@ if [ -n "$BASH_VERSION" ]; then
       demo_cli\ *|demo_cli|__demo_cli_*|eval\ *) return 0 ;;
       # A cheap over-approximation of the classifier. Submitting something
       # harmless costs a call; dropping something destructive costs the guard.
+      # git: generated from classify.py's git rules (git_prefilter_globs), so
+      # a read like `git status` costs nothing and a new git rule cannot be
+      # left out of this path.
       *rm\ *|*rmdir*|*mkfs*|*shred*|*truncate*|*\ dd\ *|dd\ *|*mv\ *|*cp\ *\
-      |*find\ *|*rsync*|*git\ *|*Remove-Item*|*\>\ *|*DROP\ *|*TRUNCATE\ *\
-      |*DELETE\ FROM*|*shutil.rmtree*)
+      |*find\ *|*rsync*|*Remove-Item*|*\>\ *|*DROP\ *|*TRUNCATE\ *\
+      |*DELETE\ FROM*|*shutil.rmtree*\
+      |*\ rm|*sed\ *-i*|*sed\ *-[a-zA-Z]i*|*sed\ *-[a-zA-Z][a-zA-Z]i*\
+      |*sed\ *--in-place*|*perl\ *-*i*__DEMO_CLI_GIT_GLOBS__)
         # Bounded: the ledger lock waits 10s, and this call had no bound, so
         # a stuck lock cost 10s per command. A timeout is our failure, so it
         # fails open like the broken-guard hatch below.
@@ -619,7 +624,9 @@ if [ -n "$BASH_VERSION" ]; then
   trap '__demo_cli_shell_guard' DEBUG
 fi
 # <<< demo_cli shell guard <<<
-'''
+'''.replace("__DEMO_CLI_GIT_GLOBS__", "".join(
+    "\\\n      |" + g for g in __import__("demo_cli.classify", fromlist=["_"])
+    .git_prefilter_globs()))
 
 
 _SELF_ASSIGN = re.compile(r"^[A-Za-z_]\w*=")

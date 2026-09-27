@@ -182,7 +182,7 @@ def test_r4_the_real_workspace_is_still_ignored(proj):
         "the recovery store was copied into itself"
 
 
-def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj):
+def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj, monkeypatch):
     """cp-f - classify.py has no cp rule, so `cp -f a b` is "non-mutating" and
     b is overwritten with no recovery point.
 
@@ -194,6 +194,10 @@ def test_cp_f_overwriting_an_existing_file_is_snapshotted(proj):
     """
     (proj / "a.txt").write_text("SOURCE")
     (proj / "b.txt").write_text("ORIGINAL - must be recoverable")
+    # Stand where the files are. The fixture's cwd is proj's PARENT, where
+    # `cp -f a.txt b.txt` overwrites nothing - so the first version of this
+    # test asked for a snapshot of a file the command could not touch.
+    monkeypatch.chdir(proj)
     g = Guard(Config(project_root=str(proj)), mode="enforce")
     r = g.evaluate("cp -f a.txt b.txt")
     assert r.recovery_entry, (

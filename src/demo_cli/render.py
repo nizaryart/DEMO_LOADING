@@ -494,7 +494,8 @@ def render_log(entries, version: str) -> None:
         rid = str(e.get("id", "?"))[:8]
         ts = e.get("ts", "?")
         kind = e.get("kind", "?")
-        size = _size(_entry_size_safe(e))
+        n = _entry_size_safe(e)
+        size = "missing" if n is None else _size(n)
         action = redact(e.get("action") or e.get("target", ""))
         if len(action) > 46:
             action = action[:43] + "..."
@@ -503,12 +504,14 @@ def render_log(entries, version: str) -> None:
     _print(out)
 
 
-def _entry_size_safe(e) -> int:
+def _entry_size_safe(e) -> Optional[int]:
+    """None when the size cannot be established - rendered as "missing",
+    never as 0B, which is what a genuinely empty recovery point shows."""
     from . import recovery
     try:
         return recovery.entry_size(e)
     except Exception:
-        return 0
+        return None
 
 
 def render_doctor(checks, version: str) -> None:

@@ -173,17 +173,18 @@ def _resolve(pid: int, regs: _Regs, path_idx: int, dirfd_idx: Optional[int]) -> 
 _IGNORE_PARTS = recovery.IGNORED_DIRS
 
 
-def _in_scope(path: str, root: str) -> bool:
+def _in_scope(path: str, root: str, workspace: Optional[str] = None) -> bool:
+    """In the project, not the project itself, not under an ignored directory,
+    and not in our own workspace - which is decided by PATH. A user directory
+    that merely shares the workspace's name is in scope (audit R4)."""
     ap = os.path.abspath(path)
-    try:
-        if os.path.commonpath([ap, root]) != root:
-            return False
-    except ValueError:
+    if not recovery.within_project(ap, root):   # by path AND by real path
         return False
-    if ap == root:
+    ws = workspace or os.path.join(root, ".demo_cli")
+    if recovery._contains(ws, ap):
         return False
     rel_parts = set(os.path.relpath(ap, root).split(os.sep))
-    return not (rel_parts & _IGNORE_PARTS)
+    return not (rel_parts & (_IGNORE_PARTS - recovery.WORKSPACE_NAMES))
 
 
 # --------------------------------------------------------------------------
@@ -283,7 +284,7 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
     ap = os.path.abspath(path)
     if ap in created or ap in snapped:
         return
-    if not _in_scope(ap, root):
+    if not _in_scope(ap, root, config.workspace):
         return
     if not os.path.exists(ap):
         return                                     # nothing to lose (or already handled)

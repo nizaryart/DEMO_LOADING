@@ -87,6 +87,10 @@ from .targets import (
     _win_aware_dirname,
     _win_aware_join,
     _writer_hit,
+    cp_clobbers,
+    in_place_targets,
+    overwrites,
+    target_writer_segments,
     effective_cwd,
     expanded_operands,
     extract_path_operand,
@@ -249,6 +253,57 @@ def _contains(outer: str, inner: str) -> bool:
         return False
 
 
+def within_project(path: str, root: str) -> bool:
+    """Is `path` strictly inside `root` - by its own path AND by where its
+    bytes actually live?
+
+    The one scope rule for every door that captures (the shell guard, the
+    file-edit door, the syscall guard). Checking the path alone let a link
+    inside the project reach a file outside it: `Write proj/innocent.txt`,
+    a link to ../secret.txt, copied the secret into this project's recovery
+    store and reported REVERSIBLE - and undo would have written outside the
+    project. R2's boundary, reached through a symlink (review 2026-09-27).
+    """
+    ap, rt = os.path.abspath(path), os.path.abspath(root)
+    if ap == rt or not _contains(rt, ap):
+        return False
+    real, real_root = os.path.realpath(ap), os.path.realpath(rt)
+    return real != real_root and _contains(real_root, real)
+
+
+# The workspace is ours and is never copied into a snapshot - but it is
+# skipped by PATH, not by these names. Skipping by name dropped any user
+# directory that merely shared the name from a capture still reported as
+# complete (audit 2026-09-26, R4), and missed a workspace configured under
+# a different name entirely.
+WORKSPACE_NAMES = frozenset({".demo_cli", ".demo_cli_recovery"})
+
+
+def _workspace_of(recovery_dir: str) -> str:
+    """The workspace holding `recovery_dir`. Config lays the store out as
+    <workspace>/recovery; any other layout is treated as its own workspace,
+    so an unfamiliar recovery_dir never widens what is skipped."""
+    rd = os.path.abspath(recovery_dir)
+    return os.path.dirname(rd) if os.path.basename(rd) == "recovery" else rd
+
+
+def capture_filter(ref: str, recovery_dir: str, ignore_dirs=None):
+    """(names to skip, path to skip) for capturing `ref`.
+
+    ONE answer for everything that copies or measures a directory capture -
+    snapshot's copytree, its cap walk, and checkpoint's pre-check - because a
+    measurement that skips something the copy includes bounds nothing.
+    """
+    names = (IGNORED_DIRS if ignore_dirs is None
+             else frozenset(ignore_dirs)) - WORKSPACE_NAMES
+    ws = _workspace_of(recovery_dir)
+    if _contains(ref, ws) and not _contains(ws, ref):
+        return names, ws
+    if _contains(ref, recovery_dir):
+        return names, recovery_dir
+    return names, None
+
+
 def _walk_cost(path: str, byte_cap: int, file_cap: Optional[int] = None,
                ignore_dirs=None, skip_path=None) -> Tuple[int, int]:
     """Compute (bytes, files) under `path`, skipping directories in `ignore_dirs`.
@@ -305,9 +360,10 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     kind, ref, ts, rid = target.kind, target.ref, _ts(), _new_id()
     action = redact(action) if action else None
 
-    def _entry(recovery_point: str) -> dict:
+    def _entry(recovery_point: str, **extra) -> dict:
         e = {"id": rid, "kind": kind, "target": ref,
-             "recovery_point": recovery_point, "ts": ts, "action": action}
+             "recovery_point": recovery_point, "ts": ts, "action": action,
+             **extra}
         _record(recovery_dir, e)
         return e
 
@@ -334,11 +390,14 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
                     f"DEMO_CLI_MAX_SNAPSHOT_MB or take an independent backup.")
             return None
         bak = os.path.join(recovery_dir, f"{os.path.basename(ref)}.{ts}.{rid}.bak")
+        extra = {}
         try:
+            if os.path.islink(ref):
+                extra["link"] = os.readlink(ref)
             shutil.copy2(ref, bak)
         except OSError:
             return None         # no snapshot -> the caller escalates. See below.
-        return _entry(bak)
+        return _entry(bak, **extra)
 
     if kind == "dir":
         if not os.path.isdir(ref):
@@ -346,8 +405,7 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
         # Prevent self-copy recursion: refuse if recovery_dir is inside ref or ref is inside recovery_dir.
         if _contains(recovery_dir, ref):
             return None          # snapshotting a backup into the backup store
-        names = IGNORED_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
-        skip = recovery_dir if _contains(ref, recovery_dir) else None
+        names, skip = capture_filter(ref, recovery_dir, ignore_dirs)
 
         def ignore(dirpath, entries):
             out = {e for e in entries if e in names}
@@ -358,7 +416,7 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
 
         cap = _max_snapshot_bytes()
         file_cap = _max_snapshot_files()
-        nbytes, nfiles = _walk_cost(ref, cap, file_cap, ignore_dirs, skip_path=skip)
+        nbytes, nfiles = _walk_cost(ref, cap, file_cap, names, skip_path=skip)
         if nbytes > cap:
             if notes is not None:
                 notes["refused"] = (
@@ -541,16 +599,22 @@ def find(recovery_dir: str, rid: str) -> Optional[dict]:
     return matches[-1] if len(matches) == 1 else None
 
 
-def entry_size(entry: dict) -> int:
-    """On-disk size of a recovery point (file or directory tree)."""
+def entry_size(entry: dict) -> Optional[int]:
+    """On-disk size of a recovery point (file or directory tree), or None
+    when the recovery point cannot be found or stat'd.
+
+    None, not 0: `log` printed both as 0B under the same "undo <id>" footer,
+    so a recovery point that is gone looked exactly like an empty file that
+    undo would restore faithfully.
+    """
     rp = entry.get("recovery_point")
     if not rp or not os.path.exists(rp):
-        return 0
+        return None
     if os.path.isfile(rp):
         try:
             return os.path.getsize(rp)
         except OSError:
-            return 0
+            return None
     total = 0
     for root, _dirs, files in os.walk(rp):
         for f in files:
@@ -594,7 +658,7 @@ def prune(recovery_dir: str, keep: Optional[int] = None,
         survivors = survivors[-keep:] if keep > 0 else []
 
     for e in doomed:
-        e["_freed_bytes"] = entry_size(e)
+        e["_freed_bytes"] = entry_size(e) or 0      # a missing point frees nothing
         rp = e.get("recovery_point")
         if rp and os.path.exists(rp):
             try:
@@ -743,6 +807,18 @@ def _why_restore_failed(entry: dict):
     return False, "the copy did not complete"
 
 
+def _put_link(path: str, value: str) -> None:
+    if os.path.islink(path) and os.readlink(path) == value:
+        return
+    tmp = f"{path}.{uuid.uuid4().hex[:8]}.demo_cli-link"
+    os.symlink(value, tmp)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        os.unlink(tmp)
+        raise
+
+
 def restore_entry(entry: dict) -> bool:
     kind = entry.get("kind", "sqlite")
     rp, target = entry.get("recovery_point"), entry.get("target")
@@ -754,6 +830,8 @@ def restore_entry(entry: dict) -> bool:
         try:
             if parent:
                 os.makedirs(parent, exist_ok=True)
+            if entry.get("link") is not None:
+                _put_link(target, entry["link"])
             shutil.copy2(rp, target)
         except (OSError, ValueError):
             return False
