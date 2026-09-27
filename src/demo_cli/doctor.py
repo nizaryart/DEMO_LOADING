@@ -208,8 +208,17 @@ def _hook_selftest(tool_name: str, command: str) -> bool:
         response = json.loads(raw)
         hook_output = response.get("hookSpecificOutput", {})
         permission = hook_output.get("permissionDecision")
+        if permission not in {"allow", "deny", "ask"}:
+            return False
 
-        return permission in {"allow", "deny", "ask"}
+        # What doctor prints on a pass is "a test delete was intercepted and
+        # snapshotted", so that is what is checked. Any well-formed answer
+        # used to pass - `echo hi` included, with nothing captured.
+        from . import recovery
+        canary = os.path.realpath(os.path.join(directory, "canary.txt"))
+        entries = recovery.load_entries(load_config(directory).recovery_dir)
+        return (os.path.exists(canary)
+                and any(os.path.realpath(e.get("target") or "") == canary for e in entries))
 
     finally:
         os.chdir(previous_directory)

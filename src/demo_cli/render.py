@@ -127,13 +127,14 @@ def feedback_url_for(r: "GuardResult") -> str:
     d = r.decision
     if d.decision not in _FEEDBACK_ON:
         return ""
-    title = f"Wrong call: {d.decision} on `{(r.command or '')[:60]}`"
+    command = redact(r.command or "")        # the link leaves this machine if clicked
+    title = f"Wrong call: {d.decision} on `{command[:60]}`"
     body = (
         "**What demo_cli decided**\n"
         f"- decision: {d.decision}\n"
-        f"- reason: {d.reason}\n"
+        f"- reason: {redact(d.reason)}\n"
         f"- matched rule: {r.classification.matched_rule or '-'}\n"
-        f"- command: `{(r.command or '')[:200]}`\n\n"
+        f"- command: `{command[:200]}`\n\n"
         "**What I expected instead**\n"
         "<!-- e.g. this should have been allowed / should have snapshotted / "
         "should have blocked -->\n\n"

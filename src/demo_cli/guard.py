@@ -181,7 +181,13 @@ def agent_directory(cwd: str):
 class Guard:
     def __init__(self, config: Optional[Config] = None, mode: Optional[str] = None):
         self.config = config or load_config()
-        self.mode = mode or self.config.mode
+        # A config that cannot be read cannot tell us its mode either, and
+        # falling back to the default (shadow) turned "every command is
+        # blocked" into "nothing is blocked": the refusal was recorded and
+        # printed, and every adapter let the command run - a config written
+        # for enforce was silently observe-only (2026-09-27). Refusing needs
+        # enforce. An explicit `mode` (`check --mode`) still wins.
+        self.mode = mode or ("enforce" if self.config.config_error else self.config.mode)
 
     def _refuse_broken_config(self, command: str, agent_id: str,
                               session_id: str) -> GuardResult:

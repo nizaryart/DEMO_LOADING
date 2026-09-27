@@ -545,6 +545,14 @@ def load_config(start: Optional[str] = None) -> Config:
     return cfg
 
 
+def _toml_string(s: str) -> str:
+    """`s` as a TOML basic string. Control characters are refused rather than
+    escaped: none belongs in a path or a URL pattern."""
+    if any((ord(c) < 0x20 and c != "\t") or ord(c) == 0x7f for c in s):
+        raise ValueError(f"control character in {s!r}")
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def append_target_rule(
     root: Optional[str],
     match: str,
@@ -564,7 +572,15 @@ def append_target_rule(
     proj_root = redirect_to_mount(find_project_root(root))
     cfg_path = os.path.join(proj_root, CONFIG_NAME)
 
-    entry = f"\n[[target]]\nmatch = \"{match_str}\"\nenv = \"{norm_env}\"\nrecovery = \"{rec}\"\n"
+    # Escaped, and proved to parse BEFORE it is appended. Interpolated raw,
+    # `target add "C:\prod\app.db"` wrote an invalid escape, the whole file
+    # stopped parsing, and every later command was refused over it.
+    entry = (f"\n[[target]]\nmatch = {_toml_string(match_str)}\n"
+             f"env = {_toml_string(norm_env)}\nrecovery = {_toml_string(rec)}\n")
+    if _toml is not None:
+        parsed = _toml.loads(entry)["target"][0]
+        if parsed["match"] != match_str:
+            raise ValueError(f"target match {match_str!r} does not survive TOML quoting")
 
     mode = "a" if os.path.exists(cfg_path) else "w"
     header = ""

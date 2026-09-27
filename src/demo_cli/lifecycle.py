@@ -488,7 +488,9 @@ def cmd_setup(a) -> int:
         if already_protected:
             _step(3, f"already protected  (files live in {backing})")
         else:
-            plan = protect_mod.plan_protect(project)
+            # elevate=True: unelevated, the step below re-runs itself as
+            # Administrator and locks - the plan must not say it will not.
+            plan = protect_mod.plan_protect(project, elevate=True)
             _step(3, "protect this project")
             print(f"      your files move to   {plan.backing}")
             print(f"      {project} becomes the guarded mount")

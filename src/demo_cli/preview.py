@@ -4,10 +4,12 @@ is best-effort via the `psql` client so there is no Python dependency.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import sqlite3
 import subprocess
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .classify import is_sql_preview_candidate
@@ -44,8 +46,31 @@ def _parse_table_where(sql: str, verb: str) -> Tuple[Optional[str], Optional[str
     return m.group(1), (m.group(2).strip() if m.group(2) else None)
 
 
+def _single_statement(sql: str) -> bool:
+    """No `;` outside quotes, once the trailing one is dropped.
+
+    The preview builds `SELECT COUNT(*) FROM t WHERE <the agent's text>`, so
+    `DELETE FROM t WHERE id=1; DROP TABLE users` became a count query with a
+    DROP behind it - and `psql -c` runs every statement it is given. The
+    guard dropped the table while evaluating a command it had not allowed
+    yet, in shadow mode too (2026-09-27, throwaway cluster).
+    """
+    body = re.sub(r";\s*$", "", sql.strip())
+    quote = None
+    for ch in body:
+        if quote:
+            quote = None if ch == quote else quote
+        elif ch in "'\"":
+            quote = ch
+        elif ch == ";":
+            return False
+    return True
+
+
 def _preview_queries(sql: str) -> Tuple[Optional[str], Optional[str]]:
     sql = _extract_sql(sql).strip()
+    if not _single_statement(sql):
+        return None, None               # previewing more than one statement runs more than a preview
     sql = re.sub(r";\s*$", "", sql)
     parts = sql.split()
     verb = parts[0].upper() if parts else ""
@@ -69,7 +94,8 @@ def preview_sqlite(sql: str, db_path: str):
     if not count_q:
         return None, [], []
     try:
-        con = sqlite3.connect(db_path)
+        # Read-only by construction: the WHERE clause is the agent's text.
+        con = sqlite3.connect(Path(os.path.abspath(db_path)).as_uri() + "?mode=ro", uri=True)
         try:
             count = con.execute(count_q).fetchone()[0]
             cur = con.execute(preview_q)
@@ -88,14 +114,18 @@ def preview_postgres(sql: str, url: str):
     count_q, preview_q = _preview_queries(sql)
     if not count_q:
         return None, [], []
+    # A read-only session as well as a single statement: the server refuses
+    # any write the WHERE clause could still reach (a function, a CTE).
+    env = dict(os.environ)
+    env["PGOPTIONS"] = (env.get("PGOPTIONS", "") + " -c default_transaction_read_only=on").strip()
     try:
         count_out = subprocess.run(
-            ["psql", url, "-tAc", count_q],
+            ["psql", url, "-tAc", count_q], env=env,
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=10,
         ).stdout.strip()
         count = int(count_out) if count_out.lstrip("-").isdigit() else None
         prev = subprocess.run(
-            ["psql", url, "-A", "-F", " | ", "-c", preview_q],
+            ["psql", url, "-A", "-F", " | ", "-c", preview_q], env=env,
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=10,
         ).stdout.strip().splitlines()
         cols: List[str] = [prev[0]] if prev else []

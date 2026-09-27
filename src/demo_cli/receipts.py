@@ -285,6 +285,19 @@ def peer_head(path: str, chain: str) -> Optional[str]:
     return head
 
 
+def _redacted(value):
+    """`value` with redact() applied to every string inside it."""
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, list):
+        return [_redacted(v) for v in value]
+    if isinstance(value, tuple):
+        return [_redacted(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _redacted(v) for k, v in value.items()}
+    return value
+
+
 def append_receipt(path: str, receipt: Receipt) -> Receipt:
     """Chain `receipt` to the log at `path` and persist it.
 
@@ -292,7 +305,16 @@ def append_receipt(path: str, receipt: Receipt) -> Receipt:
     under a single exclusive cross-platform file lock (see `_chain_lock`) so
     concurrent writers cannot read the same last hash and append competing receipts.
     """
+    # Every field that can carry the command's text, not only action_raw:
+    # pipeline_segments held the same command split into pieces, and a
+    # connection-string password went into the ledger through it verbatim
+    # while action_raw beside it read `u:***@` (2026-09-27).
     receipt.action_raw = redact(receipt.action_raw)
+    receipt.reason = redact(receipt.reason)
+    receipt.pipeline_segments = _redacted(receipt.pipeline_segments)
+    receipt.declared_intent = _redacted(receipt.declared_intent)
+    receipt.context = _redacted(receipt.context)
+    receipt.context_mismatches = _redacted(receipt.context_mismatches)
     # Route by the receipt's own role rather than caller path.
     path = chain_path(path, getattr(receipt, "chain", CHAIN_MAIN))
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

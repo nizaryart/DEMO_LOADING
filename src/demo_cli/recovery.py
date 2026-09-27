@@ -498,6 +498,8 @@ def snapshot_before_restore(entry: Optional[dict],
     Returns the backup entry, or None if the target is missing or its contents
     are already identical to the recovery point being restored.
     """
+    if entry and entry.get("kind") == "dir":
+        return _preserve_dir_overwrites(entry, recovery_dir)
     if not entry or entry.get("kind") not in ("file", "sqlite"):
         return None
     target, rp = entry.get("target"), entry.get("recovery_point")
@@ -517,6 +519,61 @@ def snapshot_before_restore(entry: Optional[dict],
     return snapshot_bytes(os.path.basename(target), current, recovery_dir,
                           action=f"undo {entry.get('id', '?')} overwrote {target}",
                           target=target)
+
+
+def _same_bytes(a: str, b: str) -> bool:
+    try:
+        if os.path.getsize(a) != os.path.getsize(b):
+            return False
+        with open(a, "rb") as fa, open(b, "rb") as fb:
+            while True:
+                x, y = fa.read(65536), fb.read(65536)
+                if x != y:
+                    return False
+                if not x:
+                    return True
+    except OSError:
+        return False
+
+
+def _preserve_dir_overwrites(entry: dict, recovery_dir: str) -> Optional[dict]:
+    """The directory case of snapshot_before_restore.
+
+    A dir restore is an overlay: every file in the recovery point is copied
+    back over the target. So what it destroys is exactly the live files it
+    overwrites with DIFFERENT bytes - work done after the snapshot - and those
+    are what is kept, as a dir entry of their own that restores the same way.
+    Files created after the snapshot are not touched by the overlay, so they
+    are not copied. Links are skipped: the overlay writes a link, not bytes.
+    """
+    rp, target = entry.get("recovery_point"), entry.get("target")
+    if not rp or not target or not os.path.isdir(rp) or not os.path.isdir(target):
+        return None
+    changed: List[str] = []
+    for dirpath, _dirs, files in os.walk(rp):
+        for name in files:
+            saved = os.path.join(dirpath, name)
+            rel = os.path.relpath(saved, rp)
+            live = os.path.join(target, rel)
+            if os.path.islink(saved) or os.path.islink(live) or not os.path.isfile(live):
+                continue
+            if not _same_bytes(saved, live):
+                changed.append(rel)
+    if not changed:
+        return None                     # restoring changes nothing that exists now
+    os.makedirs(recovery_dir, exist_ok=True)
+    ts, rid = _ts(), _new_id()
+    base = os.path.basename(target.rstrip("/\\")) or "dir"
+    snap = os.path.join(recovery_dir, f"{base}.{ts}.{rid}.snapdir")
+    for rel in changed:
+        dest = os.path.join(snap, rel)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copy2(os.path.join(target, rel), dest)
+    e = {"id": rid, "kind": "dir", "target": target, "recovery_point": snap, "ts": ts,
+         "action": redact(f"undo {entry.get('id', '?')} overwrote {len(changed)} "
+                          f"file(s) in {target}")}
+    _record(recovery_dir, e)
+    return e
 
 
 def _read_index(path: str) -> Tuple[List[dict], int]:

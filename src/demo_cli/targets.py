@@ -34,7 +34,10 @@ from .classify import (FILE_WRITER_TARGET_VERBS, POSIX, POWERSHELL,
                        substitute_assignments)
 from .context import redact
 
-_PG_URL = re.compile(r"\bpostgres(?:ql)?://\S+", re.I)
+# Stops at a quote: `psql "postgresql://h/db" -c ...` - the usual spelling -
+# captured the closing quote, pg_dump was handed `.../db"` and failed, and
+# the command escalated for a reason that had nothing to do with it.
+_PG_URL = re.compile(r"\bpostgres(?:ql)?://[^\s'\"`]+", re.I)
 _DB_FILE = re.compile(r"[\w./\\-]+\.db\b")
 
 # The single source of truth for "directories not worth guarding". Real work

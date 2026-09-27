@@ -213,8 +213,13 @@ def _resolved(path: str) -> str:
 
 
 def plan_protect(project: str, backing: Optional[str] = None,
-                 lock: bool = True) -> Plan:
-    """Validate prerequisites and generate a protect plan without modifying state."""
+                 lock: bool = True, elevate: bool = False) -> Plan:
+    """Validate prerequisites and generate a protect plan without modifying state.
+
+    `elevate`: the caller will re-run the protect step elevated (setup does).
+    Unelevated, the plan used to warn "will NOT be locked" and setup then
+    elevated and locked it - the warning described a path it never took.
+    """
     source = os.path.abspath(project).rstrip("\\/")
     dest = os.path.abspath(backing) if backing else backing_for(source)
     p = Plan(source=source, backing=dest, mountpoint=source, will_lock=lock)
@@ -253,7 +258,11 @@ def plan_protect(project: str, backing: Optional[str] = None,
         p.warnings.append(
             "Not Windows: the directory will be relocated but nothing will "
             "mount. On Linux the behavioural layer is `demo_cli run <cmd>`.")
-    if lock and not is_elevated():
+    if lock and not is_elevated() and elevate:
+        p.warnings.append(
+            "Needs Administrator: Windows will ask (UAC) before the project "
+            "is moved and the backing directory is locked.")
+    elif lock and not is_elevated():
         p.warnings.append(
             "Not elevated, so the backing directory will NOT be locked. "
             "Anything can then write to it directly and bypass the guard "
