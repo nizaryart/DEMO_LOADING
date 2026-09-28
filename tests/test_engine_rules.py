@@ -14,6 +14,12 @@ from demo_cli.config import Config
 from demo_cli.engine import predict
 from demo_cli.engine.rules import REDIRECT_EXAMPLES, RULES
 
+try:                                    # C2a on: lazy families (the SQL clients) too
+    from demo_cli.engine.rules import all_rules
+    RULES = all_rules()
+except ImportError:                     # the previous tree, for fail-on-old
+    pass
+
 # These tests pin MEANING, not speed. The production budget
 # (engine.BUDGET_MS, 10 ms) is wall-clock: under machine load an example
 # overran it and failed for a reason unrelated to what it asserts (review
@@ -25,7 +31,9 @@ FIXTURE = {"a.txt": "a", "b.txt": "b", "-f": "f", "dir/d.txt": "d", "dir/e.txt":
            "sub/c.txt": "c", "list.txt": "a.txt\n",
            # Part C1
            "src/app.js": "js", "main.go": "go", "x.txt": "x", "x.txt~": "old backup",
-           "x.txt.bak": "old backup"}
+           "x.txt.bak": "old backup",
+           # Part C2a: the engine never opens a database, so app.db's bytes do not matter
+           "app.db": "sqlite", "q.sql": "DELETE FROM t;\n", "r.sql": "SELECT 1;\n"}
 
 
 def _zips(root):
@@ -64,15 +72,18 @@ def _impact(root, command):
         return os.path.relpath(p, str(root)) + ("/" if is_dir else "")
     return ({rel(p, p in imp.destroyed_dirs) for p in imp.destroys},
             {rel(p) for p in imp.creates}, {rel(p) for p in imp.changes}, bool(imp.unknown),
-            bool(imp.remote)), set(imp.uncovered)
+            bool(imp.remote), dict(imp.databases), set(imp.no_capture)), \
+        (set(imp.uncovered), dict(imp.remote))
 
 
 def _want(ex):
-    return (set(ex.destroys), set(ex.creates), set(ex.changes), ex.unknown, ex.remote)
+    return (set(ex.destroys), set(ex.creates), set(ex.changes), ex.unknown, ex.remote,
+            ex.databases, set(ex.no_capture))
 
 
 def _positive(ex):
-    return bool(ex.destroys or ex.creates or ex.changes or ex.unknown or ex.remote)
+    return bool(ex.destroys or ex.creates or ex.changes or ex.unknown or ex.remote
+                or ex.databases or ex.no_capture)
 
 
 FAMILIES = [(r.id, r.examples) for r in RULES] + [("redirect", REDIRECT_EXAMPLES)]
@@ -87,9 +98,11 @@ def test_a_rule_example_produces_the_impact_it_declares(tmp_path, family, exampl
     if example is not control:
         assert _impact(root, control.command)[0] == _want(control), \
             f"control ({control.command!r}): the harness sees this family act"
-    got, uncovered = _impact(root, example.command)
+    got, (uncovered, reaches) = _impact(root, example.command)
     assert got == _want(example), example.note
     assert set(example.uncovered) <= uncovered, "the part not modelled is reported"
+    if example.reaches is not None:
+        assert reaches == example.reaches, "the remote surfaces and their kinds (C2)"
 
 
 def test_every_rule_carries_examples_and_at_least_one_that_acts():

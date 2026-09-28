@@ -27,7 +27,8 @@ from .context import redact
 from .decide import INVARIANT
 from .version import release_tag
 
-RECEIPT_VERSION = "2.1"   # 2.1: optional `prediction` (Part B)
+RECEIPT_VERSION = "2.2"   # 2.1: optional `prediction` (Part B); 2.2: prediction.remote is
+#                           {label: kind}, + databases / no_capture (C2a)
 GENESIS = "0" * 64
 
 # A sha256 hex digest as it appears in a torn line's surviving text. Used to
@@ -289,7 +290,9 @@ def peer_head(path: str, chain: str) -> Optional[str]:
 
 
 def _redacted(value):
-    """`value` with redact() applied to every string inside it."""
+    """`value` with redact() applied to every string inside it - dict KEYS
+    included: a prediction keyed by a connection string kept its password
+    while the same string as a value read u:***@ (C2 review, R2)."""
     if isinstance(value, str):
         return redact(value)
     if isinstance(value, list):
@@ -297,7 +300,8 @@ def _redacted(value):
     if isinstance(value, tuple):
         return [_redacted(v) for v in value]
     if isinstance(value, dict):
-        return {k: _redacted(v) for k, v in value.items()}
+        return {(redact(k) if isinstance(k, str) else k): _redacted(v)
+                for k, v in value.items()}
     return value
 
 

@@ -123,8 +123,9 @@ def parse_options(args: List[Word], spec: OptionSpec) -> Parsed:
                 if eq:
                     options.setdefault(spec.values[name], []).append(Word(rest, rest, w.start, w.end))
                 elif i < len(args):
-                    options.setdefault(spec.values[name], []).append(args[i])
-                    i += 1
+                    n = spec.arity.get(spec.values[name], 1)
+                    options.setdefault(spec.values[name], []).extend(args[i:i + n])
+                    i += n
             elif name in spec.flags:
                 flags.add(spec.flags[name])
                 if eq:                      # --backup=numbered, --update=none
@@ -136,8 +137,9 @@ def parse_options(args: List[Word], spec: OptionSpec) -> Parsed:
             if v in spec.flags:
                 flags.add(spec.flags[v])
             elif i < len(args):
-                options.setdefault(spec.values[v], []).append(args[i])
-                i += 1
+                n = spec.arity.get(spec.values[v], 1)
+                options.setdefault(spec.values[v], []).extend(args[i:i + n])
+                i += n
             continue
         body = v[1:]
         for j, ch in enumerate(body):

@@ -16,7 +16,7 @@ import pytest
 
 from demo_cli.config import Config
 from demo_cli.engine import predict
-from demo_cli.engine.rules import RULES
+from demo_cli.engine.rules import C1_RULES, RULES
 
 BY_ID = {r.id: r for r in RULES}
 SEMANTIC_BUDGET_MS = 10_000
@@ -62,7 +62,8 @@ def test_a_rules_grammar_matches_the_installed_tools_help(rule_id):
 
 
 def test_unverified_grammars_are_marked():
-    assert {r.id for r in RULES if not r.verified} == \
+    # C1's own rules (C2a adds mysql, pinned in test_engine_c2a.py)
+    assert {r.id for r in C1_RULES if not r.verified} == \
         {"prettier", "eslint", "black", "isort", "rustfmt", "rsync"}
 
 

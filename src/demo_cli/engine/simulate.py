@@ -36,7 +36,8 @@ from typing import Dict, FrozenSet, List, Optional, Tuple
 from ..model import Script, parse
 from .effects import CREATE, DELETE, MKDIR, OVERWRITE, TRUNCATE, Impact
 from .invocation import Invocation, build, parse_options, reads_stdin_script
-from .rules import READ_ONLY, RULES, SHELLS, Rule, applies, rules_by_tool
+from .rules import (LAZY_FAMILIES, READ_ONLY, RULES, SHELLS, Rule, applies, family_rules,
+                    rules_by_tool)
 from .words import Unknown, expand
 
 NEW = ""                     # the origin of content this command itself makes
@@ -95,6 +96,28 @@ class World:
         self.budget = budget
         self.real: Dict[str, Node] = {}
         self.impact = Impact()
+        self.upstream: Optional[Invocation] = None     # the pipeline member feeding stdin
+        self.sql_target: Tuple[Optional[str], Optional[str]] = (None, None)  # --db, --db-url
+
+    def read_text(self, state: State, path: str, cap: int) -> Tuple[Optional[str], str]:
+        """A file's text AS THE LINE LEAVES IT at this point, or (None, why)
+        (C2 review, R4). Content created or overwritten earlier on the line
+        is unknown; a moved file is read at its origin."""
+        n = self.node(state, path)
+        if not n.exists:
+            return None, f"{os.path.basename(path)} does not exist"
+        if n.is_dir:
+            return None, f"{os.path.basename(path)} is a directory"
+        if NEW in n.origins or len(n.origins) != 1:
+            return None, f"{os.path.basename(path)} is written earlier on this line"
+        origin = next(iter(n.origins))
+        try:
+            if os.path.getsize(origin) > cap:
+                return None, f"{os.path.basename(path)} is larger than {cap // 1024} KiB"
+            with open(origin, encoding="utf-8", errors="replace") as fh:
+                return fh.read(), ""
+        except OSError as exc:
+            return None, f"{os.path.basename(path)} cannot be read ({exc.strerror})"
 
     # ---- the filesystem, as the simulation has changed it ----------------
     def real_node(self, path: str) -> Node:
@@ -212,7 +235,7 @@ class World:
             return False
         if path in SINKS or path.startswith("/dev/fd/"):
             return True
-        self.impact.remote.add("device:" + path)
+        self.impact.reach("device:" + path, OVERWRITE)
         return True
 
     def replace(self, state: State, path: str, how: str,
@@ -507,7 +530,8 @@ class World:
         for k, inv in enumerate(pipe):
             member = state.copy()
             member.cwd, member.prev, member.vars = pre.cwd, pre.prev, dict(pre.vars)
-            done, failed = self.run(inv, member, depth, piped_in=k > 0)
+            done, failed = self.run(inv, member, depth, piped_in=k > 0,
+                                    upstream=pipe[k - 1] if k else None)
             state = self.merge(done, failed) or member
         state.cwd, state.prev, state.vars = pre.cwd, pre.prev, dict(pre.vars)
         return state, self.merge(pre, state)
@@ -517,8 +541,8 @@ class World:
         end = self.run_script(script, state.copy(), depth + 1)
         state.nodes = end.nodes
 
-    def run(self, inv: Invocation, state: State, depth: int,
-            piped_in: bool) -> Tuple[Optional[State], Optional[State]]:
+    def run(self, inv: Invocation, state: State, depth: int, piped_in: bool,
+            upstream: Optional[Invocation] = None) -> Tuple[Optional[State], Optional[State]]:
         for sub in inv.subs:                             # $( ) runs before the command
             self.subshell(sub, state, depth)
         if inv.clause:
@@ -584,6 +608,8 @@ class World:
                 self.impact.not_understood(inv.text, "a shell runs whatever the pipe feeds it")
             return state, self.merge(before, state)
         rules = self.table.get(tool)
+        if not rules and tool in LAZY_FAMILIES:
+            rules = self.load_family(tool)
         if not rules:
             if tool not in READ_ONLY:
                 self.impact.not_covered(tool)
@@ -601,8 +627,12 @@ class World:
             if "xargs" in inv.wrappers:
                 self.impact.not_understood(inv.text, "xargs adds operands it reads from stdin")
             if rule.resolver:
-                from . import resolvers
-                getattr(resolvers, rule.resolver)(self, inv, parsed, state, tool)
+                resolvers = self.untimed(_resolvers)          # an import, not analysis
+                self.upstream = upstream
+                try:
+                    getattr(resolvers, rule.resolver)(self, inv, parsed, state, tool)
+                finally:
+                    self.upstream = None
                 continue
             paths = self.paths(parsed.operands, state, inv)
             for eff in rule.effects:
@@ -616,6 +646,23 @@ class World:
                     for p in paths:
                         self.mkdir(state, p, "parents" in parsed.flags)
         return state, self.merge(before, state)
+
+    def untimed(self, fn):
+        """Run `fn` outside the budget: the budget measures ANALYSIS, and a
+        lazy import met mid-line must not eat it (review C2a, CR3)."""
+        t0 = time.perf_counter()
+        try:
+            return fn()
+        finally:
+            self.budget.deadline += time.perf_counter() - t0
+
+    def load_family(self, tool: str) -> List[Rule]:
+        """A family's rules, imported the first time one of its tools is met."""
+        for rule in self.untimed(lambda: family_rules(LAZY_FAMILIES[tool])):
+            for t in rule.tools:
+                if rule not in self.table.setdefault(t, []):
+                    self.table[t].append(rule)
+        return self.table.get(tool, [])
 
     def payload_reads_stdin(self, inv: Invocation) -> bool:
         if inv.payload is None:
@@ -686,11 +733,73 @@ class World:
         return imp
 
 
+# A line that is SQL, not shell: the check door with --db/--db-url, or an
+# UPPERCASE statement keyword first (no shell command is spelled that way).
+# A set lookup, not a regex: compiling a 60-way alternation cost ~1 ms of
+# import on every hook call (measured, C2a).
+_SQL_LEAD = frozenset((
+    "SELECT INSERT UPDATE DELETE DROP TRUNCATE ALTER CREATE REPLACE WITH MERGE UPSERT GRANT "
+    "REVOKE PRAGMA VACUUM ATTACH DETACH EXPLAIN COPY CALL SHOW BEGIN COMMIT ROLLBACK RENAME "
+    "COMMENT REINDEX ANALYZE VALUES TABLE USE LOCK DO EXECUTE PREPARE DESCRIBE LOAD OPTIMIZE "
+    "REPAIR FLUSH KILL SAVEPOINT RELEASE START NOTIFY LISTEN REFRESH CLUSTER DISCARD RESET "
+    "CHECKPOINT IMPORT HANDLER").split())
+
+
+def _is_bare_sql(command: str, sql_target: Tuple[Optional[str], Optional[str]]) -> bool:
+    head = command.lstrip(" \t\r\n(").split(None, 1)
+    first = head[0].rstrip(";(") if head else ""
+    return (first.upper() if any(sql_target) else first) in _SQL_LEAD
+
+
+def _resolvers():
+    from . import resolvers
+    return resolvers
+
+
+def preload(command: str, sql_target: Tuple[Optional[str], Optional[str]]) -> None:
+    """Import the lazy families (and warm their patterns) the line names,
+    BEFORE the budget's clock starts: every hook call is a fresh process, and
+    a cold import inside a 10 ms budget lost 6/6 psql predictions under load
+    (review C2a, CR3). Words are read from the raw text, so a tool inside
+    $( ), a -c payload or a pipe is seen too."""
+    words = {os.path.basename(w.strip("'\"`$();|&{}<>")) for w in command.split()}
+    families = {LAZY_FAMILIES[w] for w in words if w in LAZY_FAMILIES}
+    for module in families:
+        family_rules(module)
+    if families or _is_bare_sql(command, sql_target):
+        from . import sql, sqlclients                          # noqa: F401
+        for tool, dialect in (("sqlite3", "sqlite"), ("psql", "postgres"), ("mysql", "mysql"),
+                              ("mariadb", "mysql")):
+            if tool in words:
+                sql.warm(dialect)
+        if _is_bare_sql(command, sql_target):
+            sql.warm("postgres")
+            sql.warm("sqlite")
+
+
 def simulate(command: str, rules: Tuple[Rule, ...] = RULES, cwd: Optional[str] = None,
-             budget_ms: float = 10.0) -> Impact:
-    """The Impact of `command` if it ran now, from `cwd` (default: here)."""
+             budget_ms: float = 10.0,
+             sql_target: Tuple[Optional[str], Optional[str]] = (None, None)) -> Impact:
+    """The Impact of `command` if it ran now, from `cwd` (default: here).
+    `sql_target` is the check door's (--db, --db-url): with it, or when the
+    line starts with an UPPERCASE SQL keyword, the line is SQL, not shell
+    (C2a, Q3) - a shell would parse `WHERE id < 10` as a redirection."""
+    preload(command, sql_target)
     world = World(rules, Budget(budget_ms))
+    world.sql_target = sql_target
     here = os.path.abspath(cwd or os.getcwd())
     start = State({}, here, here, {})
+    if _is_bare_sql(command, sql_target):
+        from .sqlclients import run_bare_sql                  # lazy: SQL lines only
+        if any(sql_target):
+            run_bare_sql(world, command, start)                # --db / --db-url: it IS SQL
+            return world.finish(start)
+        # No --db: the line may be SQL (the check door) or shell (the agent's
+        # Bash tool, where `SELECT 1; rm -rf dir` runs rm). Both readings,
+        # merged (review C2a, CR1; may-semantics as ruling R3).
+        run_bare_sql(world, command, start.copy(), dual=True)
+        final = world.run_script(parse(command.replace("\r\n", "\n")), start, 0)
+        world.impact.uncovered[:] = [u for u in world.impact.uncovered if u not in _SQL_LEAD]
+        return world.finish(final)
     final = world.run_script(parse(command.replace("\r\n", "\n")), start, 0)
     return world.finish(final)

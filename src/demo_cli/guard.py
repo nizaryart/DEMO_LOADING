@@ -189,7 +189,9 @@ def _agent_state_change(command: str, dialect: str) -> Optional[str]:
     return None
 
 
-def _shadow_prediction(command: str, dialect: str, cfg: Config) -> Optional[dict]:
+def _shadow_prediction(command: str, dialect: str, cfg: Config,
+                       explicit_db: Optional[str] = None,
+                       db_url: Optional[str] = None) -> Optional[dict]:
     """What the shadow engine (engine/, Part B) would conclude - for the
     receipt only. Imported here, not at module load, so the hook pays for it
     at evaluate time only; and nothing it does can reach the decision."""
@@ -197,7 +199,7 @@ def _shadow_prediction(command: str, dialect: str, cfg: Config) -> Optional[dict
         return None
     try:
         from .engine import predict_safely
-        return predict_safely(command, dialect, cfg)
+        return predict_safely(command, dialect, cfg, explicit_db, db_url)
     except Exception as exc:                  # pragma: no cover - predict_safely does not raise
         return {"engine": "shadow", "error": f"{type(exc).__name__}: {exc}"}
 
@@ -403,7 +405,7 @@ class Guard:
             return self._refuse_broken_config(command, agent_id, session_id)
 
         c = classify_pipeline(command, dialect)
-        prediction = _shadow_prediction(command, dialect, self.config)
+        prediction = _shadow_prediction(command, dialect, self.config, explicit_db, db_url)
 
         # DEMO_CLI'S OWN FILES AND STATE, before anything else. Before the
         # creation correction below on purpose: creating .demo_cli.toml or

@@ -135,7 +135,7 @@ def test_the_prediction_is_recorded_and_the_chain_holds(tmp_path):
     assert last["decision"] == "ESCALATE", "control: today still escalates a two-file rm"
     assert last["prediction"]["decision"] == "REVERSIBLE", "the set capture, predicted only"
     assert sorted(last["prediction"]["destroys"]) == ["a.txt", "b.txt"]
-    assert last["receipt_version"] == RECEIPT_VERSION == "2.1"
+    assert last["receipt_version"] == RECEIPT_VERSION == "2.2"     # 2.2: C2a (remote kinds)
     assert verify_chain(os.path.join(str(root), ".demo_cli", "receipts.jsonl")).ok
     assert r.prediction == last["prediction"]
 

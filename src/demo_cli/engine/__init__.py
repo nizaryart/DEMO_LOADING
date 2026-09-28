@@ -37,18 +37,23 @@ def enabled() -> bool:
 
 
 def predict(command: str, cfg, rules: Optional[Tuple] = None,
-            budget_ms: Optional[float] = None, cwd: Optional[str] = None) -> Prediction:
-    """POSIX only. Raises on a bug or on the budget; predict_safely does not."""
+            budget_ms: Optional[float] = None, cwd: Optional[str] = None,
+            explicit_db: Optional[str] = None, db_url: Optional[str] = None) -> Prediction:
+    """POSIX only. Raises on a bug or on the budget; predict_safely does not.
+    `explicit_db` / `db_url`: the check door's --db / --db-url (C2a, Q3) -
+    the database a bare SQL line runs against."""
     from .rules import RULES
     from .simulate import simulate
     from .verdict import verdict
     impact = simulate(command, rules or RULES, cwd=cwd,
-                      budget_ms=BUDGET_MS if budget_ms is None else budget_ms)
+                      budget_ms=BUDGET_MS if budget_ms is None else budget_ms,
+                      sql_target=(explicit_db, db_url))
     decision, why = verdict(impact, cfg)
     return Prediction(impact, decision, why)
 
 
-def predict_safely(command: str, dialect: str, cfg) -> Optional[dict]:
+def predict_safely(command: str, dialect: str, cfg, explicit_db: Optional[str] = None,
+                   db_url: Optional[str] = None) -> Optional[dict]:
     """The receipt's `prediction` field. Never raises."""
     if not enabled():
         return None
@@ -57,7 +62,7 @@ def predict_safely(command: str, dialect: str, cfg) -> Optional[dict]:
         if dialect != "posix":
             out = {"engine": ENGINE, "skipped": dialect}      # PowerShell arrives in C
         else:
-            out = _render(predict(command, cfg), cfg)
+            out = _render(predict(command, cfg, explicit_db=explicit_db, db_url=db_url), cfg)
     except Exception as exc:
         from .simulate import BudgetExceeded
         why = "budget" if isinstance(exc, BudgetExceeded) else f"{type(exc).__name__}: {exc}"
@@ -80,12 +85,16 @@ def _render(p: Prediction, cfg) -> dict:
         "destroys": {rel(k, k in imp.destroyed_dirs): v for k, v in destroys[:_CAP]},
         "creates": [rel(x) for x in sorted(imp.creates)[:_CAP]],
         "changes": [rel(x) for x in sorted(imp.changes)[:_CAP]],
-        "remote": sorted(imp.remote)[:_CAP],
+        "remote": dict(sorted(imp.remote.items())[:_CAP]),          # label -> kind (2.2)
+        "databases": dict(sorted(imp.databases.items())[:_CAP]),
+        "no_capture": dict(sorted(imp.no_capture.items())[:_CAP]),
         "unknown": [[u[:120], w] for u, w in imp.unknown[:10]],
         "uncovered": imp.uncovered[:_CAP],
         "within": [rel(x, True) for x in sorted(imp.within)[:_CAP]],
     }
     truncated = (len(destroys) > _CAP or len(imp.creates) > _CAP or len(imp.changes) > _CAP
-                 or len(imp.unknown) > 10 or len(imp.uncovered) > _CAP)
+                 or len(imp.unknown) > 10 or len(imp.uncovered) > _CAP
+                 or len(imp.remote) > _CAP or len(imp.databases) > _CAP
+                 or len(imp.no_capture) > _CAP)
     return {"engine": ENGINE, "decision": p.decision, "why": p.why, **lists,
             "truncated": truncated}

@@ -449,8 +449,11 @@ def _zip_members(path: str, budget) -> List[Tuple[str, bool, bool, bool]]:
     """(name, is_dir, is_symlink, encrypted) from the central directory only.
     The entry count is read from the end record FIRST, so a huge archive is
     refused before zipfile parses its directory."""
+    import time
+    t0 = time.perf_counter()
     import struct
     import zipfile
+    budget.deadline += time.perf_counter() - t0         # imports stay outside the budget
     too_many = _Unreadable(f"the archive lists more than {MAX_MEMBERS:,} members")
     try:
         end_record = getattr(zipfile, "_EndRecData", None)  # private: absent -> count after
@@ -664,3 +667,14 @@ def _find_exec(w, inv, state, cmd, roots) -> None:
         w.impact.not_understood(inv.text, f"find -exec {t} is not modelled per file")
     else:
         w.impact.not_covered(t)
+
+
+# ---- Part C2a: SQL clients (engine/sqlclients.py, imported only when met) -----------
+
+def sql_client(w, inv, parsed, state, tool) -> None:
+    def load():
+        from . import sql
+        from .sqlclients import sql_client as run
+        sql.warm({"sqlite3": "sqlite", "psql": "postgres"}.get(tool, "mysql"))
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)      # imports stay outside the budget

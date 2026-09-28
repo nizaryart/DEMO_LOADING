@@ -27,16 +27,20 @@ class OptionSpec:
     a canonical name; `values` are the options that take an argument.
     `attached` are short options whose value can only be glued on (sed -i.bak,
     perl -pi.orig): the rest of the cluster is the value, possibly empty.
-    Multi-letter short spellings (wget -nc) are matched whole, first."""
-    __slots__ = ("flags", "values", "attached", "permute")
+    Multi-letter short spellings (wget -nc) are matched whole, first.
+    `arity`: canonical value options that take more than one word (sqlite3
+    -lookaside SIZE N: VERIFIED, 2026-09-28)."""
+    __slots__ = ("flags", "values", "attached", "permute", "arity")
 
     def __init__(self, flags: Optional[Mapping[str, str]] = None,
                  values: Optional[Mapping[str, str]] = None,
-                 attached: Optional[Mapping[str, str]] = None, permute: bool = True):
+                 attached: Optional[Mapping[str, str]] = None, permute: bool = True,
+                 arity: Optional[Mapping[str, int]] = None):
         self.flags = dict(flags or {})
         self.values = dict(values or {})
         self.attached = dict(attached or {})
         self.permute = permute                  # GNU: options may follow operands
+        self.arity = dict(arity or {})
 
 
 class EffectT:
@@ -55,20 +59,25 @@ class EffectT:
 
 class Example:
     __slots__ = ("command", "destroys", "creates", "changes", "unknown", "note",
-                 "remote", "uncovered")
+                 "remote", "uncovered", "reaches", "databases", "no_capture")
 
     def __init__(self, command: str, destroys=frozenset(), creates=frozenset(),
                  changes=frozenset(), unknown: bool = False, note: str = "",
-                 remote: bool = False, uncovered=frozenset()):
+                 remote: bool = False, uncovered=frozenset(), reaches=None,
+                 databases=None, no_capture=frozenset()):
         self.command, self.destroys, self.creates = command, destroys, creates
         self.changes, self.unknown, self.note = changes, unknown, note
-        self.remote, self.uncovered = remote, uncovered
+        self.remote, self.uncovered = remote or bool(reaches), uncovered
+        self.reaches = dict(reaches) if reaches is not None else None   # label -> kind (C2)
+        self.databases = dict(databases or {})                          # label -> kind (C2a)
+        self.no_capture = frozenset(no_capture)                         # labels (C2a)
 
 
 def ex(command: str, destroys=(), creates=(), changes=(), unknown=False, note="",
-       remote=False, uncovered=()) -> Example:
+       remote=False, uncovered=(), reaches=None, databases=None, no_capture=()) -> Example:
     return Example(command, frozenset(destroys), frozenset(creates), frozenset(changes),
-                   unknown, note, remote, frozenset(uncovered))
+                   unknown, note, remote, frozenset(uncovered), reaches, databases,
+                   frozenset(no_capture))
 
 
 class Rule:
@@ -644,6 +653,34 @@ C1_RULES: Tuple[Rule, ...] = (
          )),
 )
 RULES = RULES + C1_RULES
+
+
+
+# ==========================================================================
+# Families loaded only when one of their tools is met (C2a on). A hook call
+# that meets none of them pays nothing for their grammars and examples.
+# ==========================================================================
+LAZY_FAMILIES: Dict[str, str] = {
+    "sqlite3": "rules_sql", "psql": "rules_sql", "mysql": "rules_sql", "mariadb": "rules_sql",
+}
+_FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
+
+
+def family_rules(module: str) -> Tuple[Rule, ...]:
+    rules = _FAMILY_RULES.get(module)
+    if rules is None:
+        import importlib
+        rules = importlib.import_module(f"{__package__}.{module}").FAMILY_RULES
+        _FAMILY_RULES[module] = rules
+    return rules
+
+
+def all_rules() -> Tuple[Rule, ...]:
+    """Every rule, lazy families included (tests and tooling)."""
+    out = RULES
+    for module in dict.fromkeys(LAZY_FAMILIES.values()):
+        out = out + family_rules(module)
+    return out
 
 # Kept for the Part B semantics tests, which used to add touch and mv here.
 TEST_ONLY_RULES: Tuple[Rule, ...] = RULES
