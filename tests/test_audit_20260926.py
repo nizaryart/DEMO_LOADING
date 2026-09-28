@@ -166,18 +166,25 @@ def test_r4_a_decoy_dot_demo_cli_directory_is_captured(proj):
 
 
 def test_r4_the_real_workspace_is_still_ignored(proj):
-    """What R4's fix must not cost: copying the recovery store into itself.
-    Passes today and must keep passing.
+    """Pinned before: `rm -rf proj` got a snapshot stored inside proj/.demo_cli; changed by Part A2 (2026-09-27) because that point dies with proj, so it is refused and the no-self-copy check moved to the checkpoint.
+
+    What R4's fix must not cost: copying the recovery store into itself.
     """
+    from demo_cli import checkpoint
     rec = str(proj / ".demo_cli" / "recovery")
     os.makedirs(rec, exist_ok=True)
     (proj / "src").mkdir()
     (proj / "src" / "a.py").write_text("code")
 
+    notes = {}
     entry = recovery.snapshot(recovery.Target("dir", str(proj), str(proj)),
-                              rec, "snapshot", action="rm -rf proj")
-    assert entry
-    held = os.listdir(entry["recovery_point"])
+                              rec, "snapshot", action="rm -rf proj", notes=notes)
+    assert entry is None, "a recovery point inside what is destroyed is none"
+    assert "recovery store" in notes["refused"]
+
+    ck = checkpoint.capture(Config(project_root=str(proj)), action="rm -rf proj")
+    held = os.listdir(ck.entry["recovery_point"])
+    assert "src" in held, "control: the checkpoint copies the tree"
     assert ".demo_cli" not in held, \
         "the recovery store was copied into itself"
 

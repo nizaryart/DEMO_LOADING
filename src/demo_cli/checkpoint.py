@@ -176,10 +176,14 @@ def capture(cfg: Config, action: str) -> CheckpointResult:
     if file_cap is not None and nfiles > file_cap:
         return CheckpointResult(skipped=TOO_MANY_FILES)
 
+    # allow_store_inside: the root always holds the recovery store, and
+    # capture_filter keeps the store out of the copy. The residual - a command
+    # that deletes the whole project deletes this checkpoint too - is stated
+    # in the reason the guard gives (guard.py).
     entry = recovery.snapshot(
         recovery.Target(kind="dir", ref=root, label="checkpoint"),
         cfg.recovery_dir, "snapshot", action=action,
-        ignore_dirs=CHECKPOINT_IGNORE,
+        ignore_dirs=CHECKPOINT_IGNORE, allow_store_inside=True,
     )
     # snapshot() returns None on its own internal refusals (a re-check of the
     # cap, a copy error). Never convert that into an entry.

@@ -24,7 +24,8 @@ service against the guard.
 """
 import os
 
-from demo_cli import recovery
+from demo_cli import checkpoint, recovery
+from demo_cli.config import Config
 from demo_cli.recovery import Target
 
 
@@ -34,32 +35,50 @@ def _snap(ref, recovery_dir):
 
 
 def test_snapshotting_the_workspace_does_not_recurse(tmp_path):
-    """THE REGRESSION. recovery_dir is inside the target."""
+    """Pinned before: a snapshot of .demo_cli succeeded, stored in its own recovery/; changed by Part A2 (2026-09-27) because that point dies with the tree, so it is refused and the no-recursion check moved to the checkpoint.
+
+    THE REGRESSION. recovery_dir is inside the target.
+    """
     ws = tmp_path / ".demo_cli"
     rec = ws / "recovery"
     rec.mkdir(parents=True)
     (ws / "receipts.jsonl").write_text('{"a":1}\n')
 
-    entry = _snap(ws, rec)
-    assert entry, "the rest of the workspace is still worth keeping"
+    notes = {}
+    entry = recovery.snapshot(Target(kind="dir", ref=str(ws), label=str(ws)),
+                              str(rec), notes=notes)
+    assert entry is None, "a recovery point inside what is destroyed is none"
+    assert "recovery store" in notes["refused"]
 
+    ck = checkpoint.capture(Config(project_root=str(tmp_path)), action="rm -rf .demo_cli")
+    assert ck.ok, "control: the checkpoint still copies a tree holding the store"
     nested = [p for p in _all_dirs(rec) if p.count(".snapdir") > 1]
     assert not nested, f"copied into itself: {nested[:2]}"
 
 
 def test_the_snapshot_keeps_everything_except_the_store(tmp_path):
-    """Skipping the recovery store loses nothing - those files ARE the
-    backups. Everything else must survive."""
+    """Pinned before: a snapshot of .demo_cli kept all but recovery/, stored inside .demo_cli; changed by Part A2 (2026-09-27) because that copy dies with the tree, so it is refused and "all but the store" is checked on the checkpoint.
+
+    Skipping the recovery store loses nothing - those files ARE the
+    backups. Everything else must survive. On the checkpoint path the whole
+    workspace is skipped by path (capture_filter), so what must survive is
+    the user's files.
+    """
     ws = tmp_path / ".demo_cli"
     rec = ws / "recovery"
     rec.mkdir(parents=True)
     (ws / "receipts.jsonl").write_text("LEDGER")
     (rec / "old.bak").write_text("an existing backup")
+    (tmp_path / "notes.txt").write_text("irreplaceable")
 
-    entry = _snap(ws, rec)
-    snap = entry["recovery_point"]
-    assert open(os.path.join(snap, "receipts.jsonl")).read() == "LEDGER"
-    assert not os.path.exists(os.path.join(snap, "recovery"))
+    assert _snap(ws, rec) is None, "refused: the store lives in the target"
+
+    ck = checkpoint.capture(Config(project_root=str(tmp_path)), action="python cleanup.py")
+    snap = ck.entry["recovery_point"]
+    assert open(os.path.join(snap, "notes.txt")).read() == "irreplaceable", \
+        "control: the checkpoint keeps the user's files"
+    assert not os.path.exists(os.path.join(snap, ".demo_cli")), \
+        "the store is never copied into itself"
 
 
 def test_snapshotting_something_inside_the_store_is_refused(tmp_path):

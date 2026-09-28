@@ -98,6 +98,7 @@ def run_before_shell(stdin, stdout) -> int:
                 command,
                 agent_id=data.get("conversation_id", "cursor"),
                 session_id=data.get("generation_id", "unknown"),
+                door="agent",
             )
     except Exception as exc:
         # Also catches AgentDirectoryUnreachable, and this adapter needs no

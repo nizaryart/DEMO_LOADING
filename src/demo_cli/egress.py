@@ -335,8 +335,12 @@ def classify_http(method: str, host: str, path: str = "",
 
 
 # --------------------------------------------------------------------------
-# mitmproxy addon  (loaded by `mitmdump -s egress.py`; import guarded so the
-# pure functions above can be imported/tested without mitmproxy installed)
+# mitmproxy addon. Built ONLY by egress_addon.py, the `mitmdump -s` entry
+# point - never when this module is imported (Part A4, 2026-09-27): the CLI
+# imports this module for `demo_cli egress`, and building here meant every
+# `demo_cli` start-up, the agent hook's included, imported mitmproxy and read
+# the config for an addon nothing would run (~120-150 ms where mitmproxy is
+# installed).
 # --------------------------------------------------------------------------
 
 def _build_addon():
@@ -461,13 +465,6 @@ def _build_addon():
                 self._receipt(req, v, "ESCALATE", f"review denied: {v.reason}")
 
     return [DemoCliEgress()]
-
-
-try:                                               # only when loaded by mitmdump
-    import mitmproxy  # noqa: F401
-    addons = _build_addon()
-except Exception:                                  # imported for the pure core / tests
-    addons = []
 
 
 # --------------------------------------------------------------------------
@@ -658,7 +655,6 @@ __all__ = [
     "HttpVerdict",
     "classify_http",
     "detect_protocol",
-    "addons",
     "_MITM_DIR",
     "_CA_PEM_NAME",
     "_CA_CER_NAME",

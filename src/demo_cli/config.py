@@ -360,6 +360,36 @@ def resolve_egress_port(cfg: Optional[Config],
     return 8080, None
 
 
+# The files that make demo_cli's decisions trustworthy - its CONTROL PLANE.
+# An agent that can change them can turn the guard off: edit the mode, drop
+# the hook registration, disarm the shell trap, rewrite the ledger, or empty
+# the recovery store it would undo from. Hook configs are listed for the
+# project AND the home directory, because every host reads both.
+HOOK_CONFIG_FILES = (
+    os.path.join(".claude", "settings.json"),
+    os.path.join(".claude", "settings.local.json"),
+    os.path.join(".codex", "hooks.json"),
+    os.path.join(".cursor", "hooks.json"),
+)
+# Written by `demo_cli install-shell-guard` (cli.cmd_install_shell_guard).
+SHELL_GUARD_SCRIPT = os.path.join("~", ".demo_cli_shellguard.sh")
+
+
+def control_plane_paths(cfg) -> List[str]:
+    """Absolute paths of demo_cli's own files for this project: the config,
+    the workspace (ledger, recovery store, mount state, markers), the hook
+    configs in the project and in ~, and the shell-guard script.
+
+    `~` is expanded on every call, not at import, so it follows HOME."""
+    root = os.path.abspath(cfg.project_root or os.getcwd())
+    home = os.path.expanduser("~")
+    paths = [cfg.source_path or os.path.join(root, CONFIG_NAME), cfg.workspace]
+    for where in (root, home):
+        paths += [os.path.join(where, rel) for rel in HOOK_CONFIG_FILES]
+    paths.append(os.path.expanduser(SHELL_GUARD_SCRIPT))
+    return [os.path.normpath(os.path.abspath(p)) for p in paths]
+
+
 def ensure_workspace(cfg) -> Optional[str]:
     """Create <project_root>/.demo_cli, or say why it must not be created.
 

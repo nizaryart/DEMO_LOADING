@@ -944,6 +944,22 @@ def redirect_target(cmd: str) -> Optional[str]:
     """Return the file a truncating output redirection ('> file') overwrites, or None.
     Quote- and escape-aware. Skips append, fd duplications, and /dev/* sinks.
     """
+    return next(_redirect_targets(cmd), None)
+
+
+def redirect_writes(cmd: str) -> List[str]:
+    """Every file an output redirection in `cmd` writes, appends included.
+
+    Not a destruction question: `>> file` destroys nothing, but it CHANGES
+    the file, and for demo_cli's own files (the control plane) that is the
+    question - a line appended to .claude/settings.json makes it invalid JSON,
+    and `trap - DEBUG` appended to the shell guard disarms it.
+    """
+    return list(_redirect_targets(cmd, include_append=True))
+
+
+def _redirect_targets(cmd: str, include_append: bool = False):
+    """Yield, in order, the files output redirections in `cmd` write."""
     n = len(cmd)
     i = 0
     quote = None
@@ -965,8 +981,10 @@ def redirect_target(cmd: str) -> Optional[str]:
             nxt = cmd[i + 1] if i + 1 < n else ""
             prev = cmd[i - 1] if i > 0 else ""
             if nxt == ">":                   # '>>' append - not destructive
-                i += 2
-                continue
+                if not include_append:
+                    i += 2
+                    continue
+                i += 1                       # read the target after the second '>'
             # Truncating redirects (1>, 2>, &>); fd duplications (2>&1, >&2) are skipped.
             # `>&` is a duplication only when a number or `-` follows; `>& out.txt`
             # sends stdout AND stderr to out.txt and truncates it.
@@ -983,7 +1001,7 @@ def redirect_target(cmd: str) -> Optional[str]:
                     end += 1
                 tgt = cmd[j:end].strip("'\"")
                 if tgt and not tgt.startswith("/dev/"):
-                    return tgt
+                    yield tgt
                 i = max(end, i + 2)
                 continue
             # Read target token, skipping spaces and leading '|' (>| noclobber override).
@@ -1013,9 +1031,10 @@ def redirect_target(cmd: str) -> Optional[str]:
             if not tgt or tgt.startswith("/dev/"):
                 i += 1                       # sink or empty - keep scanning
                 continue
-            return tgt
+            yield tgt
+            i = max(j, i + 1)
+            continue
         i += 1
-    return None
 
 
 # --------------------------------------------------------------------------

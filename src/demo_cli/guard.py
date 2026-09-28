@@ -19,12 +19,13 @@ from typing import List, Optional, Tuple
 
 import contextlib
 import os
+import re
 import sys
 
 from . import approval, checkpoint, preview as preview_mod, recovery
-from .classify import (POSIX, Classification, classify_pipeline,
-                       is_sql_preview_candidate)
-from .config import Config, config_error_message, load_config
+from .classify import (POSIX, POWERSHELL, Classification, classify_pipeline,
+                       effective_segments, is_sql_preview_candidate)
+from .config import Config, config_error_message, control_plane_paths, load_config
 from .context import Context, Intent, build_context, compare_intent
 from .decide import (ALLOW, ASK, BLOCKING, CONTEXT_MISMATCH, DRY_RUN, ESCALATE,
                      REVERSIBLE, Decision, decide)
@@ -77,6 +78,115 @@ def _nothing_else_acts(c: Classification) -> bool:
             and not c.is_sql_mutating
             and not c.is_file_writer
             and not c.remote_exec)
+
+
+# --------------------------------------------------------------------------
+# DEMO_CLI'S OWN FILES - the control plane (Part A1, 2026-09-27)
+#
+# Measured in enforce mode before this: `echo > .demo_cli.toml`, an Edit of
+# .claude/settings.json, `rm .demo_cli/receipts.jsonl` all came back
+# REVERSIBLE and ran, and `rm -rf .demo_cli` was REVERSIBLE with its recovery
+# point stored inside the folder it deleted. An agent that can change these
+# files can switch the guard off, so any change to them is refused, whatever
+# the rest of the command is - captured or not, it is not the agent's to make.
+# --------------------------------------------------------------------------
+
+def _related(a: str, b: str) -> bool:
+    """Is one of the two at or under the other?"""
+    a, b = os.path.normcase(a), os.path.normcase(b)
+    return recovery._contains(a, b) or recovery._contains(b, a)
+
+
+def _control_plane_hits(paths, cfg: Config) -> List[str]:
+    """The paths among `paths` that are demo_cli's own files, lie inside
+    them, or are a directory that holds them. Compared by path and by real
+    path: a write through a link lands where the link points."""
+    planes = control_plane_paths(cfg)
+    real_planes = [os.path.realpath(q) for q in planes]
+    return [p for p in paths
+            if any(_related(p, q) for q in planes)
+            or any(_related(os.path.realpath(p), q) for q in real_planes)]
+
+
+def _shown(path: str, cfg: Config) -> str:
+    root = os.path.abspath(cfg.project_root or os.getcwd())
+    home = os.path.expanduser("~")
+    if recovery._contains(root, path):
+        return os.path.relpath(path, root)
+    if recovery._contains(home, path):
+        return os.path.join("~", os.path.relpath(path, home))
+    return path
+
+
+def _files_reason(hits: List[str], cfg: Config) -> str:
+    names = ", ".join(_shown(p, cfg) for p in hits[:3])
+    if len(hits) > 3:
+        names += f", +{len(hits) - 3} more"
+    return (f"This changes demo_cli's own files, or a directory holding them "
+            f"({names}): its config, hook settings, ledger or recovery store. "
+            f"An agent may not change them - they are what make demo_cli's "
+            f"decisions trustworthy.")
+
+
+# `demo_cli <subcommand>` that changes demo_cli's own state (Part A1b). The
+# read-only ones - status, doctor, log, diff, verify, report, receipt(s),
+# check - and undo stay allowed. Judged at the AGENT doors only: guard-shell
+# is the human's `!` door and keeps skipping demo_cli's own invocations.
+_STATE_CHANGING = frozenset({
+    "init", "setup", "teardown", "_teardown-admin", "_register-task",
+    "install-hook", "install-shell-guard", "protect", "unprotect",
+    "mount", "unmount", "prune",
+})
+_PIP = re.compile(r"^pip(?:\d+(?:\.\d+)*)?$")
+
+
+def _long_option(tok: str, option: str) -> bool:
+    """argparse accepts any unambiguous prefix of a long option, so
+    `--anch` is `--anchor`. Three characters is unambiguous for every
+    option asked about here."""
+    head = tok.split("=", 1)[0]
+    return len(head) >= 3 and option.startswith(head)
+
+
+def _agent_state_change(command: str, dialect: str) -> Optional[str]:
+    """The demo_cli invocation or uninstall in `command` that changes
+    demo_cli's own state, or None. Units are read raw AND with same-line
+    variables substituted, so `DC=demo_cli; $DC teardown` is seen."""
+    units = (effective_segments(command, dialect)
+             + effective_segments(command, dialect, substitute=True))
+    for seg, seg_dialect in units:
+        toks = recovery._tokenize(seg, True if seg_dialect == POWERSHELL else None)
+        if toks and toks[0] == "&":                  # PowerShell call operator
+            toks = toks[1:]
+        if not toks:
+            continue
+        word = toks[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+        if word.endswith(".exe"):
+            word = word[:-4]
+        args = toks[1:]
+        if word.startswith("python") or word == "py":
+            if args[:2] == ["-m", "demo_cli"]:
+                word, args = "demo_cli", args[2:]
+            elif args[:2] == ["-m", "pip"]:
+                word, args = "pip", args[2:]
+        if word == "demo_cli" and args:
+            sub, rest = args[0], args[1:]
+            if sub in _STATE_CHANGING:
+                return f"demo_cli {sub}"
+            if sub in ("target", "targets") and "add" in rest:
+                return f"demo_cli {sub} add"
+            if sub == "egress":
+                flag = next((t for t in rest if _long_option(t, "--trust-ca")
+                             or _long_option(t, "--untrust-ca")), None)
+                if flag:
+                    return f"demo_cli egress {flag}"
+            if sub == "verify" and any(_long_option(t, "--anchor") for t in rest):
+                return "demo_cli verify --anchor"
+        elif (word == "pipx" or _PIP.match(word)) and args[:1] == ["uninstall"]:
+            names = {a.lower().replace("_", "-") for a in args[1:] if not a.startswith("-")}
+            if "demo-cli" in names:
+                return f"{word} uninstall demo_cli"
+    return None
 
 
 @dataclass
@@ -222,6 +332,32 @@ class Guard:
         return GuardResult(command=command, classification=c, context=ctx,
                            decision=decision, mode=self.mode, receipt=receipt)
 
+    def _refuse_control_plane(self, action_raw: str, c: Classification,
+                              reason: str, next_steps: List[str],
+                              intent: Intent, agent_id: str, session_id: str,
+                              dialect: Optional[str]) -> GuardResult:
+        """ESCALATE a change to demo_cli's own files or state. Nothing is
+        captured: a recovery point would live in the very store being
+        changed, and the change is not the agent's to make either way. The
+        mode still applies - in shadow this is recorded, not enforced."""
+        c.matched_rule = "control_plane"
+        c.is_mutating = True
+        ctx = build_context(action_raw, cwd=self.config.project_root)
+        decision = Decision(ESCALATE, reason, recoverable=False, next_steps=next_steps)
+        receipt = Receipt(
+            action_raw=action_raw, action_type=c.action_type,
+            target_environment=ctx.environment, decision=ESCALATE, reason=reason,
+            mode=self.mode, matched_rule="control_plane",
+            classification="destructive" if c.is_destructive else "mutating",
+            context=ctx.as_dict(), declared_intent=intent.as_dict(),
+            pipeline_segments=c.segments if c.is_pipeline else [],
+            remote_exec=c.remote_exec, dialect=dialect,
+            agent_id=agent_id, session_id=session_id,
+        )
+        _record_receipt(self.config.receipts_path, receipt)
+        return GuardResult(command=action_raw, classification=c, context=ctx,
+                           decision=decision, mode=self.mode, receipt=receipt)
+
     def evaluate(
         self,
         command: str,
@@ -234,11 +370,16 @@ class Guard:
         agent_id: str = "unknown",
         session_id: str = "unknown",
         dialect: str = POSIX,
+        door: Optional[str] = None,
     ) -> GuardResult:
         """`dialect` says which shell wrote this text - POSIX or POWERSHELL.
         It decides how line continuations are folded, and the two spellings are
         not interchangeable (see classify.join_continuations). The adapters know
-        it from the tool name; everything else keeps the POSIX default."""
+        it from the tool name; everything else keeps the POSIX default.
+
+        `door` is "agent" from the agent hooks (Claude Code, Codex, Cursor).
+        Only there is running a state-changing `demo_cli` subcommand refused:
+        `check` and the `!` trap are the human's doors."""
         intent = intent or Intent()
         command = command.strip()
 
@@ -246,6 +387,29 @@ class Guard:
             return self._refuse_broken_config(command, agent_id, session_id)
 
         c = classify_pipeline(command, dialect)
+
+        # DEMO_CLI'S OWN FILES AND STATE, before anything else. Before the
+        # creation correction below on purpose: creating .demo_cli.toml or
+        # .claude/settings.local.json is exactly as much a change to the
+        # guard as editing one.
+        if door == "agent":
+            what = _agent_state_change(command, dialect)
+            if what:
+                verb = ("uninstalls demo_cli" if " uninstall " in what
+                        else "changes demo_cli's own state")
+                return self._refuse_control_plane(
+                    command, c,
+                    f"This runs `{what}`, which {verb}. An agent may not do "
+                    f"that.",
+                    ["Run it yourself, outside the agent."],
+                    intent, agent_id, session_id, dialect)
+        hits = _control_plane_hits(recovery.written_paths(command, dialect),
+                                   self.config)
+        if hits:
+            return self._refuse_control_plane(
+                command, c, _files_reason(hits, self.config),
+                ["Make this change yourself, outside the agent."],
+                intent, agent_id, session_id, dialect)
 
         # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
         # classifier rule says so. The rule cannot live in the classifier: it
@@ -335,7 +499,19 @@ class Guard:
                 if recovery.within_project(ap, root) and os.path.exists(ap):
                     target_path = ap
 
-        target = recovery.resolve_target(command, explicit_db, db_url, target_path)
+        # THE DATABASE COMES FROM THE STATEMENT THAT WRITES IT (Part A3).
+        # resolve_target takes the first .db name or postgres URL in what it
+        # is given, and it was given the whole line: `echo app.db; sqlite3
+        # data/users.db "DELETE ..."` snapshotted and previewed app.db, and an
+        # echoed URL beat an operand the extractor had resolved. Now it reads
+        # only the statements that act, and when those still name more than
+        # one database - `ATTACH 'other.db'` - no target is guessed at all.
+        db_text = recovery.acting_text(command, dialect)
+        if (not (explicit_db or db_url or target_path)
+                and len(recovery.db_mentions(db_text)) > 1):
+            target = None
+        else:
+            target = recovery.resolve_target(db_text, explicit_db, db_url, target_path)
 
         # Trou #004: refuse a PARTIAL snapshot. For a filesystem delete/move whose
         # full operand set we could NOT resolve to an in-root capture (multiple
@@ -491,7 +667,9 @@ class Guard:
             reason = (f"{reason} Recovery is a whole-workspace checkpoint "
                       f"(coarse): the target could not be resolved from the "
                       f"command text, so everything it could destroy was "
-                      f"preserved. Undo restores the entire tree.")
+                      f"preserved. Undo restores the entire tree. The "
+                      f"checkpoint is stored inside the project, so a command "
+                      f"that deletes the whole project deletes it too.")
         elif checkpoint_skipped:
             reason = f"{reason} {checkpoint.reason_text(checkpoint_skipped, self.config)}"
         # A cap refusal is the one "no recovery point" a person can act on, so
@@ -563,6 +741,15 @@ class Guard:
             return self._refuse_broken_config(f"{tool_name} {file_path}",
                                               agent_id, session_id)
         ap = os.path.abspath(file_path)
+        hits = _control_plane_hits([ap], self.config)
+        if hits:
+            return self._refuse_control_plane(
+                f"{tool_name} {ap}",
+                Classification(is_mutating=True, action_type="filewrite",
+                               matched_rule="control_plane", segments=[ap]),
+                _files_reason(hits, self.config),
+                ["Make this change yourself, outside the agent."],
+                intent, agent_id, session_id, None)
         exists = os.path.exists(ap)
         is_dir = exists and os.path.isdir(ap)
 

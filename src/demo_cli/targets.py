@@ -26,11 +26,12 @@ from .classify import (FILE_WRITER_TARGET_VERBS, POSIX, POWERSHELL,
                        PS_CLEAR_CONTENT_ALIASES,
                        PS_COPY_ALIASES, PS_MOVE_ALIASES, PS_NEW_ITEM_ALIASES,
                        PS_REMOVE_ALIASES, PS_RENAME_ALIASES,
+                       _classify_segment, _data_sink, _effective_segments,
                        effective_command, effective_segments,
                        is_file_writer_command,
                        join_continuations,
                        strip_ps_escapes,
-                       redirect_target, split_segments,
+                       redirect_target, redirect_writes, split_segments,
                        substitute_assignments)
 from .context import redact
 
@@ -58,6 +59,70 @@ class Target:
     kind: str   # sqlite | postgres | file | dir
     ref: str    # absolute path or connection URL
     label: str  # redacted, human-safe
+
+
+# --------------------------------------------------------------------------
+# Which text names the database (Part A3, 2026-09-27)
+#
+# resolve_target scans the text it is given for a .db name or a postgres URL
+# and takes the FIRST. The guard used to give it the whole raw line, so any
+# mention anywhere won:
+#
+#     echo app.db >/dev/null; sqlite3 data/users.db "DELETE FROM users ..."
+#         -> DRY_RUN, app.db snapshotted and previewed; users.db, the one
+#            written, captured by nobody
+#
+# acting_text narrows that to the statements that act, and db_mentions lets
+# the guard refuse when those still name more than one database.
+# --------------------------------------------------------------------------
+
+def _acts(seg: str, dialect: str, sep: str) -> bool:
+    """A unit the classifier calls destructive or SQL-mutating, judged the
+    way classify_pipeline judges it (quoted text of a data sink is inert)."""
+    inert = dialect == POSIX and sep != "|" and _data_sink(seg)
+    s = _classify_segment(seg, dialect, inert)
+    return bool(s["is_destructive"] or s["is_sql_mutating"])
+
+
+def _statement_groups(cmd: str, dialect: str) -> List[List[Tuple[str, str, str]]]:
+    """Units grouped by statement, on the substituted text target resolution
+    reads everywhere else - so `DB=app.db; sqlite3 $DB ...` keeps app.db."""
+    if dialect == POSIX:
+        from .model import posix_statements
+        text = substitute_assignments(join_continuations(cmd, POSIX), POSIX)
+        return [list(g) for g in posix_statements(text)]
+    groups: List[List[Tuple[str, str, str]]] = []
+    cur: List[Tuple[str, str, str]] = []
+    for seg, seg_dialect, sep in _effective_segments(cmd, dialect, True, 0, ""):
+        cur.append((seg, seg_dialect, sep))
+        if sep != "|":
+            groups.append(cur)
+            cur = []
+    if cur:
+        groups.append(cur)
+    return groups
+
+
+def acting_text(cmd: str, dialect: str = POSIX) -> str:
+    """The text of every statement holding a unit that acts - the only text
+    a database target may be read from. A statement, not a unit: in
+    `echo "DELETE FROM t" | sqlite3 app.db` and `sqlite3 app.db <<EOF` the
+    SQL and the database sit in different units of one statement.
+
+    Never raises: a parse nobody foresaw degrades to the whole line, which
+    is what the guard read before."""
+    try:
+        groups = _statement_groups(cmd, dialect)
+    except Exception:
+        return cmd
+    return "\n".join(" ".join(seg for seg, _, _ in group) for group in groups
+                     if any(_acts(seg, d, sep) for seg, d, sep in group))
+
+
+def db_mentions(text: str) -> set:
+    """Every postgres URL and .db path `text` names, as distinct targets."""
+    return (set(_PG_URL.findall(text or ""))
+            | {os.path.normpath(os.path.abspath(m)) for m in _DB_FILE.findall(text or "")})
 
 
 def resolve_target(cmd: str, explicit_db: Optional[str] = None,
@@ -134,14 +199,30 @@ def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
     Unresolved (an unexpanded variable, an unbalanced cd) returns ([], False)
     and the caller changes nothing: that is today's behaviour, not a claim.
     """
+    paths, resolved, no_clobber = _cp_destinations(seg, base)
+    if no_clobber:
+        return [], True
+    if not resolved:
+        return [], False
+    return sorted({p for p in paths if os.path.lexists(p)}), True
+
+
+def _cp_destinations(seg: str, base: Optional[str] = None
+                     ) -> Tuple[List[str], bool, bool]:
+    """(every path this POSIX `cp` writes, resolved?, -n/--no-clobber?).
+
+    cp_clobbers asks which of these EXIST, for the destruction count. The
+    control plane asks about all of them: `cp x.toml .demo_cli.toml` creates
+    demo_cli's config where none was, and -n does not stop a creation.
+    """
     toks = _tokenize(seg)
     i = 0
     while i < len(toks) and (_ENV_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
         i += 1
     if i >= len(toks) or toks[i].lower() != "cp":
-        return [], True
+        return [], True, False
     tdir, no_target_dir, operands = None, False, []
-    opts_done, want = False, None
+    opts_done, want, no_clobber = False, None, False
     for tok in toks[i + 1:]:
         if want:
             if want == "t":
@@ -153,8 +234,8 @@ def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
             continue
         if not opts_done and tok.startswith("--"):
             if tok == "--no-clobber" or tok.startswith("--update=none"):
-                return [], True
-            if tok.startswith("--target-directory="):
+                no_clobber = True
+            elif tok.startswith("--target-directory="):
                 tdir = tok.split("=", 1)[1]
             elif tok == "--target-directory":
                 want = "t"
@@ -167,7 +248,8 @@ def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
             body = tok[1:]
             for j, ch in enumerate(body):
                 if ch == "n":
-                    return [], True
+                    no_clobber = True
+                    break
                 if ch == "T":
                     no_target_dir = True
                 if ch in "tS":
@@ -193,15 +275,15 @@ def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
         into_dir = True
     else:
         if len(operands) < 2:
-            return [], True                      # cp will refuse; nothing clobbered
+            return [], True, no_clobber          # cp will refuse; nothing written
         dest, sources = _abs(operands[-1]), operands[:-1]
         if dest is None:
-            return [], False
+            return [], False, no_clobber
         into_dir = not no_target_dir and os.path.isdir(dest)
     if dest is None:
-        return [], False
+        return [], False, no_clobber
     if not into_dir:
-        return ([dest] if os.path.lexists(dest) else []), True
+        return [dest], True, no_clobber
     hits = []
     for src in sources:
         # Sources resolve from the same directory as the destination. Globbed
@@ -215,11 +297,11 @@ def cp_clobbers(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
             names = sorted(_glob.glob(piece)) if any(c in piece for c in "*?[") else [piece]
             for name in names:
                 if _UNEXPANDED.search(name):
-                    return [], False
+                    return [], False, no_clobber
                 hit = os.path.join(dest, os.path.basename(name.rstrip("/\\")))
-                if os.path.lexists(hit) and hit not in hits:
+                if hit not in hits:
                     hits.append(hit)
-    return sorted(hits), True
+    return hits, True, no_clobber
 
 
 # In-place editors: the file operands are rewritten, and nothing in the rule
@@ -310,6 +392,15 @@ def _perl_files(args: List[str]) -> List[str]:
 
 def in_place_targets(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
     """(existing files a POSIX sed -i / perl -i rewrites, resolved?)."""
+    paths, resolved = _in_place_files(seg, base)
+    if not resolved:
+        return [], False
+    return sorted(p for p in paths if os.path.isfile(p)), True
+
+
+def _in_place_files(seg: str, base: Optional[str] = None) -> Tuple[List[str], bool]:
+    """(every file operand a POSIX sed -i / perl -i names, resolved?) -
+    in_place_targets without its "exists as a file" filter."""
     toks = _tokenize(seg)
     i = 0
     while i < len(toks) and (_ENV_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
@@ -330,9 +421,9 @@ def in_place_targets(seg: str, base: Optional[str] = None) -> Tuple[List[str], b
             names = sorted(_glob.glob(piece)) if any(c in piece for c in "*?[") else [piece]
             for name in names:
                 ap = os.path.normpath(os.path.abspath(name))
-                if os.path.isfile(ap) and ap not in hits:
+                if ap not in hits:
                     hits.append(ap)
-    return sorted(hits), True
+    return hits, True
 
 
 # rule id reported for each verb that overwrites what it names
@@ -1231,6 +1322,146 @@ def is_fs_delete(cmd: str, dialect: str = POSIX) -> bool:
         bool(_RM_RE.search(s) or _MV_RE.search(s) or _ps_remove_hit(s, d))
         for s, d in effective_segments(cmd, dialect) or [(cmd, dialect)]
     )
+
+
+# --------------------------------------------------------------------------
+# What a command WRITES - asked about demo_cli's own files (Part A1)
+#
+# Everything above asks "what would be LOST?", so it filters by existence and
+# ignores appends. The control-plane question is wider: does the command
+# change ANY of the tool's own files - config, hook settings, ledger,
+# recovery store - including by creating one or appending to one? Nothing
+# here is filtered by existence, and `>>` counts.
+#
+# Only what this module can already resolve is returned. `tee`, `dd of=`,
+# `ln`, `git clean`, scripts and the rest are not: that is the redesign's
+# effect model, not this.
+# --------------------------------------------------------------------------
+
+_REMOVING_VERBS = frozenset({"rm", "rmdir", "unlink", "shred", "truncate"})
+
+
+def _here(p: str, base: Optional[str], relative_ok: bool) -> Optional[str]:
+    """An operand as an absolute path, or None when it cannot be pinned
+    down: an unexpanded variable, or a relative path where the working
+    directory is unknown."""
+    p = _expanduser_any(p)
+    if not p or _UNEXPANDED.search(p):
+        return None
+    if not os.path.isabs(p):
+        if not relative_ok:
+            return None
+        if base:
+            p = os.path.join(base, p)
+    return os.path.normpath(os.path.abspath(p))
+
+
+def _expanded(tok: str, base: Optional[str], relative_ok: bool) -> List[str]:
+    """One operand as the shell hands it over: braces, then globs."""
+    out: List[str] = []
+    for piece in _expand_braces(tok):
+        here = _here(piece, base, relative_ok)
+        if not here:
+            continue
+        if any(ch in piece for ch in "*?["):
+            out.extend(os.path.normpath(n) for n in sorted(_glob.glob(here)))
+        else:
+            out.append(here)
+    return out
+
+
+def _plain(args: List[str]) -> List[str]:
+    """The arguments that are not options (everything after `--` is)."""
+    out, done = [], False
+    for t in args:
+        if not done and t == "--":
+            done = True
+        elif done or not t.startswith("-") or t == "-":
+            out.append(t)
+    return out
+
+
+def _unit_writes(seg: str, dialect: str, sep: str, base: Optional[str],
+                 relative_ok: bool) -> List[str]:
+    out = [p for p in (_here(t, base, relative_ok) for t in redirect_writes(seg)) if p]
+    toks = _tokenize(seg, True if dialect == POWERSHELL else None)
+    i = 0
+    while i < len(toks) and (_ENV_ASSIGN.match(toks[i]) or toks[i] == "sudo"):
+        i += 1
+    if i >= len(toks):
+        return out
+    verb = toks[i].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if verb.endswith(".exe"):
+        verb = verb[:-4]
+    plain = _plain(toks[i + 1:])
+    ps_hit = (_ps_remove_hit(seg, dialect) or _ps_content_hit(seg, dialect)
+              or _ps_dest_hit(seg, dialect))
+    inert = dialect == POSIX and sep != "|" and _data_sink(seg)
+    # The second net: a unit the classifier already flags changes what it
+    # names, whatever the verb - `truncate -s 0 f`, `find d -delete`, `dd of=f`.
+    # Not a unit flagged ONLY for its redirection: in `cat a > b` the
+    # redirect is collected above and `a` is merely read.
+    s = _classify_segment(seg, dialect, inert)
+    flagged = (s["matched_rule"] not in (None, "fs_redirect_truncate")
+               or s["is_sql_mutating"] or s["is_file_writer"]
+               or s["nonrecoverable_surface"] is not None)
+    known = (verb in _REMOVING_VERBS or verb in FILE_WRITER_TARGET_VERBS
+             or verb in ("mv", "cp", "sed", "perl") or ps_hit)
+
+    if not relative_ok:
+        # The working directory is unknown here, but an absolute operand
+        # does not depend on it.
+        if known or flagged:
+            out += [p for t in plain for p in _expanded(t, None, False)]
+        return out
+
+    if verb in _REMOVING_VERBS or verb in FILE_WRITER_TARGET_VERBS:
+        out += [p for t in plain for p in _expanded(t, base, True)]
+    elif verb == "mv":
+        paths = [p for t in plain for p in _expanded(t, base, True)]
+        out += paths
+        tdir, _ambiguous = _mv_target_dir(seg)
+        dest = (_here(tdir, base, True) if tdir
+                else paths[-1] if len(paths) >= 2 else None)
+        if dest and os.path.isdir(dest):
+            out += [os.path.join(dest, os.path.basename(p.rstrip("/\\")))
+                    for p in paths if p != dest]
+    elif verb == "cp":
+        out += _cp_destinations(seg, base)[0]
+    elif verb in ("sed", "perl"):
+        out += _in_place_files(seg, base)[0]
+    if ps_hit:
+        for value in _ps_named_operands(seg):
+            out += _expanded(value, base, True)
+        dst = _ps_dest_target(seg)
+        if dst:
+            out += _expanded(dst, base, True)
+    if flagged:
+        for t in plain:
+            out += _expanded(t, base, True)
+            if _ENV_ASSIGN.match(t):                 # dd of=FILE
+                out += _expanded(t.split("=", 1)[1], base, True)
+    return out
+
+
+def written_paths(cmd: str, dialect: str = POSIX) -> List[str]:
+    """Absolute paths `cmd` changes - creates, truncates, appends to, edits,
+    moves or deletes - as far as this module can resolve them, each unit
+    against its own working directory. Never raises: a parse nobody foresaw
+    degrades to [], today's answer."""
+    try:
+        triples = _effective_segments(cmd, dialect, True, 0, "")
+        segments = [seg for seg, _, _ in triples]
+        moved = _changes_directory(segments)
+        out: List[str] = []
+        for idx, (seg, seg_dialect, sep) in enumerate(triples):
+            base, ok = _base_at(cmd, segments, idx, moved)
+            for p in _unit_writes(seg, seg_dialect, sep, base, ok):
+                if p not in out:
+                    out.append(p)
+        return out
+    except Exception:
+        return []
 
 
 def is_remote_pg(ref: str) -> bool:

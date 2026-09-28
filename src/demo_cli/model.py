@@ -667,3 +667,27 @@ def posix_units(cmd: str, outer_sep: str = "") -> Tuple[Tuple[str, str, str], ..
     target resolution. Cached: one evaluation asks for it about seven times."""
     return tuple((t, d, sp) for t, d, sp, _f in
                  _units(parse(cmd.replace("\r\n", "\n"), POSIX), outer_sep))
+
+
+def posix_statements(cmd: str) -> Tuple[Tuple[Tuple[str, str, str], ...], ...]:
+    """The units of `cmd` grouped by STATEMENT: a top-level command with its
+    own $( ) substitutions, nested -c payloads and heredoc bodies, and the
+    commands a `|` or `|&` joins to it. posix_units flattens exactly these.
+
+    For questions that belong to a statement rather than a unit - which
+    database does `echo "DELETE ..." | sqlite3 app.db` write? The SQL is in
+    one unit and the database in the next, and only the pipe connects them.
+    """
+    script = parse(cmd.replace("\r\n", "\n"), POSIX)
+    groups: List[Tuple[Tuple[str, str, str], ...]] = []
+    cur: List[Command] = []
+    for cm in script.commands:
+        cur.append(cm)
+        if cm.sep not in ("|", "|&"):
+            groups.append(tuple((t, d, sp) for t, d, sp, _f in
+                                _units(Script(script.line, cur))))
+            cur = []
+    if cur:
+        groups.append(tuple((t, d, sp) for t, d, sp, _f in
+                            _units(Script(script.line, cur))))
+    return tuple(groups)

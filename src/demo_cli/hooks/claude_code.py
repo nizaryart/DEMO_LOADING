@@ -152,6 +152,7 @@ def run_pretooluse(stdin, stdout) -> int:
                     agent_id=data.get("agent_id", "claude-code"),
                     session_id=data.get("session_id", "unknown"),
                     dialect=POWERSHELL if tool_name == "PowerShell" else POSIX,
+                    door="agent",
                 )
         else:
             # Edit / Write / MultiEdit -> file_path ; NotebookEdit -> notebook_path

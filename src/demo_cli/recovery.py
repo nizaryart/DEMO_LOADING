@@ -87,6 +87,8 @@ from .targets import (
     _win_aware_dirname,
     _win_aware_join,
     _writer_hit,
+    acting_text,
+    db_mentions,
     cp_clobbers,
     in_place_targets,
     overwrites,
@@ -102,6 +104,7 @@ from .targets import (
     resolve_target,
     sole_segment,
     unignorable_dirs,
+    written_paths,
 )
 
 _IGNORE = shutil.ignore_patterns(*sorted(IGNORED_DIRS))
@@ -335,7 +338,8 @@ def _dir_size(path: str, cap: int, ignore_dirs=None, skip_path=None) -> int:
 
 def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snapshot",
              action: Optional[str] = None, ignore_dirs=None,
-             notes: Optional[dict] = None) -> Optional[dict]:
+             notes: Optional[dict] = None,
+             allow_store_inside: bool = False) -> Optional[dict]:
     """Capture a recovery point for a target. Returns the recovery entry or None.
 
     `strategy` comes from config: "snapshot" captures; "none"/"attest" never
@@ -346,6 +350,8 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     `action` is the human-readable thing that prompted the snapshot (a command
     or a file-edit), stored on the entry so `demo_cli log` can show *why* each
     recovery point exists.
+
+    `allow_store_inside` is for the checkpoint alone: see the dir branch.
 
     `notes`, when given, receives a "refused" key explaining a cap refusal in
     words the caller can put in front of a person. Returning a bare None says
@@ -405,6 +411,22 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
         # Prevent self-copy recursion: refuse if recovery_dir is inside ref or ref is inside recovery_dir.
         if _contains(recovery_dir, ref):
             return None          # snapshotting a backup into the backup store
+        # THE OTHER DIRECTION (Part A2, 2026-09-27). The comment above always
+        # said both, and only this half was checked - so `rm -rf .demo_cli`
+        # and `rm -rf proj` got a recovery point stored INSIDE the tree they
+        # destroy, reported REVERSIBLE, and gone with the tree. capture_filter
+        # kept the store out of the copy; nothing kept the copy out of harm.
+        #
+        # The checkpoint is the one caller exempted, explicitly: its target is
+        # the project root, which always holds the store, and it states that
+        # residual in its own reason (guard.py).
+        if _contains(ref, recovery_dir) and not allow_store_inside:
+            if notes is not None:
+                notes["refused"] = (
+                    f"{ref} holds demo_cli's recovery store ({recovery_dir}); "
+                    f"a recovery point kept there would be destroyed with it, "
+                    f"so none was taken.")
+            return None
         names, skip = capture_filter(ref, recovery_dir, ignore_dirs)
 
         def ignore(dirpath, entries):

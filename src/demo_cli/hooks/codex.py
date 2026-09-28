@@ -382,6 +382,7 @@ def run_pretooluse(stdin, stdout) -> int:
                 agent_id="codex",
                 session_id=data.get("session_id", "unknown"),
                 dialect=_dialect(),
+                door="agent",
             )
     except AgentDirectoryUnreachable as exc:
         # WE CANNOT STAND WHERE THE AGENT STANDS, so we cannot resolve what it

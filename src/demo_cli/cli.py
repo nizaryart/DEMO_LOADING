@@ -37,27 +37,94 @@ _DETACHED_PROCESS = 0x00000008          # kept for reference; deliberately unuse
 _CREATE_NEW_PROCESS_GROUP = 0x00000200
 _CREATE_NO_WINDOW = 0x08000000
 
-# Re-exported from .lifecycle for backward compatibility and clean modularity.
-from .lifecycle import (
-    CONFIG_TEMPLATE,
-    _CONFIG_TEMPLATE,
-    WAIT_MOUNT,
-    WAIT_UNMOUNT,
-    _wait_until,
-    _show_plan,
-    _step,
-    _show_step,
-    _protected_children,
-    _install_hook_for,
-    _remove_hooks,
-    _strip_hook_entries,
-    _teardown_admin_steps,
-    _teardown_needs_admin,
-    cmd_setup,
-    cmd_teardown,
-    cmd_teardown_admin,
-    cmd_register_task,
-)
+# Re-exported LAZILY from .lifecycle, .doctor and .egress (Part A4,
+# 2026-09-27). `demo_cli hook` imports this module on every agent tool call,
+# and these three pulled in lifecycle -> doctor -> fsmount, protect, schedule,
+# guarded - and egress -> mitmproxy wherever it is installed - none of which a
+# hook call uses. PEP 562: `cli.X`, `from demo_cli.cli import X` and
+# monkeypatch.setattr(cli, ...) keep working; the first access imports the
+# module and caches the value here.
+_LAZY_EXPORTS = {
+    "lifecycle": (
+        "CONFIG_TEMPLATE",
+        "_CONFIG_TEMPLATE",
+        "WAIT_MOUNT",
+        "WAIT_UNMOUNT",
+        "_wait_until",
+        "_show_plan",
+        "_step",
+        "_show_step",
+        "_protected_children",
+        "_install_hook_for",
+        "_remove_hooks",
+        "_strip_hook_entries",
+        "_teardown_admin_steps",
+        "_teardown_needs_admin",
+        "cmd_setup",
+        "cmd_teardown",
+        "cmd_teardown_admin",
+        "cmd_register_task",
+    ),
+    "doctor": (
+        "_HOSTS",
+        "_our_entries",
+        "_read_host_config",
+        "_hook_installed",
+        "_compare_entries",
+        "_expected_entries",
+        "_hook_check_rows",
+        "_host_hook_audit",
+        "_host_hook_status",
+        "_hook_selftest",
+        "_SELFTEST_PAYLOADS",
+        "_any_hook_installed",
+        "_mount_checks",
+        "_egress_checks",
+        "cmd_doctor",
+    ),
+    "egress": (
+        "_MITM_DIR",
+        "_CA_PEM_NAME",
+        "_CA_CER_NAME",
+        "_ca_path",
+        "egress_setup_lines",
+        "_trust_ca",
+        "cmd_egress",
+    ),
+}
+_LAZY = {name: module for module, names in _LAZY_EXPORTS.items() for name in names}
+
+
+def __getattr__(name: str):
+    module = _LAZY.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    import importlib
+    value = getattr(importlib.import_module("." + module, __package__), name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_LAZY))
+
+
+def _lazy(name: str):
+    """A lazily re-exported name, for code in this module. A module
+    __getattr__ answers attribute access, not a function's global lookup, so
+    those go through here - a value set on the module (a monkeypatch) wins,
+    exactly as it did when the name was a real global."""
+    g = globals()
+    return g[name] if name in g else __getattr__(name)
+
+
+def _deferred(name: str):
+    """A parser handler that imports its module only when it runs."""
+    def run(a):
+        return _lazy(name)(a)
+    run.__name__ = name
+    return run
+
 
 
 def _build_intent(a) -> Intent:
@@ -326,26 +393,6 @@ def cmd_receipt(a) -> int:
     return 0
 
 
-# Re-exported from .doctor for backward compatibility and clean modularity.
-from .doctor import (
-    _HOSTS,
-    _our_entries,
-    _read_host_config,
-    _hook_installed,
-    _compare_entries,
-    _expected_entries,
-    _hook_check_rows,
-    _host_hook_audit,
-    _host_hook_status,
-    _hook_selftest,
-    _SELFTEST_PAYLOADS,
-    _any_hook_installed,
-    _mount_checks,
-    _egress_checks,
-    cmd_doctor,
-)
-
-
 def cmd_prune(a) -> int:
     cfg = load_config(getattr(a, "root", None))
     if a.keep is None and a.older_than is None:
@@ -390,7 +437,7 @@ def cmd_status(a) -> int:
 
     info = {
         "mode": cfg.mode,
-        "hook": _any_hook_installed(cfg),
+        "hook": _lazy("_any_hook_installed")(cfg),
         "config": cfg.source_path,
         "receipts": total,
         "chain": chain_desc,
@@ -406,7 +453,7 @@ def cmd_init(a) -> int:
     if os.path.exists(path) and not a.force:
         print(f"{CONFIG_NAME} already exists. Use --force to overwrite.")
         return 1
-    template = _CONFIG_TEMPLATE
+    template = _lazy("_CONFIG_TEMPLATE")
     mode = getattr(a, "mode", None)
     if mode:
         template = template.replace('mode = "shadow"', f'mode = "{mode}"', 1)
@@ -567,7 +614,24 @@ if [ -n "$BASH_VERSION" ]; then
     # that is already open. Builtins, so the cost is a string test.
     [ -n "$DEMO_CLI_DISABLE" ] && return 0
     command -v demo_cli >/dev/null 2>&1 || return 0
-    case "$BASH_COMMAND" in
+    # The pre-filter reads a COPY with harmless redirects removed. bash
+    # renders `2>/dev/null` as `2> /dev/null`, which `*\>\ *` below matched,
+    # so every agent Bash call paid a guard run for its own wrapper line. The
+    # trailing space keeps `/dev/nullx` a real file; guard-shell still gets
+    # the original command. The strip runs only when there is something to
+    # strip, and the copy is a plain assignment, not `local` (measured ~20 µs
+    # per command cheaper): this trap fires on every simple command of every
+    # script. __demo_cli_c / __demo_cli_p stay set, like the functions.
+    __demo_cli_c=$BASH_COMMAND
+    case $__demo_cli_c in
+      *'/dev/null'*|*'2>&1'*)
+        __demo_cli_c="$__demo_cli_c "
+        for __demo_cli_p in '&>> /dev/null ' '&> /dev/null ' '>> /dev/null ' '>| /dev/null ' '2> /dev/null ' '> /dev/null ' '2>&1 '; do
+          __demo_cli_c=${__demo_cli_c//"$__demo_cli_p"/}
+        done
+        __demo_cli_c=${__demo_cli_c% } ;;
+    esac
+    case "$__demo_cli_c" in
       # Skip the `eval '<cmd>' < /dev/null` wrapper Claude Code !-mode uses:
       # eval re-fires the DEBUG trap on its EXPANSION (the real command), which
       # is handled there exactly once. Processing the wrapper too = double
@@ -857,9 +921,9 @@ def _mount_detached(a, backing) -> int:
     if getattr(a, "no_wait", False):
         mounted = proc.poll() is None
     else:
-        mounted = _wait_until(
+        mounted = _lazy("_wait_until")(
             lambda: proc.poll() is not None or os.path.lexists(a.mountpoint),
-            timeout=WAIT_MOUNT, label="waiting for the guard to come up")
+            timeout=_lazy("WAIT_MOUNT"), label="waiting for the guard to come up")
     if proc.poll() is not None:
         print(render.c("The filesystem guard exited immediately.", "red"))
         print(f"  see {log}")
@@ -872,7 +936,7 @@ def _mount_detached(a, backing) -> int:
         return 1
 
     if not mounted:
-        print(render.c(f"The guard is still starting after {int(WAIT_MOUNT)}s "
+        print(render.c(f"The guard is still starting after {int(_lazy('WAIT_MOUNT'))}s "
                        f"(pid {proc.pid}); it is not reported as running yet.",
                        "yellow"))
         print(f"  watch {log}")
@@ -907,7 +971,7 @@ def _watch_layers(cfg, port, baseline, proc, seconds: int = 60) -> None:
             try:
                 # From the record, not from "is the port open": a stranger
                 # taking the port after ours died is not our layer coming back.
-                current = g.assess(cfg, port, _host_hook_status(cfg),
+                current = g.assess(cfg, port, _lazy("_host_hook_status")(cfg),
                                    egress_up=bool(g.egress_status(cfg).running))
             except Exception:
                 continue                      # never let the watchdog kill the run
@@ -1032,7 +1096,7 @@ def cmd_protect(a) -> int:
     plan = protect_mod.plan_protect(a.project, getattr(a, "backing", None),
                                     lock=not getattr(a, "no_lock", False))
     mount_cmd = f"demo_cli mount {plan.mountpoint} --backing {plan.backing}"
-    rc = _show_plan(plan, "protect", ["After this, start the guard with:",
+    rc = _lazy("_show_plan")(plan, "protect", ["After this, start the guard with:",
                                       f"  {mount_cmd}",
                                       "Undo at any time with:",
                                       f"  demo_cli unprotect {plan.source}"])
@@ -1082,18 +1146,6 @@ def cmd_unprotect(a) -> int:
         return 1
     print()
     return 0
-
-
-# Re-exported from .egress for backward compatibility and clean modularity.
-from .egress import (
-    _MITM_DIR,
-    _CA_PEM_NAME,
-    _CA_CER_NAME,
-    _ca_path,
-    egress_setup_lines,
-    _trust_ca,
-    cmd_egress,
-)
 
 
 def cmd_guarded(a) -> int:
@@ -1185,7 +1237,7 @@ def cmd_guarded(a) -> int:
                 if err_tail:
                     print(render.c(f"         {err_tail}", "dim"))
 
-    layers = g.assess(cfg, port, _host_hook_status(cfg),
+    layers = g.assess(cfg, port, _lazy("_host_hook_status")(cfg),
                       egress_up=egress_port is not None)
     print(render.c(f"\ndemo_cli {__version__}  guarded  ->  {' '.join(argv)}\n", "dim"))
     for layer in layers:
@@ -1363,7 +1415,7 @@ def build_parser() -> argparse.ArgumentParser:
     st.set_defaults(func=cmd_status)
 
     dc = sub.add_parser("doctor", parents=[common], help="check the install across this environment")
-    dc.set_defaults(func=cmd_doctor)
+    dc.set_defaults(func=_deferred("cmd_doctor"))
 
     pr = sub.add_parser("prune", parents=[common], help="delete old recovery points (receipts kept)")
     pr.add_argument("--keep", type=int, default=None, help="retain the N most recent points")
@@ -1455,22 +1507,22 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("--port", type=int, default=None,
                     help="egress proxy port (default: 8080 or [egress] in config)")
     st.add_argument("--yes", action="store_true", help="skip confirmations")
-    st.set_defaults(func=cmd_setup)
+    st.set_defaults(func=_deferred("cmd_setup"))
 
     td = sub.add_parser("teardown", parents=[common],
                         help="undo everything setup did, in any machine state")
     td.add_argument("project", nargs="?", help="the project (default: current directory)")
     td.add_argument("--yes", action="store_true", help="skip confirmations")
-    td.set_defaults(func=cmd_teardown)
+    td.set_defaults(func=_deferred("cmd_teardown"))
 
     ta = sub.add_parser("_teardown-admin", parents=[common])
     ta.add_argument("project")
     ta.add_argument("--report", required=True)
-    ta.set_defaults(func=cmd_teardown_admin)
+    ta.set_defaults(func=_deferred("cmd_teardown_admin"))
 
     rt = sub.add_parser("_register-task", parents=[common])
     rt.add_argument("project")
-    rt.set_defaults(func=cmd_register_task)
+    rt.set_defaults(func=_deferred("cmd_register_task"))
 
     pr = sub.add_parser("protect", parents=[common],
                         help="relocate a project so its path becomes the guarded mount [Windows]")
@@ -1518,7 +1570,7 @@ def build_parser() -> argparse.ArgumentParser:
                          "inspected. Prints what that means for your machine")
     eg.add_argument("--untrust-ca", action="store_true",
                     help="[Windows] remove it again. Do this when you are done")
-    eg.set_defaults(func=cmd_egress)
+    eg.set_defaults(func=_deferred("cmd_egress"))
 
     tg = sub.add_parser("target", parents=[common], aliases=["targets"],
                         help="manage declared environment & recovery targets")
