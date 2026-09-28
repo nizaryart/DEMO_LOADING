@@ -27,7 +27,7 @@ from .context import redact
 from .decide import INVARIANT
 from .version import release_tag
 
-RECEIPT_VERSION = "2.0"
+RECEIPT_VERSION = "2.1"   # 2.1: optional `prediction` (Part B)
 GENESIS = "0" * 64
 
 # A sha256 hex digest as it appears in a torn line's surviving text. Used to
@@ -195,6 +195,9 @@ class Receipt:
     chain: str = CHAIN_MAIN
     # Peer chain head hash at write time for cross-chain causal ordering.
     peer_head: Optional[str] = None
+    # What the shadow engine (engine/) would have concluded: recorded only,
+    # read by nothing that decides (Part B). None from every other writer.
+    prediction: Optional[Dict] = None
     receipt_hash: str = ""
 
     def finalize(self) -> "Receipt":
@@ -315,6 +318,7 @@ def append_receipt(path: str, receipt: Receipt) -> Receipt:
     receipt.declared_intent = _redacted(receipt.declared_intent)
     receipt.context = _redacted(receipt.context)
     receipt.context_mismatches = _redacted(receipt.context_mismatches)
+    receipt.prediction = _redacted(receipt.prediction)
     # Route by the receipt's own role rather than caller path.
     path = chain_path(path, getattr(receipt, "chain", CHAIN_MAIN))
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

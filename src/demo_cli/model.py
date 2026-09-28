@@ -82,6 +82,7 @@ class Command:
     nested: Optional[Script] = None       # sh -c "..." payload
     nested_ps: Optional[str] = None       # powershell -Command payload (not modelled)
     payload: Tuple[int, int] = (0, 0)     # word index range holding the payload
+    depth: int = 0               # ( ) subshell nesting where the command starts
 
     @property
     def argv(self) -> List[Word]:
@@ -395,6 +396,11 @@ def parse(line: str, dialect: str = POSIX, _depth: int = 0) -> Script:
 
     while k < len(toks):
         t = toks[k]
+        if t[0] in ("w", "r") and not cur.words and not cur.redirects:
+            # Where the command STARTS: `( cd a; rm b ); rm c` - cd and the
+            # first rm run in a subshell whose cwd dies at `)`, and the shadow
+            # engine (engine/simulate.py) must not let it leak into `rm c`.
+            cur.depth = subshell
         if t[0] == "w":
             cur.words.append(t[1])
         elif t[0] == "r":

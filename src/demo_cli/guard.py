@@ -189,6 +189,19 @@ def _agent_state_change(command: str, dialect: str) -> Optional[str]:
     return None
 
 
+def _shadow_prediction(command: str, dialect: str, cfg: Config) -> Optional[dict]:
+    """What the shadow engine (engine/, Part B) would conclude - for the
+    receipt only. Imported here, not at module load, so the hook pays for it
+    at evaluate time only; and nothing it does can reach the decision."""
+    if os.environ.get("DEMO_CLI_SHADOW_ENGINE", "1").strip() == "0":
+        return None
+    try:
+        from .engine import predict_safely
+        return predict_safely(command, dialect, cfg)
+    except Exception as exc:                  # pragma: no cover - predict_safely does not raise
+        return {"engine": "shadow", "error": f"{type(exc).__name__}: {exc}"}
+
+
 @dataclass
 class GuardResult:
     command: str
@@ -204,6 +217,7 @@ class GuardResult:
     mismatches: List[Tuple[str, str, str]] = field(default_factory=list)
     affected_paths: List[str] = field(default_factory=list)
     receipt: Optional[Receipt] = None
+    prediction: Optional[dict] = None       # the shadow engine's; decides nothing
 
     @property
     def allowed(self) -> bool:
@@ -335,7 +349,8 @@ class Guard:
     def _refuse_control_plane(self, action_raw: str, c: Classification,
                               reason: str, next_steps: List[str],
                               intent: Intent, agent_id: str, session_id: str,
-                              dialect: Optional[str]) -> GuardResult:
+                              dialect: Optional[str],
+                              prediction: Optional[dict] = None) -> GuardResult:
         """ESCALATE a change to demo_cli's own files or state. Nothing is
         captured: a recovery point would live in the very store being
         changed, and the change is not the agent's to make either way. The
@@ -352,11 +367,12 @@ class Guard:
             context=ctx.as_dict(), declared_intent=intent.as_dict(),
             pipeline_segments=c.segments if c.is_pipeline else [],
             remote_exec=c.remote_exec, dialect=dialect,
-            agent_id=agent_id, session_id=session_id,
+            agent_id=agent_id, session_id=session_id, prediction=prediction,
         )
         _record_receipt(self.config.receipts_path, receipt)
         return GuardResult(command=action_raw, classification=c, context=ctx,
-                           decision=decision, mode=self.mode, receipt=receipt)
+                           decision=decision, mode=self.mode, receipt=receipt,
+                           prediction=prediction)
 
     def evaluate(
         self,
@@ -387,6 +403,7 @@ class Guard:
             return self._refuse_broken_config(command, agent_id, session_id)
 
         c = classify_pipeline(command, dialect)
+        prediction = _shadow_prediction(command, dialect, self.config)
 
         # DEMO_CLI'S OWN FILES AND STATE, before anything else. Before the
         # creation correction below on purpose: creating .demo_cli.toml or
@@ -402,14 +419,14 @@ class Guard:
                     f"This runs `{what}`, which {verb}. An agent may not do "
                     f"that.",
                     ["Run it yourself, outside the agent."],
-                    intent, agent_id, session_id, dialect)
+                    intent, agent_id, session_id, dialect, prediction)
         hits = _control_plane_hits(recovery.written_paths(command, dialect),
                                    self.config)
         if hits:
             return self._refuse_control_plane(
                 command, c, _files_reason(hits, self.config),
                 ["Make this change yourself, outside the agent."],
-                intent, agent_id, session_id, dialect)
+                intent, agent_id, session_id, dialect, prediction)
 
         # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
         # classifier rule says so. The rule cannot live in the classifier: it
@@ -707,6 +724,7 @@ class Guard:
             dialect=dialect,
             agent_id=agent_id,
             session_id=session_id,
+            prediction=prediction,
         )
         _record_receipt(self.config.receipts_path, receipt)
 
@@ -715,6 +733,7 @@ class Guard:
             target=target, recovery_entry=entry,
             preview_count=preview_count, preview_rows=preview_rows, preview_cols=preview_cols,
             mismatches=mismatches, affected_paths=affected_paths, receipt=receipt,
+            prediction=prediction,
         )
 
     def evaluate_file_edit(
