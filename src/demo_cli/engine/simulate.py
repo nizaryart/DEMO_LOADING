@@ -34,12 +34,14 @@ import time
 from typing import Dict, FrozenSet, List, Optional, Tuple
 
 from ..model import Script, parse
-from .effects import CREATE, DELETE, MOVE, OVERWRITE, TRUNCATE, Impact
+from .effects import CREATE, DELETE, MKDIR, OVERWRITE, TRUNCATE, Impact
 from .invocation import Invocation, build, parse_options, reads_stdin_script
 from .rules import READ_ONLY, RULES, SHELLS, Rule, applies, rules_by_tool
 from .words import Unknown, expand
 
 NEW = ""                     # the origin of content this command itself makes
+SINKS = frozenset({"/dev/null", "/dev/zero", "/dev/stdout", "/dev/stderr", "/dev/tty",
+                   "/dev/full", "/dev/random", "/dev/urandom", "/dev/stdin"})
 MAX_GLOB = 10_000
 MAX_DEPTH = 8
 _WRITES = (">", ">|", "&>", ">&", ">>", "&>>")
@@ -61,14 +63,16 @@ class Budget:
 
 class Node:
     """One path's state. Treated as immutable: every change makes a new Node."""
-    __slots__ = ("exists", "is_dir", "origins", "moved_from")
+    __slots__ = ("exists", "is_dir", "origins", "moved_from", "copy_of")
 
     def __init__(self, exists: bool, is_dir: bool = False,
-                 origins: FrozenSet[str] = frozenset(), moved_from: Optional[str] = None):
+                 origins: FrozenSet[str] = frozenset(), moved_from: Optional[str] = None,
+                 copy_of: Optional[str] = None):
         self.exists = exists
         self.is_dir = is_dir
         self.origins = origins
         self.moved_from = moved_from      # a real directory whose children now live here
+        self.copy_of = copy_of            # a real directory whose children were COPIED here
 
 
 ABSENT = Node(False)
@@ -120,6 +124,9 @@ class World:
                     return ABSENT                     # removed, or not a directory
                 if a.moved_from:
                     return self.real_node(os.path.join(a.moved_from, *tail))
+                if a.copy_of:                         # a copy: the same names, new content
+                    r = self.real_node(os.path.join(a.copy_of, *tail))
+                    return Node(True, r.is_dir, frozenset({NEW})) if r.exists else ABSENT
                 if a.origins == frozenset({NEW}):
                     return ABSENT                     # a new directory holds only what the overlay says
                 break
@@ -163,7 +170,8 @@ class World:
         for k in set(a.nodes) | set(b.nodes):
             x, y = self.node(a, k), self.node(b, k)
             nodes[k] = Node(x.exists or y.exists, x.is_dir or y.is_dir,
-                            x.origins | y.origins, x.moved_from or y.moved_from)
+                            x.origins | y.origins, x.moved_from or y.moved_from,
+                            x.copy_of or y.copy_of)
         vars_: Dict[str, Optional[str]] = {}
         for k in set(a.vars) | set(b.vars):
             va, vb = a.vars.get(k, "\0missing"), b.vars.get(k, "\0missing")
@@ -196,7 +204,44 @@ class World:
         return out
 
     # ---- effects ------------------------------------------------------------
+    def device(self, path: str) -> bool:
+        """True when `path` is a device, not a file. The sinks swallow data;
+        anything else under /dev (a disk, a partition) is a surface no local
+        copy restores - REMOTE, so the verdict is ESCALATE (review C1, fix 2)."""
+        if not path.startswith("/dev/"):
+            return False
+        if path in SINKS or path.startswith("/dev/fd/"):
+            return True
+        self.impact.remote.add("device:" + path)
+        return True
+
+    def replace(self, state: State, path: str, how: str,
+                backup: Optional[str] = None, is_dir: bool = False) -> None:
+        """New content at an EXISTING `path`: its old content is lost. A
+        backup does not change that: it is the TOOL's copy, which the next
+        command can delete and demo_cli undo cannot restore (review C1). The
+        backup path is written too: what was there before is lost (fix 1),
+        or it is created."""
+        n = self.node(state, path)
+        self.lose(n, how)
+        if backup:
+            self.put(state, backup, Node(True, n.is_dir, n.origins, n.moved_from, n.copy_of))
+        state.nodes[path] = Node(True, is_dir, frozenset({NEW}))
+        self.impact.touched.add(path)
+
+    def put(self, state: State, path: str, node: Node) -> None:
+        """Write `node` at `path`, destroying what was there."""
+        old = self.node(state, path)
+        if old.exists:
+            self.lose(old, OVERWRITE)
+        else:
+            self.impact.created.append(path)
+        state.nodes[path] = node
+        self.impact.touched.add(path)
+
     def write(self, state: State, path: str, appending: bool) -> None:
+        if self.device(path):
+            return
         n = self.node(state, path)
         if n.exists:
             if n.is_dir:
@@ -214,6 +259,45 @@ class World:
             self.impact.created.append(path)
             self.impact.touched.add(path)
 
+    def edit(self, state: State, path: str, suffix: Optional[str] = None) -> None:
+        """Rewrite an existing regular file in place (sed -i, perl -i, a
+        formatter). An empty suffix means no backup."""
+        n = self.node(state, path)
+        if not n.exists or n.is_dir:
+            return
+        self.replace(state, path, OVERWRITE, backup=(path + suffix) if suffix else None)
+
+    def within(self, state: State, path: str, how: str) -> None:
+        """The tool may change anything under the directory `path` without the
+        line naming it (find -delete, a formatter or rsync on a directory):
+        the directory is recorded as destroyed - captured whole."""
+        n = self.node(state, path)
+        if not n.exists:
+            return
+        self.lose(n, how)
+        prefix = path + os.sep
+        for q, m in list(state.nodes.items()):
+            if q.startswith(prefix) and m.exists:
+                self.lose(m, how)
+        self.impact.within.add(path)
+        self.impact.touched.add(path)
+
+    def mkdir(self, state: State, path: str, parents: bool) -> None:
+        if self.node(state, path).exists:
+            return                                       # exists: nothing (mkdir -p) or an error
+        parent = os.path.dirname(path)
+        pn = self.node(state, parent)
+        if not pn.exists:
+            if not parents or parent == path:
+                return
+            self.mkdir(state, parent, True)
+            pn = self.node(state, parent)
+        if not pn.is_dir:
+            return
+        state.nodes[path] = Node(True, True, frozenset({NEW}))
+        self.impact.created.append(path)
+        self.impact.touched.add(path)
+
     def delete(self, state: State, path: str, eff, flags) -> None:
         n = self.node(state, path)
         if not n.exists:
@@ -227,7 +311,10 @@ class World:
                 return
         elif eff.dirs_only:
             return
-        self.lose(n, DELETE)
+        self.remove(state, path)
+
+    def remove(self, state: State, path: str) -> None:
+        self.lose(self.node(state, path), DELETE)
         prefix = path + os.sep
         for q, m in list(state.nodes.items()):
             if q.startswith(prefix) and m.exists:
@@ -245,35 +332,114 @@ class World:
             self.impact.created.append(path)
             self.impact.touched.add(path)
 
-    def move(self, state: State, paths: List[str], parsed, inv: Invocation) -> None:
+    def dest_pairs(self, state: State, paths: List[str], parsed, inv: Invocation,
+                   single_into_cwd: bool = False) -> List[Tuple[str, str]]:
+        """GNU cp / mv / ln / install destinations: -t DIR; else the last
+        operand, INTO it when it is an existing directory (unless -T); with
+        one operand only ln works (a link of that name in the cwd)."""
         target = parsed.options.get("target")
         if target:
-            dests = self.paths(target[:1], state, inv)
-            if not dests:
+            dirs = self.paths(target[-1:], state, inv)
+            return [(p, os.path.join(dirs[0], os.path.basename(p.rstrip(os.sep))))
+                    for p in paths] if dirs else []
+        if not paths:
+            return []
+        if len(paths) == 1:
+            if single_into_cwd and state.cwd is not None:
+                return [(paths[0], os.path.join(state.cwd, os.path.basename(paths[0])))]
+            return []
+        dest, srcs = paths[-1], paths[:-1]
+        dn = self.node(state, dest)
+        into = (dn.exists and (dn.is_dir or os.path.isdir(dest))
+                and "no_target_dir" not in parsed.flags)
+        if into:
+            return [(p, os.path.join(dest, os.path.basename(p.rstrip(os.sep)))) for p in srcs]
+        if len(srcs) != 1:
+            return []
+        if parsed.operands and parsed.operands[-1].value.endswith("/"):
+            # VERIFIED (GNU coreutils 9): `dest/` that is not a directory
+            # fails for a file source; only a directory source may take the
+            # name (cp -r, mv), and ln never does.
+            if single_into_cwd or not self.node(state, srcs[0]).is_dir:
+                return []
+        return [(srcs[0], dest)]
+
+    def backup_name(self, dst: str, parsed) -> Optional[str]:
+        """The backup path for -b / --backup[=CONTROL] / -S SUFFIX, or None.
+        Numbered backups (=numbered, =t) pick a fresh name, so they never
+        overwrite an older backup (the file itself is still destroyed)."""
+        if "backup" not in parsed.flags and "suffix" not in parsed.options:
+            return None
+        control = [w.value for w in parsed.options.get("backup", [])]
+        if control and control[-1] in ("numbered", "t"):
+            k = 1
+            while self.real_node(f"{dst}.~{k}~").exists:
+                k += 1
+            return f"{dst}.~{k}~"
+        suffix = parsed.options.get("suffix")
+        return dst + (suffix[-1].value if suffix else "~")
+
+    def copy(self, state: State, src: str, dst: str, parsed, recursive: bool) -> None:
+        if self.device(dst):
+            return
+        sn = self.node(state, src)
+        if not sn.exists or (sn.is_dir and not recursive):
+            return
+        dn = self.node(state, dst)
+        if dn.exists:
+            if "no_clobber" in parsed.flags:
                 return
-            dest, srcs, into = dests[0], paths, True
-        else:
-            if len(paths) < 2:
+            if dn.is_dir:
+                if sn.is_dir:
+                    self.within(state, dst, OVERWRITE)   # a merge into an existing tree
+                return                                   # a file cannot replace a directory
+            if sn.is_dir:
                 return
-            dest, srcs = paths[-1], paths[:-1]
-            dn = self.node(state, dest)
-            into = dn.exists and dn.is_dir
-            if not into and len(srcs) > 1:
-                return                                   # mv refuses
-        for src in srcs:
+            self.replace(state, dst, OVERWRITE, backup=self.backup_name(dst, parsed))
+            return
+        parent = self.node(state, os.path.dirname(dst))
+        if not (parent.exists and parent.is_dir):
+            return
+        copy_of = (sn.moved_from or src) if sn.is_dir and NEW not in sn.origins else None
+        state.nodes[dst] = Node(True, sn.is_dir, frozenset({NEW}), None, copy_of)
+        self.impact.created.append(dst)
+        self.impact.touched.add(dst)
+
+    def link(self, state: State, target: str, path: str, parsed) -> None:
+        n = self.node(state, path)
+        if n.exists:
+            backup = self.backup_name(path, parsed)
+            if "force" not in parsed.flags and not backup:
+                return                                   # ln: File exists
+            if n.is_dir:
+                return
+            self.replace(state, path, DELETE, backup=backup)
+            return
+        parent = self.node(state, os.path.dirname(path))
+        if parent.exists and parent.is_dir:
+            state.nodes[path] = Node(True, False, frozenset({NEW}))
+            self.impact.created.append(path)
+            self.impact.touched.add(path)
+
+    def move(self, state: State, pairs: List[Tuple[str, str]], parsed) -> None:
+        for src, dst in pairs:
             sn = self.node(state, src)
-            if not sn.exists:
-                continue
-            dst = os.path.join(dest, os.path.basename(src)) if into else dest
-            if dst == src:
+            if not sn.exists or dst == src:
                 continue
             dn = self.node(state, dst)
+            backup = None
             if dn.exists:
+                if "no_clobber" in parsed.flags:
+                    continue
                 if dn.is_dir != sn.is_dir:
                     continue
-                self.lose(dn, OVERWRITE)
+                self.lose(dn, OVERWRITE)                 # a backup does not undo it
+                backup = self.backup_name(dst, parsed)
+                if backup:
+                    self.put(state, backup, Node(True, dn.is_dir, dn.origins, dn.moved_from,
+                                                 dn.copy_of))
             moved_from = sn.moved_from or (src if sn.is_dir and NEW not in sn.origins else None)
-            state.nodes[dst] = Node(True, sn.is_dir, sn.origins, moved_from)
+            state.nodes[dst] = Node(True, sn.is_dir, sn.origins, moved_from, sn.copy_of)
             prefix = src + os.sep
             for q, m in list(state.nodes.items()):
                 if q.startswith(prefix):
@@ -423,11 +589,21 @@ class World:
                 self.impact.not_covered(tool)
             return state, before
         for rule in rules:
+            if rule.partial:
+                # The file side is modelled; the rest (a network request, a
+                # remote host) is C2's, and the prediction says so, so the row
+                # stays OUT_OF_SCOPE instead of looking covered and harmless.
+                if rule.partial == "network":
+                    self.impact.not_covered(f"{tool} (network)")
             parsed = parse_options(inv.argv[1:], rule.options)
             if not applies(rule, parsed):
                 continue
             if "xargs" in inv.wrappers:
                 self.impact.not_understood(inv.text, "xargs adds operands it reads from stdin")
+            if rule.resolver:
+                from . import resolvers
+                getattr(resolvers, rule.resolver)(self, inv, parsed, state, tool)
+                continue
             paths = self.paths(parsed.operands, state, inv)
             for eff in rule.effects:
                 if eff.kind == DELETE:
@@ -436,8 +612,9 @@ class World:
                 elif eff.kind == CREATE:
                     for p in paths:
                         self.create(state, p)
-                elif eff.kind == MOVE:
-                    self.move(state, paths, parsed, inv)
+                elif eff.kind == MKDIR:
+                    for p in paths:
+                        self.mkdir(state, p, "parents" in parsed.flags)
         return state, self.merge(before, state)
 
     def payload_reads_stdin(self, inv: Invocation) -> bool:
@@ -457,8 +634,7 @@ class World:
                                                           or r.target.value == "-"):
                 continue                                 # fd duplication
             for p in self.paths([r.target], state, inv):
-                if not p.startswith("/dev/"):
-                    self.write(state, p, r.op in (">>", "&>>"))
+                self.write(state, p, r.op in (">>", "&>>"))     # /dev: see device()
 
     def assign(self, w, state: State) -> None:
         name, _eq, _rest = w.raw.partition("=")
@@ -503,8 +679,10 @@ class World:
 
     def finish(self, final: State) -> Impact:
         imp = self.impact
+        # A path that did not exist before and may exist at the end: new
+        # content, or a backup holding old content under a new name.
         imp.creates = {p for p in imp.created
-                       if self.node(final, p).exists and NEW in self.node(final, p).origins}
+                       if self.node(final, p).exists and not self.real_node(p).exists}
         return imp
 
 

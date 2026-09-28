@@ -127,12 +127,26 @@ def parse_options(args: List[Word], spec: OptionSpec) -> Parsed:
                     i += 1
             elif name in spec.flags:
                 flags.add(spec.flags[name])
+                if eq:                      # --backup=numbered, --update=none
+                    options.setdefault(spec.flags[name], []).append(Word(rest, rest, w.start, w.end))
             else:
                 unknown.append(v)
+            continue
+        if len(v) > 2 and (v in spec.flags or v in spec.values):     # wget -nc, -nd
+            if v in spec.flags:
+                flags.add(spec.flags[v])
+            elif i < len(args):
+                options.setdefault(spec.values[v], []).append(args[i])
+                i += 1
             continue
         body = v[1:]
         for j, ch in enumerate(body):
             short = "-" + ch
+            if short in spec.attached:
+                rest = body[j + 1:]
+                flags.add(spec.attached[short])
+                options.setdefault(spec.attached[short], []).append(Word(rest, rest, w.start, w.end))
+                break
             if short in spec.values:
                 rest = body[j + 1:]
                 if rest:

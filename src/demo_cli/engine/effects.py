@@ -26,6 +26,7 @@ REF = "REF"
 REMOTE = "REMOTE"
 RUN = "RUN"
 UNKNOWN = "UNKNOWN"
+MKDIR = "MKDIR"          # a template kind: create a directory (-p: and its parents)
 
 
 class Impact:
@@ -41,7 +42,7 @@ class Impact:
     every hook call, and building dataclasses cost ~5 ms of an 8 ms import.
     """
     __slots__ = ("destroys", "destroyed_dirs", "created", "creates", "changes",
-                 "touched", "remote", "unknown", "uncovered")
+                 "touched", "remote", "unknown", "uncovered", "within")
 
     def __init__(self) -> None:
         self.destroys: Dict[str, str] = {}
@@ -53,6 +54,7 @@ class Impact:
         self.remote: Set[str] = set()
         self.unknown: List[Tuple[str, str]] = []
         self.uncovered: List[str] = []
+        self.within: Set[str] = set()     # directories captured whole (WITHIN)
 
     def destroy(self, path: str, how: str, is_dir: bool = False) -> None:
         self.destroys.setdefault(path, how)

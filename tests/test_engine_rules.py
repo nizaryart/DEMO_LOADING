@@ -22,7 +22,23 @@ from demo_cli.engine.rules import REDIRECT_EXAMPLES, RULES
 SEMANTIC_BUDGET_MS = 10_000
 
 FIXTURE = {"a.txt": "a", "b.txt": "b", "-f": "f", "dir/d.txt": "d", "dir/e.txt": "e",
-           "sub/c.txt": "c", "list.txt": "a.txt\n"}
+           "sub/c.txt": "c", "list.txt": "a.txt\n",
+           # Part C1
+           "src/app.js": "js", "main.go": "go", "x.txt": "x", "x.txt~": "old backup",
+           "x.txt.bak": "old backup"}
+
+
+def _zips(root):
+    import zipfile
+    with zipfile.ZipFile(str(root / "m.zip"), "w") as z:
+        z.writestr("a.txt", "from the zip")
+        z.writestr("new.txt", "from the zip")
+    with zipfile.ZipFile(str(root / "zs.zip"), "w") as z:
+        z.writestr("../evil.txt", "escapes")                  # zip-slip
+    with zipfile.ZipFile(str(root / "sl.zip"), "w") as z:
+        info = zipfile.ZipInfo("link")
+        info.external_attr = (0o120777 << 16)                # a symbolic link member
+        z.writestr(info, "a.txt")
 
 
 def _fixture(root):
@@ -31,6 +47,7 @@ def _fixture(root):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text)
     (root / "emptydir").mkdir()
+    _zips(root)
     return root
 
 
@@ -46,15 +63,16 @@ def _impact(root, command):
     def rel(p, is_dir=False):
         return os.path.relpath(p, str(root)) + ("/" if is_dir else "")
     return ({rel(p, p in imp.destroyed_dirs) for p in imp.destroys},
-            {rel(p) for p in imp.creates}, {rel(p) for p in imp.changes}, bool(imp.unknown))
+            {rel(p) for p in imp.creates}, {rel(p) for p in imp.changes}, bool(imp.unknown),
+            bool(imp.remote)), set(imp.uncovered)
 
 
 def _want(ex):
-    return (set(ex.destroys), set(ex.creates), set(ex.changes), ex.unknown)
+    return (set(ex.destroys), set(ex.creates), set(ex.changes), ex.unknown, ex.remote)
 
 
 def _positive(ex):
-    return bool(ex.destroys or ex.creates or ex.changes or ex.unknown)
+    return bool(ex.destroys or ex.creates or ex.changes or ex.unknown or ex.remote)
 
 
 FAMILIES = [(r.id, r.examples) for r in RULES] + [("redirect", REDIRECT_EXAMPLES)]
@@ -67,9 +85,11 @@ def test_a_rule_example_produces_the_impact_it_declares(tmp_path, family, exampl
     root = _fixture(tmp_path)
     control = next(e for f, examples in FAMILIES if f == family for e in examples if _positive(e))
     if example is not control:
-        assert _impact(root, control.command) == _want(control), \
+        assert _impact(root, control.command)[0] == _want(control), \
             f"control ({control.command!r}): the harness sees this family act"
-    assert _impact(root, example.command) == _want(example), example.note
+    got, uncovered = _impact(root, example.command)
+    assert got == _want(example), example.note
+    assert set(example.uncovered) <= uncovered, "the part not modelled is reported"
 
 
 def test_every_rule_carries_examples_and_at_least_one_that_acts():
@@ -77,4 +97,4 @@ def test_every_rule_carries_examples_and_at_least_one_that_acts():
         assert examples, f"{family}: a rule without examples is untested"
         assert any(_positive(e) for e in examples), f"{family}: no positive example"
     for rule in RULES:
-        assert rule.options is not None and rule.effects, rule.id
+        assert rule.options is not None and (rule.effects or rule.resolver), rule.id

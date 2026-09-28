@@ -83,6 +83,7 @@ def _render(p: Prediction, cfg) -> dict:
         "remote": sorted(imp.remote)[:_CAP],
         "unknown": [[u[:120], w] for u, w in imp.unknown[:10]],
         "uncovered": imp.uncovered[:_CAP],
+        "within": [rel(x, True) for x in sorted(imp.within)[:_CAP]],
     }
     truncated = (len(destroys) > _CAP or len(imp.creates) > _CAP or len(imp.changes) > _CAP
                  or len(imp.unknown) > 10 or len(imp.uncovered) > _CAP)
