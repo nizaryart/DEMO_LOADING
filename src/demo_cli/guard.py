@@ -97,6 +97,16 @@ def _related(a: str, b: str) -> bool:
     return recovery._contains(a, b) or recovery._contains(b, a)
 
 
+def _mount_covers_project(mountpoint: str, project_root: str) -> bool:
+    """True if mountpoint is or contains project_root (case-insensitive on Windows)."""
+    try:
+        mp = os.path.normcase(os.path.abspath(mountpoint))
+        pr = os.path.normcase(os.path.abspath(project_root))
+        return mp == pr or os.path.commonpath([mp, pr]) == mp
+    except (ValueError, Exception):
+        return False
+
+
 def _control_plane_hits(paths, cfg: Config) -> List[str]:
     """The paths among `paths` that are demo_cli's own files, lie inside
     them, or are a directory that holds them. Compared by path and by real
@@ -220,6 +230,7 @@ class GuardResult:
     affected_paths: List[str] = field(default_factory=list)
     receipt: Optional[Receipt] = None
     prediction: Optional[dict] = None       # the shadow engine's; decides nothing
+    rewrite: Optional[str] = None           # command to run under behavioral supervisor
 
     @property
     def allowed(self) -> bool:
@@ -389,6 +400,7 @@ class Guard:
         session_id: str = "unknown",
         dialect: str = POSIX,
         door: Optional[str] = None,
+        can_supervise: bool = False,
     ) -> GuardResult:
         """`dialect` says which shell wrote this text - POSIX or POWERSHELL.
         It decides how line continuations are folded, and the two spellings are
@@ -503,6 +515,7 @@ class Guard:
         # auto-fire path (the flagship "rm -> undo" moment). Bounded to the
         # project root so we never try to copy a home/system tree, and honest
         # about multi-path rm (extract_path_operand returns None -> escalate).
+        cand: Optional[str] = None
         if not target_path and not explicit_db and not db_url:
             cand = recovery.extract_path_operand(command, dialect)
             if cand:
@@ -648,6 +661,49 @@ class Guard:
                                    notes=snap_notes)
                  if is_snapshot_eligible else None)
 
+        # Check if supervisable under the runtime net (Linux syscall guard or Windows mount)
+        is_sql = bool(c.is_sql_mutating or c.action_type == "sql" or (c.matched_rule and c.matched_rule.startswith("sql_")))
+        is_git = bool(c.matched_rule and c.matched_rule.startswith("git_"))
+        is_ps = bool(dialect == POWERSHELL or (c.matched_rule and c.matched_rule.startswith("ps_")))
+        proj_root = os.path.abspath(self.config.project_root or os.getcwd())
+        raw_ops = recovery._path_operands(command) if (c.needs_recovery and dialect == POSIX) else []
+        targets_out_of_project = bool(
+            (cand and not recovery.within_project(os.path.abspath(cand), proj_root))
+            or (affected_paths and any(not recovery.within_project(os.path.abspath(p), proj_root) for p in affected_paths))
+            or (raw_ops and any(os.path.isabs(p) and not recovery.within_project(os.path.abspath(p), proj_root) for p in raw_ops))
+        )
+        r1_applies = bool(
+            c.needs_recovery
+            and target is None
+            and entry is None
+            and not c.nonrecoverable_surface
+            and not c.remote_exec
+            and not mismatches
+            and not is_sql
+            and not is_git
+            and not targets_out_of_project
+        )
+
+        supervisable = False
+        net_name = None
+        rewrite = None
+
+        if r1_applies:
+            if os.name == "nt":
+                from . import mountstate
+                st = mountstate.status(self.config)
+                if st.running is True and st.mountpoint:
+                    if _mount_covers_project(st.mountpoint, proj_root):
+                        supervisable = True
+                        net_name = "mount"
+            else:
+                from . import syscall_guard
+                if can_supervise and syscall_guard.available() and not is_ps:
+                    supervisable = True
+                    net_name = "syscall_guard"
+                    import shlex
+                    rewrite = f"{sys.executable} -m demo_cli run -- bash -c {shlex.quote(command)}"
+
         # LAST RESORT, never a first choice. Reached only when the command
         # mutates something and no target could be resolved at all - `rm
         # $(cat list.txt)`, `python cleanup.py`. Instead of escalating on "I
@@ -659,7 +715,9 @@ class Guard:
         # recovery exists. It never learns a checkpoint was involved, so it
         # cannot reason its way into claiming one that did not happen.
         checkpoint_skipped, checkpoint_taken = None, False
-        if checkpoint.should_checkpoint(c, target, self.config,
+        if supervisable:
+            pass  # Syscall guard or WinFsp mount replaces checkpoint
+        elif checkpoint.should_checkpoint(c, target, self.config,
                                         recovery_captured=entry is not None):
             ck = checkpoint.capture(self.config, action=command)
             entry, checkpoint_skipped, checkpoint_taken = ck.entry, ck.skipped, ck.ok
@@ -674,6 +732,7 @@ class Guard:
         decision = decide(
             c, ctx.environment, recovery_captured,
             mismatches=mismatches, approval_ok=approval_ok, preview_count=preview_count,
+            supervisable=supervisable, net=net_name,
         )
 
         # Say which kind of recovery this is. A whole-workspace checkpoint is
@@ -735,7 +794,7 @@ class Guard:
             target=target, recovery_entry=entry,
             preview_count=preview_count, preview_rows=preview_rows, preview_cols=preview_cols,
             mismatches=mismatches, affected_paths=affected_paths, receipt=receipt,
-            prediction=prediction,
+            prediction=prediction, rewrite=rewrite,
         )
 
     def evaluate_file_edit(

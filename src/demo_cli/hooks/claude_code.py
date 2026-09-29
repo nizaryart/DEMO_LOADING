@@ -86,16 +86,18 @@ def _loud_block(result) -> None:
     _stderr("")
 
 
-def _emit(stdout, permission: str, reason: str) -> None:
-    stdout.write(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": permission,
-            # Prefixed at the single exit point, so no caller can
-            # forget. See hooks.attributed.
-            "permissionDecisionReason": attributed(reason),
-        }
-    }))
+def _emit(stdout, permission: str, reason: str, *,
+          updated_input: Optional[dict] = None) -> None:
+    hook_output: Dict = {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": permission,
+        # Prefixed at the single exit point, so no caller can
+        # forget. See hooks.attributed.
+        "permissionDecisionReason": attributed(reason),
+    }
+    if updated_input is not None:
+        hook_output["updatedInput"] = updated_input
+    stdout.write(json.dumps({"hookSpecificOutput": hook_output}))
     stdout.flush()
 
 
@@ -153,6 +155,7 @@ def run_pretooluse(stdin, stdout) -> int:
                     session_id=data.get("session_id", "unknown"),
                     dialect=POWERSHELL if tool_name == "PowerShell" else POSIX,
                     door="agent",
+                    can_supervise=(tool_name == "Bash"),
                 )
         else:
             # Edit / Write / MultiEdit -> file_path ; NotebookEdit -> notebook_path
@@ -188,10 +191,20 @@ def run_pretooluse(stdin, stdout) -> int:
         sys.stderr.write(f"demo_cli: internal error, stepping aside ({exc})\n")
         return 0
 
+    updated = None
+    if result.decision.decision == "SUPERVISED" and result.rewrite:
+        updated = dict(tool_input)
+        updated["command"] = result.rewrite
+
     # shadow mode: observe only - but make a genuinely interesting decision or a
     # fresh snapshot *visible* on stderr, so value isn't silently buried.
     if guard.mode != "enforce":
-        if result.decision.is_blocking or result.decision.is_ask:
+        if result.decision.decision == "SUPERVISED":
+            sys.stderr.write(f"demo_cli [shadow] SUPERVISED: {result.decision.reason}\n")
+            if updated:
+                _emit(stdout, "allow", result.decision.reason, updated_input=updated)
+                return 0
+        elif result.decision.is_blocking or result.decision.is_ask:
             sys.stderr.write(f"demo_cli [shadow] {result.decision.decision}: {result.decision.reason}\n")
         elif result.recovery_entry:
             rp = os.path.basename(result.recovery_entry["recovery_point"])
@@ -200,6 +213,13 @@ def run_pretooluse(stdin, stdout) -> int:
         return 0
 
     reason = result.decision.reason
+    if result.decision.decision == "SUPERVISED":
+        _stderr("")
+        _stderr(f"demo_cli \u2705 {reason}")
+        _stderr("")
+        _emit(stdout, "allow", reason, updated_input=updated)
+        return 0
+
     # Blocking is tested FIRST. The nonrecoverable-surface branch captures and
     # then refuses, so the save arm would announce a recovery point for a
     # command that never ran. The shadow block above already orders it this way.

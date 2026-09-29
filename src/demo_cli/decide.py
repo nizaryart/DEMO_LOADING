@@ -22,6 +22,7 @@ from .classify import Classification
 ALLOW = "ALLOW"
 DRY_RUN = "DRY_RUN"
 REVERSIBLE = "REVERSIBLE"
+SUPERVISED = "SUPERVISED"
 CONTEXT_MISMATCH = "CONTEXT_MISMATCH"
 ESCALATE = "ESCALATE"
 
@@ -39,7 +40,7 @@ REVIEW = "REVIEW"
 BLOCKED = "BLOCKED"
 
 _POSTURE = {
-    ALLOW: SAFE, DRY_RUN: SAFE, REVERSIBLE: SAFE,
+    ALLOW: SAFE, DRY_RUN: SAFE, REVERSIBLE: SAFE, SUPERVISED: SAFE,
     CONTEXT_MISMATCH: REVIEW,
     ESCALATE: BLOCKED,
 }
@@ -101,6 +102,8 @@ def decide(
     mismatches: Optional[List[Tuple[str, str, str]]] = None,
     approval_ok: bool = False,
     preview_count: Optional[int] = None,
+    supervisable: bool = False,
+    net: Optional[str] = None,
 ) -> Decision:
     mismatches = mismatches or []
 
@@ -190,6 +193,19 @@ def decide(
     #    low-blast exception: an unrecoverable mutation is never waved through on
     #    the strength of an environment label, matching the invariant above.
     #    Never silently allowed.
+    if supervisable:
+        if net == "mount":
+            reason = ("covered by the demo_cli filesystem mount: each file it "
+                      "destroys is backed up before modification.")
+        else:
+            reason = ("covered by the syscall guard: each file it destroys is "
+                      "backed up at the moment of destruction.")
+        return Decision(
+            SUPERVISED,
+            reason,
+            recoverable=True,
+        )
+
     return Decision(
         ESCALATE,
         f"No recovery path for a {c.matched_rule or 'mutating action'} on "

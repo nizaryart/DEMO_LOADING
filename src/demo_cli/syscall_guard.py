@@ -40,6 +40,7 @@ PTRACE_CONT = 7
 PTRACE_SYSCALL = 24
 PTRACE_GETREGS = 12
 PTRACE_SETREGS = 13
+PTRACE_DETACH = 17
 PTRACE_SETOPTIONS = 0x4200
 
 PTRACE_O_TRACESYSGOOD = 0x00000001
@@ -52,8 +53,13 @@ _OPTIONS = (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK |
             PTRACE_O_TRACECLONE | PTRACE_O_TRACEEXEC | PTRACE_O_EXITKILL)
 
 AT_FDCWD = -100
-O_TRUNC = 0o1000
+O_RDONLY = 0
+O_WRONLY = 0o1
+O_RDWR = 0o2
+O_ACCMODE = 0o3
 O_CREAT = 0o100
+O_TRUNC = 0o1000
+O_APPEND = 0o2000
 
 
 class _Regs(ctypes.Structure):
@@ -64,9 +70,12 @@ class _Regs(ctypes.Structure):
         "rsp", "ss", "fs_base", "gs_base", "ds", "es", "fs", "gs")]
 
 
-_libc = ctypes.CDLL("libc.so.6", use_errno=True)
-_libc.ptrace.restype = ctypes.c_long
-_libc.ptrace.argtypes = [ctypes.c_long, ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p]
+try:
+    _libc = ctypes.CDLL("libc.so.6", use_errno=True)
+    _libc.ptrace.restype = ctypes.c_long
+    _libc.ptrace.argtypes = [ctypes.c_long, ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p]
+except Exception:
+    _libc = None
 
 
 def _ptrace(request: int, pid: int, addr: int = 0, data: int = 0) -> int:
@@ -191,6 +200,24 @@ def _in_scope(path: str, root: str, workspace: Optional[str] = None) -> bool:
 # The supervisor
 # --------------------------------------------------------------------------
 
+def available() -> bool:
+    """True on Linux x86-64 where ptrace is usable."""
+    if sys.platform != "linux" or _libc is None:
+        return False
+    import platform
+    if platform.machine() not in ("x86_64", "AMD64"):
+        return False
+    scope_path = "/proc/sys/kernel/yama/ptrace_scope"
+    if os.path.exists(scope_path):
+        try:
+            val = int(open(scope_path).read().strip())
+            if val > 1:
+                return False
+        except Exception:
+            pass
+    return True
+
+
 def run_supervised(argv: List[str], config: Optional[Config] = None,
                    deny: bool = False) -> int:
     """Fork+exec argv under ptrace; snapshot any in-scope, pre-existing file a
@@ -219,6 +246,7 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
 
     created: Set[str] = set()                      # files the command itself created
     snapped: Set[str] = set()                      # dedupe snapshots per path
+    active_pids: Set[int] = {pid}
     child_rc = 0
 
     while True:
@@ -226,9 +254,32 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
             wpid, status = os.waitpid(-1, 0)
         except ChildProcessError:
             break
+        if wpid not in active_pids and not (os.WIFEXITED(status) or os.WIFSIGNALED(status)):
+            active_pids.add(wpid)
         if os.WIFEXITED(status) or os.WIFSIGNALED(status):
+            active_pids.discard(wpid)
             if wpid == pid:
                 child_rc = os.WEXITSTATUS(status) if os.WIFEXITED(status) else 128 + os.WTERMSIG(status)
+                # Detach from all remaining background tracees
+                import signal
+                for other in list(active_pids):
+                    try:
+                        try:
+                            _ptrace(PTRACE_DETACH, other, 0, 0)
+                        except OSError:
+                            os.kill(other, signal.SIGSTOP)
+                            os.waitpid(other, 0)
+                            _ptrace(PTRACE_DETACH, other, 0, 0)
+                        # Resume background processes: waitpid or pending signal delivery
+                        # can leave the process in a stopped state (state T). Sending SIGCONT
+                        # after detach ensures the background process continues executing.
+                        try:
+                            os.kill(other, signal.SIGCONT)
+                        except OSError:
+                            pass
+                    except OSError:
+                        pass
+                break
             continue
 
         sig = os.WSTOPSIG(status) if os.WIFSTOPPED(status) else 0
@@ -265,14 +316,16 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
         _name, p_idx, f_idx, d_idx = _OPEN[nr]
         flags = _arg(regs, f_idx)
         path = _resolve(pid, regs, p_idx, d_idx)
-        if path:
-            if (flags & O_CREAT) and not os.path.exists(path):
-                created.add(os.path.abspath(path))
-            if not (flags & O_TRUNC):
-                return                             # not a truncation - nothing to do
-            name = "openat_trunc"
-        else:
+        if not path:
             return
+        if (flags & O_CREAT) and not os.path.exists(path):
+            created.add(os.path.abspath(path))
+        if flags & O_TRUNC:
+            name = "openat_trunc"
+        elif (flags & O_ACCMODE) in (O_WRONLY, O_RDWR) and not (flags & O_APPEND):
+            name = "openat_modify"
+        else:
+            return                             # read-only or append - not destructive
     elif nr in _DELETE:
         name, p_idx, d_idx = _DELETE[nr]
         path = _resolve(pid, regs, p_idx, d_idx)
