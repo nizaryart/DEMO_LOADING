@@ -50,10 +50,10 @@ def _worse(a: Optional[str], b: str) -> str:
 
 class DbTarget:
     """A postgres / mysql database: `label` is db:<host>/<name>."""
-    __slots__ = ("label", "remote", "capturable", "why")
+    __slots__ = ("label", "remote", "capturable", "why", "url")
 
     def __init__(self, host: Optional[str], name: Optional[str], literal_url: bool,
-                 dialect: str, host_unknown: str = ""):
+                 dialect: str, host_unknown: str = "", url: Optional[str] = None):
         h = (host or "").lower()
         self.label = f"db:{h or '(default)'}/{name or '(default)'}"
         local = not host_unknown and (h in _LOCAL_HOSTS or h.startswith("/"))
@@ -61,6 +61,7 @@ class DbTarget:
         self.capturable = dialect == "postgres" and literal_url and local
         self.why = (host_unknown or ("demo_cli has no MySQL capture" if dialect == "mysql"
                                      else "no connection URL to capture (pg_dump needs one)"))
+        self.url = url if literal_url else None
 
 
 def pg_target(url_or_conn: Optional[str], host: Optional[str], name: Optional[str],
@@ -88,13 +89,16 @@ def pg_target(url_or_conn: Optional[str], host: Optional[str], name: Optional[st
             name = kv.get("dbname") or name
             if kv.get("service") and not kv.get("host") and not kv.get("hostaddr"):
                 unknown = "the host comes from a pg_service entry"
+            else:
+                literal_url = bool(name or host)
         else:
             name = v
     host = host or prefix_env.get("PGHOST") or prefix_env.get("PGHOSTADDR")
     name = name or prefix_env.get("PGDATABASE")
     if prefix_env.get("PGSERVICE") and not host:
         unknown = "the host comes from a pg_service entry"
-    return DbTarget(host, name, literal_url, "postgres", unknown)
+    return DbTarget(host, name, literal_url, "postgres", unknown,
+                    url=url_or_conn if literal_url else None)
 
 
 class Session:
@@ -399,6 +403,7 @@ class Session:
             elif t.capturable:
                 old = w.impact.databases.get(t.label)
                 w.impact.databases[t.label] = _worse(old, kind)
+                w.impact.db_urls[t.label] = t.url
             else:
                 w.impact.no_capture.setdefault(t.label, t.why)
 

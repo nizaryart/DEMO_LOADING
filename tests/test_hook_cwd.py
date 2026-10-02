@@ -261,16 +261,18 @@ def test_the_project_root_is_still_refused(lab):
     An unearned REVERSIBLE here would be the defect this whole file exists to close.
     Under S2+M1 on Linux, the set captures exactly them byte-exact, not the whole root."""
     proj, _sub = lab
-    (proj / "a.txt").write_text("A")
-    (proj / "b.txt").write_text("B")
+    (proj / "a.txt").write_bytes(b"A")
+    (proj / "b.txt").write_bytes(b"B")
     out = io.StringIO()
     codex_hook(io.StringIO(json.dumps({
         "hook_event_name": "PreToolUse", "tool_name": "Bash",
         "tool_input": {"command": "rm a.txt b.txt"},
         "cwd": str(proj), "session_id": "s"})), out)
-    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    # Codex on Windows runs PowerShell (hooks/codex.py _dialect, observed 2026-09-13):
+    # the command is PowerShell there and takes the PowerShell path.
+    expected = "ESCALATE" if os.name == "nt" else ("REVERSIBLE" if ENGINE_PATH else "ESCALATE")
     assert _receipts(proj)[-1]["decision"] == expected
-    if ENGINE_PATH:
+    if os.name != "nt" and ENGINE_PATH:
         gid = _receipts(proj)[-1]["group_id"]
         entries = recovery.find_group(str(proj / ".demo_cli" / "recovery"), gid)
         entry = {"kind": "group", "entries": entries}
@@ -290,7 +292,10 @@ def test_the_home_directory_collapse_still_escalates(lab):
         "hook_event_name": "PreToolUse", "tool_name": "Bash",
         "tool_input": {"command": "rm -f ~/x1 ~/x2"},
         "cwd": str(sub), "session_id": "s"})), out)
-    assert _receipts(proj)[-1]["decision"] == "ESCALATE"
+    # Codex on Windows runs PowerShell (hooks/codex.py _dialect, observed 2026-09-13):
+    # the command is PowerShell there and takes the PowerShell path (ESCALATE).
+    expected = "ESCALATE" if os.name == "nt" else ("ALLOW" if ENGINE_PATH else "ESCALATE")
+    assert _receipts(proj)[-1]["decision"] == expected
     assert _captured(proj) == []
 
 

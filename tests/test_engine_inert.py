@@ -132,11 +132,8 @@ def test_the_prediction_is_recorded_and_the_chain_holds(tmp_path):
     root = _project(tmp_path)
     r = _run(root, "rm a.txt b.txt")
     last = _last_receipt(root)
-    # In M1+S2: two-file rm captures both and is REVERSIBLE (on Linux; on Windows engine does not decide yet)
-    if os.name == "nt":
-        assert last["decision"] == "ESCALATE"
-    else:
-        assert last["decision"] == "REVERSIBLE"
+    # In M1+S2: two-file rm captures both and is REVERSIBLE
+    assert last["decision"] == "REVERSIBLE"
     assert last["prediction"]["decision"] == "REVERSIBLE"
     assert sorted(last["prediction"]["destroys"]) == ["a.txt", "b.txt"]
     assert last["receipt_version"] == RECEIPT_VERSION == "2.2"     # 2.2: C2a (remote kinds)

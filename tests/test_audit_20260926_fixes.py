@@ -220,9 +220,10 @@ def test_cp_votes_when_another_segment_also_destroys(proj, first):
     (proj / "b.txt").write_text("ORIGINAL")
     g = _guard(proj)
     assert g.evaluate("cp -f a.txt b.txt").decision.decision == "REVERSIBLE", "control"
+    expected = "REVERSIBLE" if (ENGINE_PATH and "DROP TABLE" in first) else "ESCALATE"  # M2.0-C1
     r = g.evaluate(f"{first}; cp -f a.txt b.txt")
-    assert r.decision.decision == "ESCALATE", r.decision.reason
-    assert not r.recovery_entry
+    assert r.decision.decision == expected, r.decision.reason
+    assert bool(r.recovery_entry) == (expected == "REVERSIBLE")
 
 
 def test_cp_undo_puts_the_original_back(proj):
@@ -490,14 +491,17 @@ def test_a_writer_votes_like_any_other_destruction(proj, cmd):
     g = _guard(proj)
     assert g.evaluate("prettier --write f.js").decision.decision == "REVERSIBLE", "control"
     r = g.evaluate(cmd)
-    if "git reset" in cmd or "DROP TABLE" in cmd:
+    if "git reset" in cmd or ("DROP TABLE" in cmd and not ENGINE_PATH):
         assert r.decision.decision == "ESCALATE", (cmd, r.decision.reason)
         assert not r.recovery_entry
     else:
         expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
         assert r.decision.decision == expected, (cmd, r.decision.reason)
         if ENGINE_PATH:
-            assert_restores(r.recovery_entry, proj, {"old.txt": b"o", "f.js": b"x"})
+            expected_files = {"f.js": b"x"}
+            if "old.txt" in cmd:
+                expected_files["old.txt"] = b"o"
+            assert_restores(r.recovery_entry, proj, expected_files)
 
 
 @pytest.mark.parametrize("cmd", [

@@ -9,11 +9,13 @@ import datetime
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import uuid
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
+from urllib.parse import urlsplit, urlunsplit
 
 from .classify import (
     FILE_WRITER_TARGET_VERBS,
@@ -256,6 +258,36 @@ def _contains(outer: str, inner: str) -> bool:
         return False
 
 
+def _related(a: str, b: str) -> bool:
+    """Is one of the two at or under the other?"""
+    a, b = os.path.normcase(a), os.path.normcase(b)
+    return _contains(a, b) or _contains(b, a)
+
+
+def _pg_split(ref: str) -> Tuple[str, Optional[str]]:
+    """Split a postgres connection string into (ref_without_password, password_or_None).
+    Handles both URL form and key=value conninfo form."""
+    if "://" in ref:
+        u = urlsplit(ref)
+        pw = u.password
+        if pw is not None:
+            user = u.username or ""
+            host = u.hostname or ""
+            port = f":{u.port}" if u.port is not None else ""
+            userinfo = f"{user}@" if user else ""
+            netloc = f"{userinfo}{host}{port}"
+            no_pw = urlunsplit((u.scheme, netloc, u.path, u.query, u.fragment))
+            return no_pw, pw
+        return ref, None
+    m = re.search(r"\bpassword\s*=\s*('(?:[^']|\\')*'|\S+)", ref)
+    if m:
+        val = m.group(1).strip("'")
+        no_pw = (ref[:m.start()] + ref[m.end():]).strip()
+        no_pw = re.sub(r"\s+", " ", no_pw)
+        return no_pw, val
+    return ref, None
+
+
 def within_project(path: str, root: str) -> bool:
     """Is `path` strictly inside `root` - by its own path AND by where its
     bytes actually live?
@@ -477,13 +509,18 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
         if not shutil.which("pg_dump"):
             return None
         dump = os.path.join(recovery_dir, f"pg.{ts}.{rid}.dump")
+        ref_no_pw, pw = _pg_split(ref)
+        env = dict(os.environ)
+        if pw is not None:
+            env["PGPASSWORD"] = pw
         try:
-            r = subprocess.run(["pg_dump", "-Fc", "-f", dump, ref],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+            r = subprocess.run(["pg_dump", "-Fc", "-f", dump, ref_no_pw],
+                                env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
             if r.returncode != 0 or not os.path.exists(dump):
                 return None
         except Exception:
             return None
+        ref = ref_no_pw
         return _entry(dump)
 
     return None
@@ -919,6 +956,15 @@ def restore(entry: Optional[dict]) -> RestoreResult:
     if not entry:
         return RestoreResult(False, problem="no recovery entry")
     kind = entry.get("kind", "sqlite")
+    if kind in ("group", "set"):
+        members = entry.get("entries")
+        if not members:
+            return RestoreResult(False, problem="empty group or set")
+        for m in members:
+            sub = restore(m)
+            if not sub.ok:
+                return sub
+        return RestoreResult(True)
     rp = entry.get("recovery_point")
     try:
         present = bool(rp) and (os.path.isdir(rp) if kind == "dir"
@@ -954,6 +1000,18 @@ def _readable_parent(path: str) -> bool:
 
 def _why_restore_failed(entry: dict):
     """Inspect recovery point and target permissions to explain restore failure."""
+    kind = entry.get("kind", "sqlite")
+    target = entry.get("target") or ""
+    if kind == "postgres":
+        if "://" in target:
+            u = urlsplit(target)
+            user = u.username or ""
+            host = u.hostname or ""
+            db = u.path.lstrip("/")
+            uhd = f"{user}@{host}/{db}".lstrip("@")
+        else:
+            uhd = target
+        return False, f"set PGPASSWORD or ~/.pgpass for {uhd}"
     rp, target = entry.get("recovery_point"), entry.get("target")
     try:
         with open(rp, "rb"):

@@ -47,7 +47,11 @@ import shutil
 import builtins
 from demo_cli import recovery
 
-ENGINE_PATH = os.name != "nt"   # M1: the engine decides POSIX commands on non-Windows hosts
+ENGINE_PATH = True   # M2.1: the engine decides POSIX commands on all hosts (including Windows Git Bash)
+
+
+def portable_rel(p, root, is_dir=False):
+    return os.path.relpath(p, str(root)).replace(os.sep, "/") + ("/" if is_dir else "")
 
 
 def assert_restores(entry, root, expected):
@@ -61,8 +65,6 @@ def assert_restores(entry, root, expected):
         elif os.path.lexists(p):
             os.remove(p)
     assert entry is not None, "REVERSIBLE claimed with no recovery entry"
-    if not entry.get("recovery_point") and entry.get("entries"):
-        entry["recovery_point"] = entry["entries"][0].get("recovery_point")
     res = recovery.restore(entry)
     if hasattr(res, "ok"):
         assert res.ok, f"recovery.restore failed: {res.problem}"
@@ -75,3 +77,4 @@ def assert_restores(entry, root, expected):
 
 builtins.ENGINE_PATH = ENGINE_PATH
 builtins.assert_restores = assert_restores
+builtins.portable_rel = portable_rel

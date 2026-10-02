@@ -19,14 +19,13 @@ def test_guard_rm_rf_no_target_escalates(tmp_path):
     # Deleting an unresolvable / outside target must still ESCALATE.
     g = Guard(config=_cfg(tmp_path))
     r = g.evaluate("rm -rf ./build")
-    if os.name == "nt":
-        assert r.decision.decision == ESCALATE
-    else:
-        assert r.decision.decision == ALLOW
-        assert r.recovery_entry is None
-        assert r.allowed is True
+    assert r.decision.decision == ALLOW
+    assert r.recovery_entry is None
+    assert r.allowed is True
 
-    r_out = g.evaluate("rm -rf /srv/data")
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
+    r_out = g.evaluate(f"rm -rf {out_dir}")  # M2.0-C3: existing outside path escalates
     assert r_out.decision.decision == ESCALATE
     assert r_out.recovery_entry is None
     assert r_out.allowed is False
@@ -96,7 +95,9 @@ def test_guard_rm_multi_path_out_of_project_escalates(tmp_path):
 
 def test_shadow_mode_never_blocks(tmp_path):
     g = Guard(config=_cfg(tmp_path, mode="shadow"))
-    r = g.evaluate("rm -rf /srv/data")  # would escalate in enforce
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
+    r = g.evaluate(f"rm -rf {out_dir}")  # M2.0-C3: would escalate in enforce
     assert r.decision.decision == ESCALATE
     assert r.allowed is True  # observe-only
 
@@ -115,8 +116,10 @@ def test_context_mismatch_with_snapshot(tmp_path):
 
 
 def test_hook_denies_in_enforce(tmp_path):
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
     payload = {"tool_name": "Bash", "cwd": str(tmp_path),
-               "tool_input": {"command": "rm -rf /srv/data", "description": "cleanup"}}
+               "tool_input": {"command": f"rm -rf {out_dir}", "description": "cleanup"}}
     # write a config that enforces
     (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
     out = io.StringIO()

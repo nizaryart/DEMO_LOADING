@@ -11,8 +11,6 @@ from demo_cli.recovery import load_entries
 from demo_cli.cli import cmd_undo
 from demo_cli.syscall_guard import available as syscall_available
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32" or os.name == "nt",
-                                reason="Engine path is Linux host only in M1")
 
 
 def test_rm_two_files_reversible_one_group_restores_both(tmp_path):

@@ -76,8 +76,8 @@ WIPES = [
 @pytest.fixture
 def project(tmp_path, monkeypatch):
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("real code\n")
-    (tmp_path / "existing.txt").write_text("real notes\n")
+    (tmp_path / "src" / "main.py").write_bytes(b"real code\n")
+    (tmp_path / "existing.txt").write_bytes(b"real notes\n")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -90,11 +90,12 @@ def _guard(root):
 
 @pytest.mark.parametrize("cmd,why,expected_linux,expected_restores", WIPES)
 def test_a_new_file_redirect_no_longer_wipes_the_chain(project, cmd, why, expected_linux, expected_restores):
+    expected_bytes = {rel: (project / rel).read_bytes() for rel in expected_restores} if expected_restores else None
     r = _guard(project).evaluate(cmd)
     expected = expected_linux if ENGINE_PATH else ESCALATE
     assert r.decision.decision == expected, (why, cmd)
-    if ENGINE_PATH and expected_restores is not None:
-        assert_restores(r.recovery_entry, project, expected_restores)
+    if ENGINE_PATH and expected_bytes is not None:
+        assert_restores(r.recovery_entry, project, expected_bytes)
     else:
         assert r.allowed is False, (why, cmd)
 

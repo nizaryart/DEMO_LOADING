@@ -37,6 +37,7 @@ node_modules>` now refuses and names the knob, where before it claimed a
 recovery it did not have.
 """
 import os
+import shutil
 
 import pytest
 
@@ -99,8 +100,7 @@ def test_destroying_the_parent_captures_the_ignored_children(lab, cmd, dialect):
         expected = "ALLOW" if (dialect == "posix" and ENGINE_PATH) else REVERSIBLE
         assert r.decision.decision == expected, (cmd, r.decision.reason)
         if dialect == "posix" and ENGINE_PATH:
-            import subprocess
-            subprocess.run(["mv", str(proj), str(root / "elsewhere")], check=True)
+            shutil.move(str(proj), str(root / "elsewhere"))
             assert (root / "elsewhere" / "src" / "a.py").read_text() == TREE["src/a.py"]
             assert (root / "elsewhere" / ".git" / "config").read_text() == TREE[".git/config"]
         else:

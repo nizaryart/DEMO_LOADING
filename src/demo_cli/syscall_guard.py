@@ -28,7 +28,7 @@ import uuid
 from typing import Dict, List, Optional, Set
 
 from . import recovery
-from .config import Config, load_config
+from .config import Config, control_plane_paths, load_config
 from .context import build_context
 from .receipts import Receipt, append_receipt
 
@@ -231,6 +231,8 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
     group = group or uuid.uuid4().hex[:8]
     root = os.path.abspath(config.project_root or os.getcwd())
     env = build_context(" ".join(argv), cwd=root).environment
+    raw_planes = control_plane_paths(config)
+    planes = list(dict.fromkeys([os.path.realpath(p) for p in raw_planes] + list(raw_planes)))
 
     pid = os.fork()
     if pid == 0:                                   # child
@@ -286,7 +288,7 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
 
         sig = os.WSTOPSIG(status) if os.WIFSTOPPED(status) else 0
         if sig == (5 | 0x80):                       # syscall-stop (SIGTRAP|0x80)
-            _maybe_snapshot(wpid, root, created, snapped, env, config, deny, group)
+            _maybe_snapshot(wpid, root, created, snapped, env, config, deny, group, planes)
         # ptrace-event / SIGSTOP / SIGTRAP control stops are just resumed; a
         # prototype does not need full signal-forwarding fidelity.
         try:
@@ -302,7 +304,8 @@ _ENOSYS = ctypes.c_ulonglong(-errno.ENOSYS).value   # rax value at syscall-ENTRY
 
 def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
                     env: str, config: Config, deny: bool,
-                    group: Optional[str] = None) -> None:
+                    group: Optional[str] = None,
+                    planes: Optional[List[str]] = None) -> None:
     """On a syscall stop: act only at ENTRY (rax == -ENOSYS, the reliable
     entry/exit discriminator) and only for a destructive file syscall on an
     in-scope, pre-existing file - snapshot it (and optionally deny)."""
@@ -314,6 +317,10 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
         return                                       # syscall-exit stop - ignore
     nr = regs.orig_rax
 
+    cands: List[str] = []
+    name: Optional[str] = None
+    is_destruct = False
+
     # Track files the command creates, so we never snapshot its own temp files.
     if nr in _OPEN:
         _name, p_idx, f_idx, d_idx = _OPEN[nr]
@@ -321,21 +328,67 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
         path = _resolve(pid, regs, p_idx, d_idx)
         if not path:
             return
-        if (flags & O_CREAT) and not os.path.exists(path):
-            created.add(os.path.abspath(path))
+        abs_p = os.path.abspath(path)
+        if (flags & O_CREAT) and not os.path.exists(abs_p):
+            created.add(abs_p)
+            cands.append(abs_p)
         if flags & O_TRUNC:
             name = "openat_trunc"
-        elif (flags & O_ACCMODE) in (O_WRONLY, O_RDWR) and not (flags & O_APPEND):
-            name = "openat_modify"
-        else:
-            return                             # read-only or append - not destructive
+            is_destruct = True
+            cands.append(abs_p)
+        elif (flags & O_ACCMODE) in (O_WRONLY, O_RDWR):
+            cands.append(abs_p)
+            if not (flags & O_APPEND):
+                name = "openat_modify"
+                is_destruct = True
     elif nr in _DELETE:
         name, p_idx, d_idx = _DELETE[nr]
         path = _resolve(pid, regs, p_idx, d_idx)
+        if path:
+            abs_p = os.path.abspath(path)
+            cands.append(abs_p)
+            is_destruct = True
+            if name == "rename":
+                src = _resolve(pid, regs, 0, None)
+                if src:
+                    cands.append(os.path.abspath(src))
+            elif name in ("renameat", "renameat2"):
+                src = _resolve(pid, regs, 1, 0)
+                if src:
+                    cands.append(os.path.abspath(src))
     else:
         return
 
-    if not path:
+    # 1. Control plane check: REFUSE writes/destructions to demo_cli's own files
+    if planes:
+        for cand in cands:
+            rcand = os.path.realpath(cand)
+            if any(recovery._related(cand, q) or recovery._related(rcand, q) for q in planes):
+                regs.orig_rax = ctypes.c_ulonglong(-1).value
+                try:
+                    _setregs(pid, regs)
+                except OSError:
+                    pass
+                decision = "ESCALATE"
+                reason = "an agent may not change demo_cli's own files (behavioral guard)"
+                append_receipt(config.receipts_path, Receipt(
+                    action_raw=f"[syscall] {name or 'write'} {cand}",
+                    action_type="syscall",
+                    target_environment=env,
+                    decision=decision,
+                    reason=reason,
+                    mode="enforce-syscall",
+                    matched_rule="control_plane",
+                    classification="destructive",
+                    recovery_point=None,
+                    agent_id="syscall-guard",
+                    session_id="run",
+                    group_id=group,
+                ))
+                sys.stderr.write(f"demo_cli [syscall] {decision}: {name or 'write'} {cand}\n")
+                return
+
+    if not is_destruct or not path:
         return
     ap = os.path.abspath(path)
     if ap in created or ap in snapped:

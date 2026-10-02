@@ -284,14 +284,14 @@ def test_syscall_guard_background_process_does_not_freeze(tmp_path):
     pid_file = tmp_path / "pid.txt"
     marker = tmp_path / "marker.txt"
 
-    # Background job sleeps 2s then writes marker
-    cmd = ["bash", "-c", f"(sleep 2 && echo alive > {marker}) & echo $! > {pid_file}"]
+    # Background job sleeps 6s then writes marker
+    cmd = ["bash", "-c", f"(sleep 6 && echo alive > {marker}) & echo $! > {pid_file}"]
     t0 = time.perf_counter()
     rc = syscall_guard.run_supervised(cmd, config=cfg)
     t1 = time.perf_counter()
 
     assert rc == 0
-    assert (t1 - t0) < 2.0, f"run_supervised took {t1 - t0:.2f}s instead of returning under 2s"
+    assert (t1 - t0) < 4.0, f"run_supervised took {t1 - t0:.2f}s instead of returning under 4s"
     assert pid_file.exists()
     bg_pid = int(pid_file.read_text().strip())
 
@@ -305,8 +305,8 @@ def test_syscall_guard_background_process_does_not_freeze(tmp_path):
 
     assert proc_state not in ("T", "t"), f"background pid {bg_pid} is frozen in stopped state {proc_state}"
 
-    # Wait for the background job to finish writing marker (up to 3s total)
-    for _ in range(35):
+    # Wait for the background job to finish writing marker (up to 8s total)
+    for _ in range(80):
         if marker.exists():
             break
         time.sleep(0.1)

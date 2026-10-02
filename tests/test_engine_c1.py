@@ -144,6 +144,7 @@ def test_within_on_a_subdirectory_is_a_capture_and_on_the_root_escalates(proj):
     assert p.impact.within
 
 
+@pytest.mark.skipif(os.name == "nt", reason="no block devices under /dev on Windows")
 def test_a_disk_is_a_remote_surface_and_the_sinks_are_not(proj):
     assert _predict(proj, "cat a.txt > /dev/null").decision == "ALLOW", "control: a sink"
     for sink in ("/dev/stderr", "/dev/fd/2", "/dev/tty", "/dev/zero"):

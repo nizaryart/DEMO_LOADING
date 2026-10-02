@@ -117,7 +117,7 @@ def test_a_capture_that_succeeds_is_unaffected(tmp_path, monkeypatch):
     f.write_text("payload")
     r = _guard(tmp_path).evaluate_file_edit(str(f), tool_name="Edit")
     assert r.decision.decision == "REVERSIBLE"
-    assert "cap" not in r.decision.reason
+    assert "DEMO_CLI_MAX_SNAPSHOT" not in r.decision.reason  # M2.0-E: decide() reason contains 'captured'
 
 
 # ------------------------------------------------------------------ door 3

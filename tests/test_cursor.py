@@ -38,7 +38,9 @@ def test_cursor_denies_remove_item_recurse_force_unresolved_target(tmp_path):
 
 
 def test_cursor_denies_rm_rf_unresolvable_target(tmp_path):
-    payload = {"command": "rm -rf /srv/data", "cwd": str(tmp_path)}
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
+    payload = {"command": f"rm -rf {out_dir}", "cwd": str(tmp_path)}  # M2.0-C3: existing outside path escalates
     _, resp = _run(payload, tmp_path)
     assert resp["permission"] == "deny"
 

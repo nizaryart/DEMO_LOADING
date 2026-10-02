@@ -69,7 +69,7 @@ def _impact(root, command):
         os.chdir(here)
 
     def rel(p, is_dir=False):
-        return os.path.relpath(p, str(root)) + ("/" if is_dir else "")
+        return os.path.relpath(p, str(root)).replace(os.sep, "/") + ("/" if is_dir else "")
     return ({rel(p, p in imp.destroyed_dirs) for p in imp.destroys},
             {rel(p) for p in imp.creates}, {rel(p) for p in imp.changes}, bool(imp.unknown),
             bool(imp.remote), dict(imp.databases), set(imp.no_capture)), \
@@ -93,6 +93,8 @@ CASES = [(fam, ex) for fam, examples in FAMILIES for ex in examples]
 @pytest.mark.parametrize("family,example", CASES,
                          ids=[f"{f}:{e.command[:40]}" for f, e in CASES])
 def test_a_rule_example_produces_the_impact_it_declares(tmp_path, family, example):
+    if os.name == "nt" and getattr(example, "posix_only", False):
+        pytest.skip("no block devices under /dev on Windows")
     root = _fixture(tmp_path)
     control = next(e for f, examples in FAMILIES if f == family for e in examples if _positive(e))
     if example is not control:

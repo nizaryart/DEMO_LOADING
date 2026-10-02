@@ -91,10 +91,21 @@ def _nothing_else_acts(c: Classification) -> bool:
 # the rest of the command is - captured or not, it is not the agent's to make.
 # --------------------------------------------------------------------------
 
-def _related(a: str, b: str) -> bool:
-    """Is one of the two at or under the other?"""
-    a, b = os.path.normcase(a), os.path.normcase(b)
-    return recovery._contains(a, b) or recovery._contains(b, a)
+_related = recovery._related
+
+
+def _db_targets(impact) -> Tuple[List[recovery.Target], bool]:
+    """Capture targets for the engine's capturable databases. ok=False when
+    any of them has no literal URL to dump. SQLite is NOT here: a sqlite db
+    is a file, already in impact.destroys."""
+    targets, ok = [], True
+    for label in sorted(impact.databases):
+        url = impact.db_urls.get(label)
+        if not url:
+            ok = False
+            continue
+        targets.append(recovery.Target("postgres", url, label))
+    return targets, ok
 
 
 def _mount_covers_project(mountpoint: str, project_root: str) -> bool:
@@ -113,9 +124,13 @@ def _control_plane_hits(paths, cfg: Config) -> List[str]:
     path: a write through a link lands where the link points."""
     planes = control_plane_paths(cfg)
     real_planes = [os.path.realpath(q) for q in planes]
+    root = os.path.abspath(cfg.project_root or os.getcwd())
+    real_root = os.path.realpath(root)
     return [p for p in paths
-            if any(_related(p, q) for q in planes)
-            or any(_related(os.path.realpath(p), q) for q in real_planes)]
+            if p not in (root, real_root) and (
+                any(_related(p, q) for q in planes)
+                or any(_related(os.path.realpath(p), q) for q in real_planes)
+            )]
 
 
 def _shown(path: str, cfg: Config) -> str:
@@ -434,6 +449,9 @@ class Guard:
         `check` and the `!` trap are the human's doors."""
         intent = intent or Intent()
         command = command.strip()
+        if os.name == "nt" and dialect == POSIX:
+            command = re.sub(r'([A-Za-z]:)(\\[^\s"\'|&;<>]+)', lambda m: m.group(1) + m.group(2).replace("\\", "/"), command)
+            command = re.sub(r'(\.\.?\\)([^\s"\'|&;<>]+)', lambda m: m.group(1).replace("\\", "/") + m.group(2).replace("\\", "/"), command)
 
         if self.config.config_error:
             return self._refuse_broken_config(command, agent_id, session_id)
@@ -456,8 +474,10 @@ class Guard:
                     f"that.",
                     ["Run it yourself, outside the agent."],
                     intent, agent_id, session_id, dialect, prediction)
-        hits = _control_plane_hits(recovery.written_paths(command, dialect),
-                                   self.config)
+        written = {os.path.abspath(p) for p in recovery.written_paths(command, dialect)}
+        if impact is not None:
+            written |= set(impact.touched)       # the engine's paths are already absolute
+        hits = _control_plane_hits(sorted(written), self.config)
         if hits:
             return self._refuse_control_plane(
                 command, c, _files_reason(hits, self.config),
@@ -466,7 +486,6 @@ class Guard:
 
         engine_applies = (
             dialect == POSIX
-            and os.name != "nt"
             and impact is not None
             and not impact.uncovered
             and not impact.unknown
@@ -486,6 +505,12 @@ class Guard:
             net_name = None
             rewrite = None
             group_id = None
+
+            c.is_destructive = c.is_mutating = False
+            c.is_sql_mutating = c.is_file_writer = c.remote_exec = False
+            c.nonrecoverable_surface = None
+            c.destructive_segments = 0
+            # keep c.matched_rule / c.action_type / c.segments: they are receipt labels only
 
             # 1. Escalating remote surfaces
             escalating_remote = [
@@ -514,17 +539,16 @@ class Guard:
 
             # 4. Destroys (filesystem paths)
             proj_root = os.path.abspath(self.config.project_root or os.getcwd())
+            c.destructive_segments = len(impact.destroys) + len(impact.no_capture) + len(escalating_remote)
             if impact.destroys:
                 c.is_mutating = True
                 c.is_destructive = True
-
                 # Check if every destroyed path exists, is strictly within project, and not root
                 all_ok = all(
                     recovery.within_project(p, proj_root) and os.path.lexists(p)
                     for p in impact.destroys
                 )
-                uncovered_mutation = bool(c.matched_rule in ("sql_drop", "git_reset_hard", "git_push_force") or (c.is_sql_mutating and not impact.databases and not impact.destroys))
-                if all_ok and not impact.no_capture and not escalating_remote and not c.remote_exec and not uncovered_mutation:
+                if all_ok and not impact.no_capture and not escalating_remote and not c.remote_exec:
                     targets = [
                         recovery.Target(
                             "dir" if (p in impact.destroyed_dirs or os.path.isdir(p)) else "file",
@@ -534,21 +558,8 @@ class Guard:
                         for p in sorted(impact.destroys.keys())
                     ]
                     if impact.databases:
-                        db_targets = []
-                        all_db_ok = True
-                        for db in impact.databases:
-                            if db.startswith("postgres://") or db.startswith("postgresql://"):
-                                tgt = recovery.resolve_target(command, explicit_db, db_url)
-                                if tgt and tgt.kind == "postgres":
-                                    db_targets.append(tgt)
-                                else:
-                                    all_db_ok = False
-                            else:
-                                if os.path.exists(db) and recovery.within_project(db, proj_root):
-                                    db_targets.append(recovery.Target("sqlite", db, db))
-                                else:
-                                    all_db_ok = False
-                        if all_db_ok:
+                        db_targets, db_ok = _db_targets(impact)
+                        if db_ok:
                             targets.extend(db_targets)
                         else:
                             all_ok = False
@@ -576,20 +587,7 @@ class Guard:
             elif impact.databases:
                 c.is_mutating = True
                 c.is_destructive = True
-                db_targets = []
-                all_db_ok = True
-                for db in impact.databases:
-                    if db.startswith("postgres://") or db.startswith("postgresql://"):
-                        tgt = recovery.resolve_target(command, explicit_db, db_url)
-                        if tgt and tgt.kind == "postgres":
-                            db_targets.append(tgt)
-                        else:
-                            all_db_ok = False
-                    else:
-                        if os.path.exists(db) and recovery.within_project(db, proj_root):
-                            db_targets.append(recovery.Target("sqlite", db, db))
-                        else:
-                            all_db_ok = False
+                db_targets, all_db_ok = _db_targets(impact)
                 if all_db_ok and db_targets and not impact.no_capture and not escalating_remote and not c.remote_exec:
                     target = db_targets[0]
                     affected_paths = [t.ref for t in db_targets if t.kind in ("file", "dir")]
@@ -605,30 +603,9 @@ class Guard:
                             action=command, notes=snap_notes
                         )
 
-            deleter = bool(c.matched_rule and (c.matched_rule.startswith("rm_")
-                                                or c.matched_rule == "unlink")
-                           ) or command.strip().startswith(("rm ", "rm\t", "rmdir ", "\\rm "))
-            if deleter:
-                raw_ops = [os.path.abspath(os.path.expandvars(os.path.expanduser(p)))
-                           for p in recovery._path_operands(command)
-                           if p.startswith(("/", "~", "$")) or os.path.isabs(p)]
-                has_outside_target = any(
-                    (not recovery.within_project(p, proj_root) or os.path.abspath(p) == proj_root)
-                    for p in raw_ops
-                )
-            else:
-                has_outside_target = False
-            if any((not recovery.within_project(p, proj_root) or os.path.abspath(p) == proj_root) for p in impact.created):
-                has_outside_target = True
-            if has_outside_target:
-                c.is_mutating = True
-                c.is_destructive = True
-                entry = None
-
             # 5. Nothing destroyed, no escalating remote, no no_capture -> ALLOW
             if (not impact.destroys and not impact.databases
-                    and not escalating_remote and not impact.no_capture
-                    and not has_outside_target):
+                    and not escalating_remote and not impact.no_capture):
                 c.is_destructive = False
                 c.is_mutating = False
                 c.matched_rule = None
@@ -880,68 +857,11 @@ class Guard:
                                        notes=snap_notes)
                      if is_snapshot_eligible else None)
     
-            # Check if supervisable under the runtime net (Linux syscall guard or Windows mount)
-            is_sql = bool(c.is_sql_mutating or c.action_type == "sql" or (c.matched_rule and c.matched_rule.startswith("sql_")))
-            is_git = bool(c.matched_rule and c.matched_rule.startswith("git_"))
-            is_ps = bool(dialect == POWERSHELL or (c.matched_rule and c.matched_rule.startswith("ps_")))
-            proj_root = os.path.abspath(self.config.project_root or os.getcwd())
-            raw_ops = recovery._path_operands(command) if (c.needs_recovery and dialect == POSIX) else []
-            targets_out_of_project = bool(
-                (cand and not recovery.within_project(os.path.abspath(cand), proj_root))
-                or (affected_paths and any(not recovery.within_project(os.path.abspath(p), proj_root) for p in affected_paths))
-                or (raw_ops and any(os.path.isabs(p) and not recovery.within_project(os.path.abspath(p), proj_root) for p in raw_ops))
+            (supervisable, net_name, rewrite, group_id, entry,
+             checkpoint_skipped, checkpoint_taken) = self._runtime_net_or_checkpoint(
+                c, target, entry, command, dialect, can_supervise, mismatches,
+                cand=cand, affected_paths=affected_paths,
             )
-            r1_applies = bool(
-                c.needs_recovery
-                and target is None
-                and entry is None
-                and not c.nonrecoverable_surface
-                and not c.remote_exec
-                and not mismatches
-                and not is_sql
-                and not is_git
-                and not targets_out_of_project
-            )
-    
-            supervisable = False
-            net_name = None
-            rewrite = None
-            group_id = None
-    
-            if r1_applies:
-                if os.name == "nt":
-                    from . import mountstate
-                    st = mountstate.status(self.config)
-                    if st.running is True and st.mountpoint:
-                        if _mount_covers_project(st.mountpoint, proj_root):
-                            supervisable = True
-                            net_name = "mount"
-                else:
-                    from . import syscall_guard
-                    if can_supervise and syscall_guard.available() and not is_ps:
-                        supervisable = True
-                        net_name = "syscall_guard"
-                        import shlex, uuid
-                        group_id = uuid.uuid4().hex[:8]
-                        rewrite = f"{sys.executable} -m demo_cli run --group {group_id} -- bash -c {shlex.quote(command)}"
-    
-            # LAST RESORT, never a first choice. Reached only when the command
-            # mutates something and no target could be resolved at all - `rm
-            # $(cat list.txt)`, `python cleanup.py`. Instead of escalating on "I
-            # cannot tell WHAT you will destroy", preserve everything it could
-            # destroy. If that copy cannot be made honestly, checkpoint.capture
-            # returns no entry and the escalation stands exactly as before.
-            #
-            # Placed here, BEFORE decide(): decide is still merely told whether a
-            # recovery exists. It never learns a checkpoint was involved, so it
-            # cannot reason its way into claiming one that did not happen.
-            checkpoint_skipped, checkpoint_taken = None, False
-            if supervisable:
-                pass  # Syscall guard or WinFsp mount replaces checkpoint
-            elif checkpoint.should_checkpoint(c, target, self.config,
-                                            recovery_captured=entry is not None):
-                ck = checkpoint.capture(self.config, action=command)
-                entry, checkpoint_skipped, checkpoint_taken = ck.entry, ck.skipped, ck.ok
     
         recovery_captured = entry is not None
 
@@ -1022,6 +942,72 @@ class Guard:
             prediction=prediction, rewrite=rewrite, group_id=gid,
         )
 
+    def _runtime_net_or_checkpoint(
+        self,
+        c: Classification,
+        target: Optional[recovery.Target],
+        entry: Optional[dict],
+        command: str,
+        dialect: str,
+        can_supervise: bool,
+        mismatches: list,
+        cand: Optional[str] = None,
+        affected_paths: Optional[List[str]] = None,
+    ) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[dict], Optional[str], bool]:
+        is_sql = bool(c.is_sql_mutating or c.action_type == "sql" or (c.matched_rule and c.matched_rule.startswith("sql_")))
+        is_git = bool(c.matched_rule and c.matched_rule.startswith("git_"))
+        is_ps = bool(dialect == POWERSHELL or (c.matched_rule and c.matched_rule.startswith("ps_")))
+        proj_root = os.path.abspath(self.config.project_root or os.getcwd())
+        raw_ops = recovery._path_operands(command) if (c.needs_recovery and dialect == POSIX) else []
+        targets_out_of_project = bool(
+            (cand and not recovery.within_project(os.path.abspath(cand), proj_root))
+            or (affected_paths and any(not recovery.within_project(os.path.abspath(p), proj_root) for p in affected_paths))
+            or (raw_ops and any(os.path.isabs(p) and not recovery.within_project(os.path.abspath(p), proj_root) for p in raw_ops))
+        )
+        r1_applies = bool(
+            c.needs_recovery
+            and target is None
+            and entry is None
+            and not c.nonrecoverable_surface
+            and not c.remote_exec
+            and not mismatches
+            and not is_sql
+            and not is_git
+            and not targets_out_of_project
+        )
+
+        supervisable = False
+        net_name = None
+        rewrite = None
+        group_id = None
+
+        if r1_applies:
+            if os.name == "nt":
+                from . import mountstate
+                st = mountstate.status(self.config)
+                if st.running is True and st.mountpoint:
+                    if _mount_covers_project(st.mountpoint, proj_root):
+                        supervisable = True
+                        net_name = "mount"
+            else:
+                from . import syscall_guard
+                if can_supervise and syscall_guard.available() and not is_ps:
+                    supervisable = True
+                    net_name = "syscall_guard"
+                    import shlex, uuid
+                    group_id = uuid.uuid4().hex[:8]
+                    rewrite = f"{sys.executable} -m demo_cli run --group {group_id} -- bash -c {shlex.quote(command)}"
+
+        checkpoint_skipped, checkpoint_taken = None, False
+        if supervisable:
+            pass  # Syscall guard or WinFsp mount replaces checkpoint
+        elif checkpoint.should_checkpoint(c, target, self.config,
+                                          recovery_captured=entry is not None):
+            ck = checkpoint.capture(self.config, action=command)
+            entry, checkpoint_skipped, checkpoint_taken = ck.entry, ck.skipped, ck.ok
+
+        return supervisable, net_name, rewrite, group_id, entry, checkpoint_skipped, checkpoint_taken
+
     def evaluate_file_edit(
         self,
         file_path: str,
@@ -1073,7 +1059,7 @@ class Guard:
         links_out = within and ap != root and not in_scope
 
         c = Classification(
-            is_mutating=True, action_type="filewrite",
+            is_mutating=exists, is_destructive=exists, action_type="filewrite",
             matched_rule=f"file_{tool_name.lower()}", segments=[ap],
         )
 
@@ -1093,50 +1079,40 @@ class Guard:
                  if exists and in_scope else None)
         recovery_captured = entry is not None
 
-        if not exists:
-            decision = Decision(ALLOW, "New file; creation has nothing to overwrite.",
-                                recoverable=False)
-        elif ap == root:
-            decision = Decision(
-                ESCALATE,
-                f"{ap} is the project root itself; capturing the whole tree "
-                f"before an edit is neither honest nor cheap, so nothing was "
-                f"captured and nothing is claimed.",
-                recoverable=False,
-                next_steps=["Name the file to edit, not the project root."],
-            )
-        elif not in_scope:
-            where = (f"{ap} links to {os.path.realpath(ap)}, outside the project "
-                     f"root ({root})" if links_out else
-                     f"{ap} is outside the project root ({root})")
-            decision = Decision(
-                ESCALATE,
-                f"{where}; no recovery point was captured for it and none is "
-                f"claimed.",
-                recoverable=False,
-                next_steps=[
+        mismatches = compare_intent(intent, ctx)
+        decision = decide(c, ctx.environment, recovery_captured, mismatches=mismatches)
+        if decision.decision == ESCALATE:
+            if ap == root:
+                decision.reason = (
+                    f"{ap} is the project root itself; capturing the whole tree "
+                    f"before an edit is neither honest nor cheap, so nothing was "
+                    f"captured and nothing is claimed."
+                )
+                decision.next_steps = ["Name the file to edit, not the project root."]
+            elif not in_scope:
+                where = (f"{ap} links to {os.path.realpath(ap)}, outside the project "
+                         f"root ({root})" if links_out else
+                         f"{ap} is outside the project root ({root})")
+                decision.reason = (
+                    f"{where}; no recovery point was captured for it and none is "
+                    f"claimed."
+                )
+                decision.next_steps = [
                     "Edit a path inside the project, or open that project "
                     "directly so demo_cli can cover it.",
                     "Take an independent backup if the edit must go ahead.",
-                ],
-            )
-        elif recovery_captured:
-            decision = Decision(REVERSIBLE, "File snapshotted before the edit; reversible.",
-                                recoverable=True)
-        else:
-            # A cap refusal names the cause and the knob; the generic advice
-            # below is false for it - the path IS readable and IS in the root.
-            refused = snap_notes.get("refused")
-            decision = Decision(
-                ESCALATE,
-                "Could not snapshot the file before editing; no recovery path."
-                + (f" {refused}" if refused else ""),
-                recoverable=False,
-                next_steps=(
+                ]
+            elif not recovery_captured:
+                refused = snap_notes.get("refused")
+                decision.reason = (
+                    "Could not snapshot the file before editing; no recovery path."
+                    + (f" {refused}" if refused else "")
+                )
+                decision.next_steps = (
                     ["Raise the cap named above, or edit a narrower target.",
                      "Or take an independent backup before editing."] if refused
-                    else ["Check the file is readable and within the project root."]),
-            )
+                    else ["Check the file is readable and within the project root."]
+                )
 
         receipt = Receipt(
             action_raw=f"{tool_name} {ap}",
@@ -1158,5 +1134,5 @@ class Guard:
         return GuardResult(
             command=f"{tool_name} {ap}", classification=c, context=ctx,
             decision=decision, mode=self.mode, target=target, recovery_entry=entry,
-            receipt=receipt,
+            receipt=receipt, mismatches=mismatches,
         )

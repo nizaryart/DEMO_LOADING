@@ -61,7 +61,7 @@ class Impact:
     """
     __slots__ = ("destroys", "destroyed_dirs", "created", "creates", "changes",
                  "touched", "remote", "unknown", "uncovered", "within", "databases",
-                 "no_capture")
+                 "no_capture", "db_urls")
 
     def __init__(self) -> None:
         self.destroys: Dict[str, str] = {}
@@ -79,6 +79,7 @@ class Impact:
         # `no_capture`: a database written that nothing can capture.
         self.databases: Dict[str, str] = {}   # "db:host/name" -> kind
         self.no_capture: Dict[str, str] = {}  # "db:host/name" -> why
+        self.db_urls: Dict[str, str] = {}
 
     def reach(self, label: str, kind: str) -> None:
         """A remote surface is reached; the same one twice keeps the kind

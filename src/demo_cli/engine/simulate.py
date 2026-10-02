@@ -29,6 +29,7 @@ from __future__ import annotations
 import fnmatch
 import glob as _glob
 import os
+import re
 import stat
 import time
 from typing import Dict, FrozenSet, List, Optional, Tuple
@@ -47,6 +48,22 @@ MAX_GLOB = 10_000
 MAX_DEPTH = 8
 _WRITES = (">", ">|", "&>", ">&", ">>", "&>>")
 _VAR_BUILTINS = ("export", "readonly", "declare", "typeset", "local")
+_DRIVE = re.compile(r"^/([A-Za-z])(/.*)?$")
+
+
+def _host_path(f: str, windows: bool = os.name == "nt") -> Optional[str]:
+    """A shell word as a path on this host. Git Bash on Windows: /c/x -> C:\\x.
+    Any other absolute POSIX path on Windows (/tmp, /usr, /home) maps to an
+    MSYS root we cannot know: None, and the caller records it as unknown."""
+    if not windows:
+        return f
+    m = _DRIVE.match(f)
+    if m:
+        rest = (m.group(2) or "").lstrip("/").replace("/", "\\")
+        return f"{m.group(1).upper()}:\\{rest}"
+    if f.startswith("/"):
+        return None
+    return f
 
 
 class BudgetExceeded(Exception):
@@ -218,6 +235,14 @@ class World:
                 self.impact.not_understood(inv.text, str(u))
                 continue
             for f in fields:
+                if f in SINKS or f.startswith("/dev/fd/"):
+                    out.append(f)
+                    continue
+                hf = _host_path(f)
+                if hf is None:
+                    self.impact.not_understood(inv.text, "a Git Bash path that cannot be mapped to Windows")
+                    continue
+                f = hf
                 if os.path.isabs(f):
                     out.append(os.path.normpath(f))
                 elif state.cwd is None:
@@ -715,6 +740,12 @@ class World:
             except Unknown:
                 fields = []
             f = fields[0] if fields else None
+            if f is not None:
+                hf = _host_path(f)
+                if hf is None:
+                    f = None
+                else:
+                    f = hf
             if f is None or (not os.path.isabs(f) and (state.cwd is None or os.environ.get("CDPATH"))):
                 target = None
             else:

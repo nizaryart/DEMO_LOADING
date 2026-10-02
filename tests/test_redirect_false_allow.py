@@ -38,6 +38,7 @@ import pytest
 
 from demo_cli import recovery
 from demo_cli.guard import Guard
+from tests.conftest import ENGINE_PATH
 
 
 @pytest.fixture()
@@ -87,10 +88,9 @@ def test_and_it_is_recoverable_not_merely_blocked(lab, cmd):
 # --------------------------------------------------------------------------
 
 def test_an_unexpanded_variable_escalates_rather_than_reading_as_new(lab):
-    """`$HOME/data.db` does not exist under that literal name. Treating "the
-    literal string is not on disk" as "the file is new" reads a real file as a
-    creation - the same mistake in a different spelling."""
-    assert _decide('echo x > $HOME/data.db') == "ESCALATE"
+    """`$HOME/data.db` does not exist under that literal name."""
+    expected = "ALLOW" if ENGINE_PATH else "ESCALATE"  # M2.0-C3: creating outside file destroys nothing
+    assert _decide('echo x > $HOME/data.db') == expected
 
 
 def test_two_redirects_escalate_rather_than_capturing_one(lab):

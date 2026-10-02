@@ -114,13 +114,7 @@ CONTROL_PLANE_COMMANDS = [
 def test_a1_a_command_that_changes_demo_clis_own_files_escalates(
         proj, command, dialect, control, before):
     r = _eval(proj, control, dialect)
-    expected_before = before
-    if os.name == "nt":
-        if control == "mv notes.txt old.txt":
-            expected_before = "REVERSIBLE"
-        elif control == "truncate -s 0 notes.txt":
-            expected_before = "ESCALATE"
-    assert r.decision.decision == expected_before, "control: an ordinary file is judged as before"
+    assert r.decision.decision == before, "control: an ordinary file is judged as before"
     assert r.classification.matched_rule != "control_plane", "control"
 
     r = _eval(proj, command, dialect)

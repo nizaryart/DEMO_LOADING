@@ -32,6 +32,7 @@ import pytest
 
 from demo_cli import recovery
 from demo_cli.guard import Guard
+from tests.conftest import ENGINE_PATH
 
 
 @pytest.fixture()
@@ -55,7 +56,8 @@ def test_home_operands_never_collapse_to_the_working_directory(sub, cmd):
     be standing and call that a recovery."""
     assert recovery.extract_path_operand(cmd) != str(sub)
     r = Guard(mode="enforce").evaluate(cmd)
-    assert r.decision.decision == "ESCALATE", cmd
+    expected = "ALLOW" if ENGINE_PATH else "ESCALATE"  # M2.0-C3: absent outside paths destroy nothing
+    assert r.decision.decision == expected, cmd
     assert not r.recovery_entry, "captured a directory unrelated to the damage"
 
 
@@ -65,7 +67,8 @@ def test_the_bug_needed_a_subdirectory_to_appear(tmp_path, monkeypatch):
     _too_broad and escalates whether or not the fix is present."""
     (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
     monkeypatch.chdir(tmp_path)
-    assert Guard(mode="enforce").evaluate('rm -f ~/a ~/b').decision.decision == "ESCALATE"
+    expected = "ALLOW" if ENGINE_PATH else "ESCALATE"  # M2.0-C3
+    assert Guard(mode="enforce").evaluate('rm -f ~/a ~/b').decision.decision == expected
 
 
 @pytest.mark.parametrize("cmd", [

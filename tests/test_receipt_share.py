@@ -89,7 +89,7 @@ def test_feedback_line_only_on_wrong_call_worthy():
     allow = Guard(mode="enforce").evaluate("ls -la")
     assert feedback_line(allow) == ""
     # an escalating command should produce a prefilled issue link
-    esc = Guard(mode="enforce").evaluate("rmdir /s /q C:\\proj")
+    esc = Guard(mode="enforce").evaluate("psql -c 'DROP TABLE t'")  # M2.0-C3: robust escalation independent of absent paths
     line = feedback_line(esc)
     assert "issues/new" in line and "Wrong call" in line
 

@@ -48,7 +48,9 @@ def _receipts(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_codex_denies_unresolvable_rm_rf(tmp_path):
-    rc, raw = _run(_shell("rm -rf /srv/data", tmp_path), tmp_path)
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
+    rc, raw = _run(_shell(f"rm -rf {out_dir}", tmp_path), tmp_path)  # M2.0-C3: existing outside path escalates
     assert rc == 0
     assert _decision(raw) == "deny"
 
@@ -126,7 +128,9 @@ def test_plain_string_command_is_used_as_is():
 
 
 def test_argv_list_wrapper_command_is_classified_end_to_end(tmp_path):
-    payload = _shell(["bash", "-lc", "rm -rf /srv/data"], tmp_path)
+    out_dir = tmp_path.parent / "srv_data"
+    out_dir.mkdir(exist_ok=True)
+    payload = _shell(["bash", "-lc", f"rm -rf {out_dir}"], tmp_path)  # M2.0-C3: existing outside path escalates
     _, raw = _run(payload, tmp_path)
     assert _decision(raw) == "deny"        # the wrapper alone would match no rule
 
@@ -284,6 +288,9 @@ def test_real_rm_outside_project_root_is_denied(tmp_path):
     # recovery point can be captured for it - deny, never a false REVERSIBLE.
     payload = json.load(open(os.path.join(FIXTURES, "07-Bash.json"), encoding="utf-8"))
     payload["cwd"] = str(tmp_path)
+    outside = tmp_path.parent / "outside_hello.txt"
+    outside.write_text("hello")
+    payload["tool_input"]["command"] = f"rm {outside}"  # M2.0-C3: must exist outside to be destructive
     _, raw = _run(payload, tmp_path)
     assert _decision(raw) == "deny"
 

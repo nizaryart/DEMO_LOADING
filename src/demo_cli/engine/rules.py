@@ -59,25 +59,28 @@ class EffectT:
 
 class Example:
     __slots__ = ("command", "destroys", "creates", "changes", "unknown", "note",
-                 "remote", "uncovered", "reaches", "databases", "no_capture")
+                 "remote", "uncovered", "reaches", "databases", "no_capture",
+                 "posix_only")
 
     def __init__(self, command: str, destroys=frozenset(), creates=frozenset(),
                  changes=frozenset(), unknown: bool = False, note: str = "",
                  remote: bool = False, uncovered=frozenset(), reaches=None,
-                 databases=None, no_capture=frozenset()):
+                 databases=None, no_capture=frozenset(), posix_only: bool = False):
         self.command, self.destroys, self.creates = command, destroys, creates
         self.changes, self.unknown, self.note = changes, unknown, note
         self.remote, self.uncovered = remote or bool(reaches), uncovered
         self.reaches = dict(reaches) if reaches is not None else None   # label -> kind (C2)
         self.databases = dict(databases or {})                          # label -> kind (C2a)
         self.no_capture = frozenset(no_capture)                         # labels (C2a)
+        self.posix_only = posix_only
 
 
 def ex(command: str, destroys=(), creates=(), changes=(), unknown=False, note="",
-       remote=False, uncovered=(), reaches=None, databases=None, no_capture=()) -> Example:
+       remote=False, uncovered=(), reaches=None, databases=None, no_capture=(),
+       posix_only: bool = False) -> Example:
     return Example(command, frozenset(destroys), frozenset(creates), frozenset(changes),
                    unknown, note, remote, frozenset(uncovered), reaches, databases,
-                   frozenset(no_capture))
+                   frozenset(no_capture), posix_only=posix_only)
 
 
 class Rule:
@@ -201,7 +204,7 @@ REDIRECT_EXAMPLES: Tuple[Example, ...] = (
     ex("echo x > missingdir/f.txt", note="the parent does not exist: bash fails"),
     ex("echo x > $OUT", unknown=True),
     # review C1 fix 2: devices. A disk is a surface no local copy restores.
-    ex("cat a.txt > /dev/sda", remote=True, note="a disk: ESCALATE (today: ALLOW)"),
+    ex("cat a.txt > /dev/sda", remote=True, note="a disk: ESCALATE (today: ALLOW)", posix_only=True),
     ex("echo x > /dev/stderr", note="a sink"),
     ex("echo x > /dev/fd/2", note="a sink"),
     ex("echo x > /dev/tty", note="a sink"),
@@ -296,7 +299,7 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("cp -r dir newdir/", creates={"newdir"},
                 note="VERIFIED: a directory source takes the name"),
              ex("cp a.txt b.txt && rm a.txt", destroys={"a.txt", "b.txt"}),
-             ex("cp a.txt /dev/sda", remote=True, note="a device"),
+             ex("cp a.txt /dev/sda", remote=True, note="a device", posix_only=True),
              ex("cp --sparse always a.txt new.txt", creates={"new.txt"},
                 note="--sparse takes the next word (the grammar test found it missing)"),
          )),
@@ -556,7 +559,7 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("dd if=a.txt of=new.bin", creates={"new.bin"}),
              ex("dd if=a.txt", note="no of=: stdout"),
              ex("dd if=a.txt of=/dev/null", note="a sink"),
-             ex("dd if=/dev/zero of=/dev/sda bs=1M", remote=True, note="a disk: ESCALATE"),
+             ex("dd if=/dev/zero of=/dev/sda bs=1M", remote=True, note="a disk: ESCALATE", posix_only=True),
          )),
     Rule(id="curl", tools=("curl",), resolver="curl", partial="network",
          options=OptionSpec(values=_g.CURL_VALUES, flags=_g.CURL_FLAGS),

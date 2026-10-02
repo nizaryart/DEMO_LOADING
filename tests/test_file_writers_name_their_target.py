@@ -95,7 +95,7 @@ def project(tmp_path, monkeypatch):
     (tmp_path / "src").mkdir()
     (tmp_path / "tests").mkdir()
     for p in ("app.py", "src/app.js", "src/util.js", "tests/t.js", "package.json"):
-        (tmp_path / p).write_text(ORIGINAL)
+        (tmp_path / p).write_bytes(ORIGINAL.encode("utf-8"))
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -160,14 +160,11 @@ def test_a_whole_project_target_still_escalates(project, cmd):
     can be captured directly as a group snapshot."""
     r = _guard(project).evaluate(cmd)
     if cmd == "black src/ tests/":
+        expected_bytes = {rel: (project / rel).read_bytes() for rel in ["src/app.js", "src/util.js", "tests/t.js"]}
         expected = REVERSIBLE if ENGINE_PATH else ESCALATE
         assert r.decision.decision == expected, (cmd, r.decision.decision)
         if ENGINE_PATH:
-            assert_restores(r.recovery_entry, project, {
-                "src/app.js": ORIGINAL.encode("utf-8"),
-                "src/util.js": ORIGINAL.encode("utf-8"),
-                "tests/t.js": ORIGINAL.encode("utf-8"),
-            })
+            assert_restores(r.recovery_entry, project, expected_bytes)
     else:
         assert r.decision.decision == ESCALATE, (cmd, r.decision.decision)
         assert r.recovery_entry is None, cmd
@@ -192,11 +189,12 @@ def test_a_wrapped_binary_is_a_stated_miss(project):
     are resolved and captured safely (REVERSIBLE); pre-engine it was a miss (ESCALATE)."""
     (project / "node_modules" / ".bin").mkdir(parents=True, exist_ok=True)
     (project / "node_modules" / ".bin" / "prettier").write_text("#!/bin/sh\n")
+    expected_bytes = {"src/app.js": (project / "src/app.js").read_bytes()}
     r = _guard(project).evaluate("./node_modules/.bin/prettier --write src/app.js")
     expected = REVERSIBLE if ENGINE_PATH else ESCALATE
     assert r.decision.decision == expected
     if ENGINE_PATH:
-        assert_restores(r.recovery_entry, project, {"src/app.js": ORIGINAL.encode("utf-8")})
+        assert_restores(r.recovery_entry, project, expected_bytes)
 
 
 # ------------------------------------------------- multiplicity is still honest
@@ -204,14 +202,15 @@ def test_a_wrapped_binary_is_a_stated_miss(project):
 def test_two_acting_segments_refuse_a_partial_snapshot(project):
     """Under S2, both segments are captured together in a group snapshot (REVERSIBLE),
     preventing the partial-recovery lie without having to refuse both."""
+    expected_bytes = {
+        "app.py": (project / "app.py").read_bytes(),
+        "src/app.js": (project / "src/app.js").read_bytes(),
+    }
     r = _guard(project).evaluate("rm app.py && prettier --write src/app.js")
     expected = REVERSIBLE if ENGINE_PATH else ESCALATE
     assert r.decision.decision == expected
     if ENGINE_PATH:
-        assert_restores(r.recovery_entry, project, {
-            "app.py": ORIGINAL.encode("utf-8"),
-            "src/app.js": ORIGINAL.encode("utf-8"),
-        })
+        assert_restores(r.recovery_entry, project, expected_bytes)
     else:
         assert r.recovery_entry is None
 
