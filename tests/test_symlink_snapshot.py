@@ -81,7 +81,7 @@ def proj(tmp_path, monkeypatch):
 @requires_symlinks
 def test_a_dangling_symlink_does_not_take_the_guard_down(proj):
     os.symlink("/nonexistent/target", proj / "dangling")
-    r = Guard(mode="enforce").evaluate('rm proj/a.py proj/b.py')
+    r = Guard(mode="enforce").evaluate('rm -rf proj')
     assert r.decision.decision == "REVERSIBLE"
     assert r.recovery_entry, "no snapshot: the guard stepped aside"
 
@@ -89,7 +89,7 @@ def test_a_dangling_symlink_does_not_take_the_guard_down(proj):
 @requires_symlinks
 def test_the_dangling_link_is_captured_as_a_link(proj):
     os.symlink("/nonexistent/target", proj / "dangling")
-    r = Guard(mode="enforce").evaluate('rm proj/a.py proj/b.py')
+    r = Guard(mode="enforce").evaluate('rm -rf proj')
     held = os.path.join(r.recovery_entry["recovery_point"], "dangling")
     assert os.path.islink(held), "captured as something other than a link"
     assert os.readlink(held) == "/nonexistent/target"
@@ -102,7 +102,7 @@ def test_a_copy_failure_still_degrades_instead_of_raising(proj, monkeypatch):
     def boom(*a, **k):
         raise shutil.Error("simulated copy failure")
     monkeypatch.setattr(shutil, "copytree", boom)
-    r = Guard(mode="enforce").evaluate('rm proj/a.py proj/b.py')
+    r = Guard(mode="enforce").evaluate('rm -rf proj')
     assert r.decision.decision == "ESCALATE"
     assert not r.recovery_entry
 
@@ -136,7 +136,7 @@ def test_a_symlinked_tree_is_not_copied_past_the_cap(tmp_path, monkeypatch):
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_MB", "0.5")
 
     measured = recovery._dir_size(str(p), 512 * 1024)
-    r = Guard(mode="enforce").evaluate('rm proj/a.py proj/b.py')
+    r = Guard(mode="enforce").evaluate('rm -rf proj')
     rp = r.recovery_entry["recovery_point"]
     copied = sum(os.path.getsize(os.path.join(root, f))
                  for root, _, files in os.walk(rp) for f in files)
@@ -153,9 +153,9 @@ def test_a_symlinked_tree_is_not_copied_past_the_cap(tmp_path, monkeypatch):
 @requires_symlinks
 def test_a_captured_link_is_restored_as_a_link(proj):
     os.symlink("/nonexistent/target", proj / "dangling")
-    r = Guard(mode="enforce").evaluate('rm proj/a.py proj/b.py')
-    os.remove(proj / "a.py")
-    os.remove(proj / "dangling")
+    r = Guard(mode="enforce").evaluate('rm -rf proj')
+    import shutil
+    shutil.rmtree(proj)
 
     assert recovery.restore_entry(r.recovery_entry) is True
     assert (proj / "a.py").exists()

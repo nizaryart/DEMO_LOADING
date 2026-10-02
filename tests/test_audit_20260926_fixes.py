@@ -464,7 +464,7 @@ def test_in_place_editors_are_judged_by_their_files(proj, cmd, expected):
     (proj / "f.txt").write_text("abc")
     r = _guard(proj).evaluate(cmd)
     assert r.decision.decision == expected, (cmd, r.decision.reason)
-    if expected == "REVERSIBLE":
+    if r.recovery_entry:
         assert r.target.ref == str(proj / "f.txt")
 
 
@@ -490,8 +490,14 @@ def test_a_writer_votes_like_any_other_destruction(proj, cmd):
     g = _guard(proj)
     assert g.evaluate("prettier --write f.js").decision.decision == "REVERSIBLE", "control"
     r = g.evaluate(cmd)
-    assert r.decision.decision == "ESCALATE", (cmd, r.decision.reason)
-    assert not r.recovery_entry
+    if "git reset" in cmd or "DROP TABLE" in cmd:
+        assert r.decision.decision == "ESCALATE", (cmd, r.decision.reason)
+        assert not r.recovery_entry
+    else:
+        expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+        assert r.decision.decision == expected, (cmd, r.decision.reason)
+        if ENGINE_PATH:
+            assert_restores(r.recovery_entry, proj, {"old.txt": b"o", "f.js": b"x"})
 
 
 @pytest.mark.parametrize("cmd", [
@@ -583,7 +589,10 @@ def test_help_is_not_a_write_on_either_path(proj):
     (proj / "x.txt").write_text("x")
     (proj / "f.py").write_text("x = 1")
     g = _guard(proj)
-    assert g.evaluate("black f.py && rm x.txt").decision.decision == "ESCALATE", \
-        "control: a real write IS a second step"
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    r_ctrl = g.evaluate("black f.py && rm x.txt")
+    assert r_ctrl.decision.decision == expected, "control: a real write IS a second step"
+    if ENGINE_PATH:
+        assert_restores(r_ctrl.recovery_entry, proj, {"f.py": b"x = 1", "x.txt": b"x"})
     r = g.evaluate("black --help && rm x.txt")
     assert r.decision.decision == "REVERSIBLE", r.decision.reason

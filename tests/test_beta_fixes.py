@@ -10,7 +10,7 @@ remote  a managed/remote Postgres URL is a non-recoverable surface.
 import os
 
 from demo_cli.classify import classify_pipeline
-from demo_cli.decide import decide, ESCALATE
+from demo_cli.decide import decide, ESCALATE, REVERSIBLE
 from demo_cli import recovery
 
 
@@ -261,13 +261,18 @@ def _guard_in(root):
 def test_multi_file_rm_at_project_root_does_not_snapshot_whole_project(tmp_path,
                                                                        monkeypatch):
     """A two-file rm whose common root is the project root must NOT silently
-    deep-copy the entire tree; it escalates instead."""
+    deep-copy the entire tree. Under S2, both individual files are captured
+    in a group snapshot (REVERSIBLE); pre-S2 it escalated."""
     (tmp_path / "a.txt").write_text("1")
     (tmp_path / "src").mkdir(); (tmp_path / "src" / "b.txt").write_text("2")
     monkeypatch.chdir(tmp_path)
     r = _guard_in(tmp_path).evaluate("rm -f a.txt src/b.txt")
-    assert r.recovery_entry is None
-    assert r.decision.decision == ESCALATE
+    expected = REVERSIBLE if ENGINE_PATH else ESCALATE
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, tmp_path, {"a.txt": b"1", "src/b.txt": b"2"})
+    else:
+        assert r.recovery_entry is None
 
 
 def test_multi_file_rm_in_subdir_still_snapshots(tmp_path, monkeypatch):

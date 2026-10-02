@@ -160,11 +160,12 @@ def cmd_check(a) -> int:
 
 def _resolve_entry(cfg, a):
     """Pick a recovery entry: by id if given, else scoped by --target, else latest."""
-    rid = getattr(a, "id", None)
-    if rid:
-        return recovery.find(cfg.recovery_dir, rid)
-    ref = os.path.abspath(a.target) if getattr(a, "target", None) else None
-    return recovery.latest(cfg.recovery_dir, ref)
+    entries = recovery.resolve_entries(
+        cfg.recovery_dir,
+        getattr(a, "id", None),
+        os.path.abspath(a.target) if getattr(a, "target", None) else None
+    )
+    return entries[0] if entries else None
 
 
 def _undo_argv(a, root: Optional[str] = None) -> List[str]:
@@ -197,51 +198,67 @@ def _undo_elevated(a, root: Optional[str] = None) -> Optional[int]:
 
 def cmd_undo(a) -> int:
     cfg = load_config(getattr(a, "root", None))
-    entry = _resolve_entry(cfg, a)
+    entries = recovery.resolve_entries(
+        cfg.recovery_dir,
+        getattr(a, "id", None),
+        os.path.abspath(a.target) if getattr(a, "target", None) else None
+    )
 
-    # Snapshot BEFORE restoring, and before any elevation attempt. The target
-    # sits in the mount and is readable unelevated even when the recovery
-    # point is not, so this succeeds here and the resulting id reaches the
-    # shell the person is actually looking at - an elevated child's output
-    # goes to a console that closes with it.
-    preserved = None
-    if not getattr(a, "no_presnapshot", False):
-        try:
-            preserved = recovery.snapshot_before_restore(entry, cfg.recovery_dir)
-        except OSError:
-            preserved = None            # never let bookkeeping block a recovery
+    if not entries:
+        render.render_restore(None, False, __version__,
+                              recovery_dir=cfg.recovery_dir,
+                              requested_id=getattr(a, "id", None))
+        return 1
 
-    result = recovery.restore(entry)
-    denied = result.denied              # may be cleared below; see the retry branch
+    class _R: denied = False
+    result = _R()
+    denied = result.denied
+    preserved_list = []
+    all_ok = True
 
-    if not result.ok and result.denied:
-        rc = _undo_elevated(a, cfg.project_root)
-        if rc == 0:
-            # Render restore output in parent console since child console closes on exit.
-            render.render_restore(entry, True, __version__,
-                                  recovery_dir=cfg.recovery_dir,
-                                  requested_id=getattr(a, "id", None))
-            _say_preserved(preserved)
-            return 0
-        if rc is not None:
-            # Elevated retry ran with admin; do not blame permissions for non-zero exit.
-            denied = False
-            print(render.c("The elevated attempt did not restore it either "
-                           f"(exit {rc}).", "red"))
-            # Display child output captured from elevated execution.
-            from . import protect as protect_mod
-            out = protect_mod.elevated_output()
-            for line in (out.splitlines() or ["(it printed nothing)"]):
-                print("  " + render.c(line, "dim"))
+    # Restore in reverse capture order
+    for entry in reversed(entries):
+        preserved = None
+        if not getattr(a, "no_presnapshot", False):
+            try:
+                preserved = recovery.snapshot_before_restore(entry, cfg.recovery_dir)
+            except OSError:
+                preserved = None
 
-    # Render restore result with searched recovery directory.
-    render.render_restore(entry, result.ok, __version__,
-                          recovery_dir=cfg.recovery_dir,
-                          requested_id=getattr(a, "id", None),
-                          denied=denied, problem=result.problem)
-    if result.ok:
-        _say_preserved(preserved)
-    return 0 if result.ok else 1
+        result = recovery.restore(entry)
+        denied = result.denied
+
+        if not result.ok and result.denied:
+            rc = _undo_elevated(a, cfg.project_root)
+            if rc == 0:
+                render.render_restore(entry, True, __version__,
+                                      recovery_dir=cfg.recovery_dir,
+                                      requested_id=getattr(a, "id", None))
+                if preserved:
+                    preserved_list.append(preserved)
+                continue
+            if rc is not None:
+                denied = False
+                print(render.c(f"The elevated attempt did not restore it either (exit {rc}).", "red"))
+                from . import protect as protect_mod
+                out = protect_mod.elevated_output()
+                for line in (out.splitlines() or ["(it printed nothing)"]):
+                    print("  " + render.c(line, "dim"))
+
+        render.render_restore(entry, result.ok, __version__,
+                              recovery_dir=cfg.recovery_dir,
+                              requested_id=getattr(a, "id", None),
+                              denied=denied, problem=result.problem)
+        if result.ok:
+            if preserved:
+                preserved_list.append(preserved)
+        else:
+            all_ok = False
+
+    for p in preserved_list:
+        _say_preserved(p)
+
+    return 0 if all_ok else 1
 
 
 def _say_preserved(entry) -> None:
@@ -257,11 +274,16 @@ def _say_preserved(entry) -> None:
 
 def cmd_diff(a) -> int:
     cfg = load_config(getattr(a, "root", None))
-    entry = _resolve_entry(cfg, a)
-    if not entry:
+    entries = recovery.resolve_entries(
+        cfg.recovery_dir,
+        getattr(a, "id", None),
+        os.path.abspath(a.target) if getattr(a, "target", None) else None
+    )
+    if not entries:
         print(render.c("No recovery point matched. Try `demo_cli log`.", "red"))
         return 1
-    render.render_diff(entry, diff_entry(entry), __version__)
+    for entry in entries:
+        render.render_diff(entry, diff_entry(entry), __version__)
     return 0
 
 
@@ -1290,7 +1312,8 @@ def cmd_run(a) -> int:
         return 1
     try:
         from .syscall_guard import run_supervised
-        return run_supervised(argv, config=load_config(), deny=getattr(a, "deny", False))
+        return run_supervised(argv, config=load_config(), deny=getattr(a, "deny", False),
+                              group=getattr(a, "group", None))
     except RuntimeError as exc:  # e.g. non-Linux
         print(f"demo_cli run: {exc}")
         return 1
@@ -1462,6 +1485,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="run a command under the behavioral (syscall) guard [Linux]")
     rn.add_argument("--deny", action="store_true",
                     help="block destructive syscalls instead of snapshot-then-allow")
+    rn.add_argument("--group", default=None,
+                    help="shared recovery group id for all snapshots in this run")
     rn.add_argument("argv", nargs=argparse.REMAINDER,
                     help="the command to run under the guard (e.g. demo_cli run rm -rf ./x)")
     rn.set_defaults(func=cmd_run)

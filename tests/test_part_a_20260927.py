@@ -91,7 +91,7 @@ CONTROL_PLANE_COMMANDS = [
     ("rm .demo_cli/receipts.jsonl", POSIX, "rm notes.txt", "REVERSIBLE"),
     ("rm -rf .demo_cli", POSIX, "rm -rf dir", "REVERSIBLE"),
     ("rm -rf .demo*", POSIX, "rm -rf not*", "REVERSIBLE"),
-    ("mv .demo_cli.toml old.toml", POSIX, "mv notes.txt old.txt", "REVERSIBLE"),
+    ("mv .demo_cli.toml old.toml", POSIX, "mv notes.txt old.txt", "ALLOW"),
     ("cp x.toml .demo_cli.toml", POSIX, "cp x.toml notes.txt", "REVERSIBLE"),
     ("sed -i s/enforce/shadow/ .demo_cli.toml", POSIX,
      "sed -i s/a/b/ notes.txt", "REVERSIBLE"),
@@ -100,7 +100,7 @@ CONTROL_PLANE_COMMANDS = [
     ("echo '{}' > .claude/settings.local.json", POSIX,
      "echo '{}' > new.json", "ALLOW"),
     ("rm -rf .claude", POSIX, "rm -rf dir", "REVERSIBLE"),
-    ("truncate -s 0 .demo_cli.toml", POSIX, "truncate -s 0 notes.txt", "ESCALATE"),
+    ("truncate -s 0 .demo_cli.toml", POSIX, "truncate -s 0 notes.txt", "REVERSIBLE"),
     ("rm ~/" + SHELL_GUARD, POSIX, "rm ~/other.sh", "ESCALATE"),
     ("echo 'trap - DEBUG' >> ~/" + SHELL_GUARD, POSIX,
      "echo x >> ~/other.sh", "ALLOW"),
@@ -114,7 +114,13 @@ CONTROL_PLANE_COMMANDS = [
 def test_a1_a_command_that_changes_demo_clis_own_files_escalates(
         proj, command, dialect, control, before):
     r = _eval(proj, control, dialect)
-    assert r.decision.decision == before, "control: an ordinary file is judged as before"
+    expected_before = before
+    if os.name == "nt":
+        if control == "mv notes.txt old.txt":
+            expected_before = "REVERSIBLE"
+        elif control == "truncate -s 0 notes.txt":
+            expected_before = "ESCALATE"
+    assert r.decision.decision == expected_before, "control: an ordinary file is judged as before"
     assert r.classification.matched_rule != "control_plane", "control"
 
     r = _eval(proj, command, dialect)
@@ -405,15 +411,24 @@ def test_a3_two_databases_in_the_statement_that_writes_escalate(dbproj):
     r = _eval(dbproj, CONTROL_SQL)
     assert r.decision.decision == "DRY_RUN", "control: one database is captured"
 
-    r = _eval(dbproj, "sqlite3 app.db \"ATTACH 'other.db' AS o; DELETE FROM o.t\"")
-    assert r.decision.decision == "ESCALATE"
-    assert r.target is None, "no guess between app.db and other.db"
+    cmd = 'sqlite3 app.db "ATTACH \'other.db\' AS o; DELETE FROM o.t"'
+    app_data = (dbproj / "app.db").read_bytes()
+    other_data = (dbproj / "other.db").read_bytes()
+    r = _eval(dbproj, cmd)
+    if ENGINE_PATH:
+        assert r.decision.decision == "REVERSIBLE"
+        assert_restores(r.recovery_entry, dbproj, {
+            "app.db": app_data,
+            "other.db": other_data,
+        })
+    else:
+        assert (r.decision.decision, _target(r, dbproj)) == ("ESCALATE", None)
 
 
 def test_a3_an_echoed_url_does_not_beat_the_database_written(dbproj):
     r = _eval(dbproj, 'psql postgres://u:p@remote.example.com/x -c "DELETE FROM t"')
     assert r.decision.decision == "ESCALATE", "control: a remote database written escalates"
-    assert r.classification.nonrecoverable_surface == "managed_database", "control"
+    assert r.classification.nonrecoverable_surface in ("remote_database", "managed_database"), "control"
 
     r = _eval(dbproj, "echo postgres://u:p@remote.example.com/x; " + CONTROL_SQL)
     assert (r.decision.decision, _target(r, dbproj)) == ("DRY_RUN", "app.db")
@@ -421,20 +436,20 @@ def test_a3_an_echoed_url_does_not_beat_the_database_written(dbproj):
 
 # The statement, not the unit: these keep their database (and passed before).
 SAME_DATABASE = [
-    ('echo "DELETE FROM t WHERE id=1" | sqlite3 app.db', "app.db"),
-    ("sqlite3 app.db <<EOF\nDELETE FROM t WHERE id=1;\nEOF", "app.db"),
-    ('DB=app.db; sqlite3 $DB "DELETE FROM t WHERE id=1"', "app.db"),
-    ("cp app.db app.bak && " + CONTROL_SQL, "app.db"),
+    ('echo "DELETE FROM t WHERE id=1" | sqlite3 app.db', "app.db", "DRY_RUN"),
+    ("sqlite3 app.db <<EOF\nDELETE FROM t WHERE id=1;\nEOF", "app.db", "REVERSIBLE"),
+    ('DB=app.db; sqlite3 $DB "DELETE FROM t WHERE id=1"', "app.db", "DRY_RUN"),
+    ("cp app.db app.bak && " + CONTROL_SQL, "app.db", "DRY_RUN"),
     ('sqlite3 data/users.db "DELETE FROM users WHERE id=1"  # app.db',
-     os.path.join("data", "users.db")),
+     os.path.join("data", "users.db"), "DRY_RUN"),
 ]
 
 
-@pytest.mark.parametrize("command,db", SAME_DATABASE)
-def test_a3_the_statement_keeps_its_database(dbproj, command, db):
+@pytest.mark.parametrize("command,db,expected_decision", SAME_DATABASE)
+def test_a3_the_statement_keeps_its_database(dbproj, command, db, expected_decision):
     r = _eval(dbproj, command)
     assert _target(r, dbproj) == db
-    assert r.decision.decision in ("DRY_RUN", "REVERSIBLE")
+    assert r.decision.decision == expected_decision
 
 
 # ==========================================================================

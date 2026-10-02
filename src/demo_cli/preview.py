@@ -141,6 +141,6 @@ def preview(sql: str, target) -> Tuple[Optional[int], list, list]:
         return None, [], []
     if target.kind == "postgres":
         return preview_postgres(sql, target.ref)
-    if target.kind == "sqlite":
+    if target.kind == "sqlite" or (target.kind == "file" and target.ref.endswith((".db", ".sqlite", ".sqlite3"))):
         return preview_sqlite(sql, target.ref)
     return None, [], []

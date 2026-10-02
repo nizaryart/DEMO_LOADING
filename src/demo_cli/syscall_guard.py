@@ -24,6 +24,7 @@ import ctypes
 import errno
 import os
 import sys
+import uuid
 from typing import Dict, List, Optional, Set
 
 from . import recovery
@@ -219,7 +220,7 @@ def available() -> bool:
 
 
 def run_supervised(argv: List[str], config: Optional[Config] = None,
-                   deny: bool = False) -> int:
+                   deny: bool = False, group: Optional[str] = None) -> int:
     """Fork+exec argv under ptrace; snapshot any in-scope, pre-existing file a
     destructive syscall is about to touch, then let it proceed (snapshot-then-
     allow). With deny=True, the destructive syscall is turned into a no-op
@@ -227,6 +228,7 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
     if sys.platform != "linux":
         raise RuntimeError("syscall guard requires Linux (ptrace).")
     config = config or load_config()
+    group = group or uuid.uuid4().hex[:8]
     root = os.path.abspath(config.project_root or os.getcwd())
     env = build_context(" ".join(argv), cwd=root).environment
 
@@ -284,7 +286,7 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
 
         sig = os.WSTOPSIG(status) if os.WIFSTOPPED(status) else 0
         if sig == (5 | 0x80):                       # syscall-stop (SIGTRAP|0x80)
-            _maybe_snapshot(wpid, root, created, snapped, env, config, deny)
+            _maybe_snapshot(wpid, root, created, snapped, env, config, deny, group)
         # ptrace-event / SIGSTOP / SIGTRAP control stops are just resumed; a
         # prototype does not need full signal-forwarding fidelity.
         try:
@@ -299,7 +301,8 @@ _ENOSYS = ctypes.c_ulonglong(-errno.ENOSYS).value   # rax value at syscall-ENTRY
 
 
 def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
-                    env: str, config: Config, deny: bool) -> None:
+                    env: str, config: Config, deny: bool,
+                    group: Optional[str] = None) -> None:
     """On a syscall stop: act only at ENTRY (rax == -ENOSYS, the reliable
     entry/exit discriminator) and only for a destructive file syscall on an
     in-scope, pre-existing file - snapshot it (and optionally deny)."""
@@ -358,7 +361,8 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
         target = recovery.Target("dir" if os.path.isdir(ap) else "file", ap, ap)
         strategy = (config.match_target(ap).recovery if config.match_target(ap) else "snapshot")
         dec_entry = recovery.snapshot(target, config.recovery_dir, strategy,
-                                      action=f"{name} {os.path.basename(ap)}")
+                                      action=f"{name} {os.path.basename(ap)}",
+                                      group=group)
         if dec_entry:
             decision, reason = "REVERSIBLE", f"Snapshotted before {name}; reversible (behavioral guard)."
         else:
@@ -376,6 +380,8 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
         recovery_point=dec_entry["recovery_point"] if dec_entry else None,
         agent_id="syscall-guard",
         session_id="run",
+        group_id=group,
     ))
+    undo_id = group or (dec_entry['id'] if dec_entry else "")
     sys.stderr.write(f"demo_cli [syscall] {decision}: {name} {ap}"
-                     + (f"  (undo: demo_cli undo {dec_entry['id']})" if dec_entry else "") + "\n")
+                     + (f"  (undo: demo_cli undo {undo_id})" if dec_entry else "") + "\n")

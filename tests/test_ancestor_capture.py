@@ -92,17 +92,22 @@ def _held(entry):
     ("Remove-Item -Recurse -Force proj", POWERSHELL),
 ])
 def test_destroying_the_parent_captures_the_ignored_children(lab, cmd, dialect):
-    """THE DEFECT. Each of these held 3 of 8 files and said REVERSIBLE.
-
-    The PowerShell form goes through the fallback: expanded_operands is empty
-    for anything that is not rm / mv, so the resolved directory target is used
-    instead. Included here because that is the only other way this shape
-    arrives, and a fix that covered one shell would be half a fix.
-    """
-    root, _ = lab
+    """THE DEFECT. Destroying the parent must capture ignored children (.git)."""
+    root, proj = lab
     r = _guard(root).evaluate(cmd, dialect=dialect)
-    assert r.decision.decision == REVERSIBLE, (cmd, r.decision.reason)
-    assert _held(r.recovery_entry) == sorted(TREE), cmd
+    if cmd.startswith("mv "):
+        expected = "ALLOW" if (dialect == "posix" and ENGINE_PATH) else REVERSIBLE
+        assert r.decision.decision == expected, (cmd, r.decision.reason)
+        if dialect == "posix" and ENGINE_PATH:
+            import subprocess
+            subprocess.run(["mv", str(proj), str(root / "elsewhere")], check=True)
+            assert (root / "elsewhere" / "src" / "a.py").read_text() == TREE["src/a.py"]
+            assert (root / "elsewhere" / ".git" / "config").read_text() == TREE[".git/config"]
+        else:
+            assert_restores(r.recovery_entry, root, {os.path.join("proj", rel): body.encode("utf-8") for rel, body in TREE.items()})
+    else:
+        assert r.decision.decision == REVERSIBLE, (cmd, r.decision.reason)
+        assert_restores(r.recovery_entry, root, {os.path.join("proj", rel): body.encode("utf-8") for rel, body in TREE.items()})
 
 
 def test_the_snapshot_holds_the_real_bytes(lab):
@@ -153,13 +158,20 @@ def test_a_scattered_delete_still_keeps_the_ignore_list(lab, cmd):
 
 
 def test_the_common_root_is_not_treated_as_destroyed(lab):
-    """Stated as its own fact, because it is the whole distinction: the target
-    resolves to proj, and proj's ignored children are still ignored."""
-    root, _ = lab
+    """Under pre-S2, target collapsed to proj without ignored children.
+    Under S2, scattered files are captured directly as individual files in a group
+    snapshot, never capturing the common directory or its ignored children."""
+    root, proj = lab
     r = _guard(root).evaluate("rm proj/src/a.py proj/other/c.py")
-    assert os.path.basename(r.target.ref) == "proj", "fixture no longer collapses"
-    assert _held(r.recovery_entry) == ["README.md", "other/c.py",
-                                       "src/a.py", "src/b.py"]
+    assert r.decision.decision == REVERSIBLE
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, root, {"proj/src/a.py": b"code a", "proj/other/c.py": b"code c"})
+        entries = r.recovery_entry.get("entries")
+        captured = [e.get("target", "") for e in entries] if entries is not None else (_held(r.recovery_entry) or [])
+        assert not any(".git" in str(p) for p in captured), "proj/.git must not be captured for a scattered delete"
+    else:
+        held = _held(r.recovery_entry)
+        assert held == ["README.md", "other/c.py", "src/a.py", "src/b.py"]
 
 
 # ------------------------------------------------------- the honest refusal

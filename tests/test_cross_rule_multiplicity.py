@@ -31,19 +31,23 @@ def lab(tmp_path, monkeypatch):
     return tmp_path
 
 
-@pytest.mark.parametrize("cmd", [
-    'rm old.txt; mv new.txt keep.txt',
-    'rm old.txt; echo z > keep.txt',
-    'mv new.txt keep.txt; rm old.txt',        # order must not matter
-    'echo z > keep.txt; rm old.txt',
-    'rm old.txt && mv new.txt keep.txt',      # && as well as ;
-    'echo a > keep.txt; echo b > other.txt',  # two redirects
+@pytest.mark.parametrize("cmd,destroys", [
+    ('rm old.txt; mv new.txt keep.txt', {"old.txt": b"old.txt", "keep.txt": b"keep.txt"}),
+    ('rm old.txt; echo z > keep.txt', {"old.txt": b"old.txt", "keep.txt": b"keep.txt"}),
+    ('mv new.txt keep.txt; rm old.txt', {"old.txt": b"old.txt", "keep.txt": b"keep.txt"}),
+    ('echo z > keep.txt; rm old.txt', {"old.txt": b"old.txt", "keep.txt": b"keep.txt"}),
+    ('rm old.txt && mv new.txt keep.txt', {"old.txt": b"old.txt", "keep.txt": b"keep.txt"}),
+    ('echo a > keep.txt; echo b > other.txt', {"keep.txt": b"keep.txt", "other.txt": b"other.txt"}),
 ])
-def test_two_destructive_steps_never_yield_one_snapshot(lab, cmd):
+def test_two_destructive_steps_never_yield_one_snapshot(lab, cmd, destroys):
     assert recovery.extract_path_operand(cmd) is None, cmd
     r = Guard(mode="enforce").evaluate(cmd)
-    assert r.decision.decision == "ESCALATE", cmd
-    assert not r.recovery_entry, "half the damage captured, reported as a recovery"
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert r.decision.decision == expected, cmd
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, lab, destroys)
+    else:
+        assert not r.recovery_entry, "half the damage captured, reported as a recovery"
 
 
 def test_the_same_verb_twice_was_already_caught(lab):

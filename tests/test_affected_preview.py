@@ -139,9 +139,11 @@ def test_the_preview_never_names_a_file_nothing_will_touch(lab, cmd):
 
 
 def test_an_escalating_command_still_shows_what_was_at_stake(lab):
-    """Two destructive segments escalate, and the preview still lists both.
-    Suppressing it there would make the display least informative at the
-    moment a person most needs it - and the count feeds the hook."""
+    """The preview must list both files that were at stake, whether the command
+    escalates (pre-engine text path) or captures both files (engine path)."""
+    expected_decision = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
     r = Guard(mode="enforce").evaluate('rm a.txt; rm b.txt')
-    assert r.decision.decision == "ESCALATE"
+    assert r.decision.decision == expected_decision
     assert sorted(os.path.basename(p) for p in r.affected_paths) == ["a.txt", "b.txt"]
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, lab, {"a.txt": b"a", "b.txt": b"b"})

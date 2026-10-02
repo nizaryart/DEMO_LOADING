@@ -95,9 +95,17 @@ def test_an_unexpanded_variable_escalates_rather_than_reading_as_new(lab):
 
 def test_two_redirects_escalate_rather_than_capturing_one(lab):
     """Snapshotting the first while the second is truncated unrecorded is the
-    partial-recovery lie."""
+    partial-recovery lie. Under S2, both files are captured together (REVERSIBLE)."""
     (lab / "second.txt").write_text("also real")
-    assert _decide('echo a > notes.txt; echo b > second.txt') == "ESCALATE"
+    cmd = 'echo a > notes.txt; echo b > second.txt'
+    r = Guard(mode="enforce").evaluate(cmd)
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, lab, {
+            "notes.txt": b"real notes",
+            "second.txt": b"also real",
+        })
 
 
 # --------------------------------------------------------------------------
@@ -150,8 +158,6 @@ def test_resolver_and_classifier_cannot_disagree(lab):
     'echo x > $(cat name.txt)',
     'echo x > `cat name.txt`',
     'echo x > $(date +%F).log',
-    'echo x > !TGT!',
-    'echo x > %PATH:~0,3%f.db',
 ])
 def test_command_substitution_is_unresolved_not_absent(lab, cmd):
     """redirect_target reads the target token up to whitespace, so
@@ -170,6 +176,19 @@ def test_command_substitution_is_unresolved_not_absent(lab, cmd):
     assert _decide(cmd) == "ESCALATE", cmd
 
 
+@pytest.mark.parametrize("cmd", [
+    'echo x > !TGT!',
+    'echo x > %PATH:~0,3%f.db',
+])
+def test_windows_variable_forms_resolved_per_platform(lab, cmd):
+    """Under cmd.exe these are delayed / substring expansions which are unresolved;
+    under POSIX they are literal target names that do not exist, creating new files."""
+    (lab / "name.txt").write_text("app.db")
+    assert recovery.resolve_redirect_target(cmd) == (None, False), cmd
+    expected = "ALLOW" if ENGINE_PATH else "ESCALATE"
+    assert _decide(cmd) == expected, cmd
+
+
 def test_a_tilde_is_expanded_rather_than_escalated(lab):
     """`~` is the commonest of the unexpanded forms and, unlike $(cmd), it IS
     resolvable - so resolve it instead of refusing. Left alone it became
@@ -185,17 +204,18 @@ def test_two_redirects_do_not_snapshot_only_one(lab):
     """THE PARTIAL-RECOVERY LIE, and the one finding on §1's own axis: an
     unearned REVERSIBLE.
 
-    guard.py's Trou #004 refusal drops a stray target when an rm/mv could not
-    be fully resolved. is_fs_delete() matches only those verbs, so a redirect
-    walked past it - and the sqlite name heuristic resolved app.db all by
-    itself. The tool snapshotted app.db, reported REVERSIBLE, and o2.db was
-    truncated with nothing captured.
-
-    Deliberately uses .db names: with .txt files the same shape already
-    escalated, which is why this went unnoticed.
+    Under S2+M1, multi-target capture snapshots both databases into a group snapshot,
+    so both are captured safely without a partial snapshot lie.
     """
     (lab / "app.db").write_text("real")
     (lab / "o2.db").write_text("real")
     r = Guard(mode="enforce").evaluate('echo a > app.db; echo b > o2.db')
-    assert r.decision.decision == "ESCALATE"
-    assert not r.recovery_entry, "a half-capture reported as a recovery"
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, lab, {
+            "app.db": b"real",
+            "o2.db": b"real",
+        })
+    else:
+        assert not r.recovery_entry, "a half-capture reported as a recovery"

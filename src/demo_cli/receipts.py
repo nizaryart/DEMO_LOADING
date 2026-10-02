@@ -199,6 +199,7 @@ class Receipt:
     # What the shadow engine (engine/) would have concluded: recorded only,
     # read by nothing that decides (Part B). None from every other writer.
     prediction: Optional[Dict] = None
+    group_id: Optional[str] = None
     receipt_hash: str = ""
 
     def finalize(self) -> "Receipt":

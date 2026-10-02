@@ -89,8 +89,10 @@ def test_a_legitimate_multi_path_collapse_still_works(sub):
     (inner / "y.txt").write_text("y")
     r = Guard(mode="enforce").evaluate('rm -rf inner/x.txt inner/y.txt')
     assert r.decision.decision == "REVERSIBLE"
-    assert r.recovery_entry
-    assert os.path.samefile(r.recovery_entry["target"], str(inner))
+    assert_restores(r.recovery_entry, sub, {
+        "inner/x.txt": b"x",
+        "inner/y.txt": b"y",
+    })
 
 
 def test_tilde_is_expanded_in_operands_like_the_shell_would(sub):

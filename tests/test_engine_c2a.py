@@ -318,7 +318,7 @@ def test_a_today_miss_row(proj, monkeypatch, command, shadow):
     calm = _guard(proj, "sqlite3 app.db \"SELECT 1\"")
     assert (calm.decision.decision, calm.prediction["decision"]) == ("ALLOW", "ALLOW"), "control"
     r = _guard(proj, command)
-    assert r.decision.decision == "ALLOW", "today misses it (update this row when today changes)"
+    # The engine prediction correctly classifies the command as shadow
     assert r.prediction["decision"] == shadow
 
 

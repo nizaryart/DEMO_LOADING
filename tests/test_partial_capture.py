@@ -9,9 +9,13 @@ from demo_cli.guard import Guard
 from demo_cli.config import Config
 
 
-def _decision(cmd, root):
+def _evaluate(cmd, root):
     cfg = Config(project_root=str(root), mode="enforce")
-    return Guard(config=cfg, mode="enforce").evaluate(cmd).decision.decision
+    return Guard(config=cfg, mode="enforce").evaluate(cmd)
+
+
+def _decision(cmd, root):
+    return _evaluate(cmd, root).decision.decision
 
 
 def test_command_substitution_escalates(tmp_path, monkeypatch):
@@ -28,7 +32,16 @@ def test_globstar_escalates(tmp_path, monkeypatch):
     (tmp_path / "app.db").write_text("d")
     os.makedirs(tmp_path / "logs", exist_ok=True)
     (tmp_path / "logs" / "a.log").write_text("x")
-    assert _decision("rm -rf app.db logs/**", tmp_path) == "ESCALATE"
+    # Under M1 engine + S2, globstar is expanded and all targets captured (REVERSIBLE);
+    # under pre-engine text path it escalated.
+    r = _evaluate("rm -rf app.db logs/**", tmp_path)
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, tmp_path, {
+            "app.db": b"d",
+            "logs/a.log": b"x",
+        })
 
 
 def test_single_file_still_reversible(tmp_path, monkeypatch):
@@ -55,4 +68,4 @@ def test_sqlite_delete_still_reversible(tmp_path, monkeypatch):
     con.execute("INSERT INTO t VALUES (1)")
     con.commit()
     con.close()
-    assert _decision('sqlite3 app.db "DELETE FROM t"', tmp_path) in ("REVERSIBLE", "DRY_RUN")
+    assert _decision('sqlite3 app.db "DELETE FROM t"', tmp_path) == "DRY_RUN"

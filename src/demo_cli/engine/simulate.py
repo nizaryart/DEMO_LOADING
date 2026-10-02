@@ -607,6 +607,12 @@ class World:
             if shell_stdin and piped_in and not inv.heredocs:
                 self.impact.not_understood(inv.text, "a shell runs whatever the pipe feeds it")
             return state, self.merge(before, state)
+        if tool == "trap":
+            args = [w.value for w in inv.argv[1:] if w.value != "--"]
+            if (len(args) >= 2 and args[0] not in ("-", "")
+                    and not (args[0].startswith("-") and len(args[0]) > 1 and "p" in args[0])):
+                self.impact.not_understood(inv.text, "code registered to run later")
+            return state, before
         rules = self.table.get(tool)
         if not rules and tool in LAZY_FAMILIES:
             rules = self.load_family(tool)

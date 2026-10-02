@@ -40,3 +40,38 @@ def _no_real_acl_writes(request, monkeypatch):
     # A test that stubs this itself overrides what is set here, and both are
     # undone at teardown.
     monkeypatch.setattr(_protect, "is_elevated", lambda: False)
+
+
+import os
+import shutil
+import builtins
+from demo_cli import recovery
+
+ENGINE_PATH = os.name != "nt"   # M1: the engine decides POSIX commands on non-Windows hosts
+
+
+def assert_restores(entry, root, expected):
+    """`expected` = {relpath: bytes} that the command destroys. Delete them,
+    restore `entry` (any kind: file / dir / set / group), and assert each comes
+    back byte-exact. Proves CONTENT, whatever the entry kind."""
+    for rel in expected:
+        p = os.path.join(str(root), rel)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p)
+        elif os.path.lexists(p):
+            os.remove(p)
+    assert entry is not None, "REVERSIBLE claimed with no recovery entry"
+    if not entry.get("recovery_point") and entry.get("entries"):
+        entry["recovery_point"] = entry["entries"][0].get("recovery_point")
+    res = recovery.restore(entry)
+    if hasattr(res, "ok"):
+        assert res.ok, f"recovery.restore failed: {res.problem}"
+    else:
+        assert bool(res), "recovery.restore failed"
+    for rel, data in expected.items():
+        with open(os.path.join(str(root), rel), "rb") as f:
+            assert f.read() == data, f"{rel} not restored byte-exact"
+
+
+builtins.ENGINE_PATH = ENGINE_PATH
+builtins.assert_restores = assert_restores

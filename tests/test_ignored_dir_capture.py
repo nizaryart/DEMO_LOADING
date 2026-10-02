@@ -51,22 +51,32 @@ def _snapshot_contents(entry):
 def test_a_named_file_inside_an_ignored_dir_is_captured(proj):
     """The headline. .git/config is named in the command, so it is part of the
     damage and must be part of the capture."""
+    root = proj.parent
     r = Guard(mode="enforce").evaluate('rm proj/.git/config proj/src/a.py')
     assert r.decision.decision == "REVERSIBLE"
-    held = _snapshot_contents(r.recovery_entry)
-    assert held is not None, "no directory snapshot was taken"
-    assert os.path.join(".git", "config") in held, \
-        f"the snapshot omits a file the command names: {held}"
+    assert_restores(r.recovery_entry, root, {
+        "proj/.git/config": b"THE GIT CONFIG",
+        "proj/src/a.py": b"code",
+    })
 
 
 def test_the_ignore_list_still_applies_when_nothing_reaches_into_it(proj):
     """The capability this must not cost. A normal delete must not start
     copying node_modules and .git on every call."""
+    root = proj.parent
     r = Guard(mode="enforce").evaluate('rm proj/src/a.py proj/src/b.py')
-    held = _snapshot_contents(r.recovery_entry)
-    assert held is not None
-    assert not any(h.startswith(".git") or h.startswith("node_modules")
-                   for h in held), held
+    assert r.decision.decision == "REVERSIBLE"
+    assert_restores(r.recovery_entry, root, {
+        "proj/src/a.py": b"code",
+        "proj/src/b.py": b"more code",
+    })
+    entries = r.recovery_entry.get("entries")
+    if entries is not None:
+        captured = [e.get("target", "") for e in entries]
+    else:
+        captured = _snapshot_contents(r.recovery_entry) or []
+    assert not any((".git" in h) or ("node_modules" in h)
+                   for h in captured), captured
 
 
 @pytest.mark.parametrize("cmd,expected", [

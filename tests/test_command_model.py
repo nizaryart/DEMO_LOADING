@@ -153,14 +153,19 @@ def test_a_redirect_before_the_command_word_is_captured(proj):
 
 
 def test_a_prefix_redirect_beside_a_delete_is_not_a_one_file_recovery(proj):
-    """`>x.txt rm y.txt` destroys two files. Capturing y.txt alone and
-    calling the line REVERSIBLE would be a partial recovery."""
+    """`>x.txt rm y.txt` destroys two files. Under S2, both are captured
+    together in a group snapshot (REVERSIBLE), never a one-file partial recovery."""
     (proj / "y.txt").write_text("keep")
     g = _guard(proj)
     assert g.evaluate("rm y.txt").decision.decision == "REVERSIBLE", "control"
     r = g.evaluate(">x.txt rm y.txt")
-    assert r.decision.decision == "ESCALATE", r.decision.reason
-    assert not r.recovery_entry
+    x_bytes = (proj / "x.txt").read_bytes()
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert r.decision.decision == expected, r.decision.reason
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, proj, {"x.txt": x_bytes, "y.txt": b"keep"})
+    else:
+        assert not r.recovery_entry
 
 
 def test_env_split_string_is_the_command_it_runs(proj):

@@ -156,12 +156,21 @@ def test_the_classifier_agrees_a_check_is_a_read(cmd):
 @pytest.mark.parametrize("cmd", ["black .", "prettier --write .",
                                  "black src/ tests/", "eslint --fix ."])
 def test_a_whole_project_target_still_escalates(project, cmd):
-    """NOT A BUG. These collapse to the project root, which guard.py refuses as
-    a capture surface ("a two-file change would copy the whole tree"). Pinned
-    so the partialness of this fix is a recorded decision, not a discovery."""
+    """Single root '.' targets escalate. Under S2, multiple subdirectories (src/ tests/)
+    can be captured directly as a group snapshot."""
     r = _guard(project).evaluate(cmd)
-    assert r.decision.decision == ESCALATE, (cmd, r.decision.decision)
-    assert r.recovery_entry is None, cmd
+    if cmd == "black src/ tests/":
+        expected = REVERSIBLE if ENGINE_PATH else ESCALATE
+        assert r.decision.decision == expected, (cmd, r.decision.decision)
+        if ENGINE_PATH:
+            assert_restores(r.recovery_entry, project, {
+                "src/app.js": ORIGINAL.encode("utf-8"),
+                "src/util.js": ORIGINAL.encode("utf-8"),
+                "tests/t.js": ORIGINAL.encode("utf-8"),
+            })
+    else:
+        assert r.decision.decision == ESCALATE, (cmd, r.decision.decision)
+        assert r.recovery_entry is None, cmd
 
 
 @pytest.mark.parametrize("cmd", ["npm install", "npm install lodash", "npm i",
@@ -179,22 +188,32 @@ def test_the_no_path_writers_keep_escalating(project, cmd):
 
 
 def test_a_wrapped_binary_is_a_stated_miss(project):
-    """Only a BARE verb is recognised. Recorded because a silent miss that
-    nobody wrote down is how the `bash -lc` gap survived to 09-16."""
+    """Under M1 engine, path-qualified binaries like ./node_modules/.bin/prettier
+    are resolved and captured safely (REVERSIBLE); pre-engine it was a miss (ESCALATE)."""
+    (project / "node_modules" / ".bin").mkdir(parents=True, exist_ok=True)
+    (project / "node_modules" / ".bin" / "prettier").write_text("#!/bin/sh\n")
     r = _guard(project).evaluate("./node_modules/.bin/prettier --write src/app.js")
-    assert r.recovery_entry is None
-    assert r.decision.decision == ESCALATE
+    expected = REVERSIBLE if ENGINE_PATH else ESCALATE
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, project, {"src/app.js": ORIGINAL.encode("utf-8")})
 
 
 # ------------------------------------------------- multiplicity is still honest
 
 def test_two_acting_segments_refuse_a_partial_snapshot(project):
-    """The writer row must be counted in `acting`, or `rm a && black b` would
-    snapshot one and claim a recovery while the other was rewritten - the
-    partial-recovery lie FIX #5 exists to prevent."""
+    """Under S2, both segments are captured together in a group snapshot (REVERSIBLE),
+    preventing the partial-recovery lie without having to refuse both."""
     r = _guard(project).evaluate("rm app.py && prettier --write src/app.js")
-    assert r.decision.decision == ESCALATE
-    assert r.recovery_entry is None
+    expected = REVERSIBLE if ENGINE_PATH else ESCALATE
+    assert r.decision.decision == expected
+    if ENGINE_PATH:
+        assert_restores(r.recovery_entry, project, {
+            "app.py": ORIGINAL.encode("utf-8"),
+            "src/app.js": ORIGINAL.encode("utf-8"),
+        })
+    else:
+        assert r.recovery_entry is None
 
 
 def test_a_read_beside_a_delete_does_not_steal_the_snapshot(project):

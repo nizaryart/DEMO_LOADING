@@ -80,7 +80,8 @@ def test_guard_evaluates_supervised_with_rewrite_on_unresolvable_command(tmp_pat
     assert r.decision.decision == SUPERVISED
     assert r.decision.recoverable is True
     assert r.rewrite is not None
-    assert f"{sys.executable} -m demo_cli run -- bash -c" in r.rewrite
+    assert f"{sys.executable} -m demo_cli run " in r.rewrite
+    assert " -- bash -c" in r.rewrite
     assert "covered by the syscall guard" in r.decision.reason
 
 
@@ -199,8 +200,8 @@ def test_claude_hook_emits_updated_input_on_supervised_bash(tmp_path):
     resp = json.loads(out.getvalue())["hookSpecificOutput"]
     assert resp["permissionDecision"] == "allow"
     assert "updatedInput" in resp
-    assert "command" in resp["updatedInput"]
-    assert f"{sys.executable} -m demo_cli run -- bash -c" in resp["updatedInput"]["command"]
+    assert f"{sys.executable} -m demo_cli run " in resp["updatedInput"]["command"]
+    assert " -- bash -c" in resp["updatedInput"]["command"]
 
 
 def test_claude_hook_never_rewrites_powershell(tmp_path):

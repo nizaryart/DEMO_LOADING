@@ -71,6 +71,8 @@ _RECOVERY_HINTS = {
     "container_runtime": "rebuild from the Dockerfile / compose file, or a volume backup if one exists",
     "datastore_flush": "the instance's own RDB or AOF snapshot, if persistence was enabled - otherwise none",
     "package_registry": "the registry's restore window, if any - npm forbids re-publishing the same version",
+    "disk_format": "block-device restore / disk image backup",
+    "remote_surface": "its version history / rollback",
 }
 
 

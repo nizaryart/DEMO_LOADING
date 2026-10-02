@@ -491,16 +491,35 @@ def render_log(entries, version: str) -> None:
         return
     out = ["", c(f"demo_cli {version}", "dim") + "  recovery log", ""]
     out.append("  " + c(f"{'id':<10}{'when':<17}{'kind':<9}{'size':<8}action", "dim"))
+    seen_groups = set()
     for e in reversed(entries):
-        rid = str(e.get("id", "?"))[:8]
-        ts = e.get("ts", "?")
-        kind = e.get("kind", "?")
-        n = _entry_size_safe(e)
-        size = "missing" if n is None else _size(n)
-        action = redact(e.get("action") or e.get("target", ""))
-        if len(action) > 46:
-            action = action[:43] + "..."
-        out.append(f"  {rid:<10}{ts:<17}{kind:<9}{size:<8}{action}")
+        grp = e.get("group")
+        if grp:
+            if grp in seen_groups:
+                continue
+            seen_groups.add(grp)
+            grp_entries = [x for x in entries if x.get("group") == grp]
+            count = len(grp_entries)
+            rid = str(grp)[:8]
+            ts = grp_entries[-1].get("ts", "?")
+            kind = "group"
+            sizes = [_entry_size_safe(x) for x in grp_entries]
+            size = "missing" if any(s is None for s in sizes) else _size(sum(sizes))
+            base_act = redact(grp_entries[-1].get("action") or grp_entries[-1].get("target", ""))
+            action = f"{base_act} ({count} files)" if base_act else f"{count} files"
+            if len(action) > 46:
+                action = action[:43] + "..."
+            out.append(f"  {rid:<10}{ts:<17}{kind:<9}{size:<8}{action}")
+        else:
+            rid = str(e.get("id", "?"))[:8]
+            ts = e.get("ts", "?")
+            kind = e.get("kind", "?")
+            n = _entry_size_safe(e)
+            size = "missing" if n is None else _size(n)
+            action = redact(e.get("action") or e.get("target", ""))
+            if len(action) > 46:
+                action = action[:43] + "..."
+            out.append(f"  {rid:<10}{ts:<17}{kind:<9}{size:<8}{action}")
     out += ["", c("  undo <id> to restore · diff <id> to inspect", "dim"), ""]
     _print(out)
 

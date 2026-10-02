@@ -28,6 +28,7 @@ import os
 
 import pytest
 
+from demo_cli import recovery
 from demo_cli.hooks.claude_code import run_pretooluse as cc_hook
 from demo_cli.hooks.codex import run_pretooluse as codex_hook
 
@@ -230,9 +231,8 @@ def test_a_multi_file_rm_in_a_subdirectory_is_now_captured(lab):
     """ESCALATE -> REVERSIBLE. A deliberate change, not a side effect.
 
     Earned, which is the only reason it is acceptable: the captured directory
-    is a genuine superset of what is deleted. An unearned REVERSIBLE here
-    would be the defect this whole file exists to close, reintroduced by its
-    own fix.
+    is a genuine superset of what is deleted. Under S2, individual files
+    can also be captured directly in a group snapshot.
     """
     proj, sub = lab
     (sub / "a.txt").write_text("A")
@@ -246,16 +246,20 @@ def test_a_multi_file_rm_in_a_subdirectory_is_now_captured(lab):
     last = _receipts(proj)[-1]
     assert last["decision"] == "REVERSIBLE", last
     snapdirs = glob.glob(str(proj / ".demo_cli" / "recovery" / "*.snapdir"))
-    assert snapdirs, "REVERSIBLE was claimed with no directory capture"
-    held = set(os.listdir(snapdirs[0]))
-    assert {"a.txt", "b.txt"} <= held, f"the capture misses a deleted file: {held}"
+    if snapdirs:
+        held = set(os.listdir(snapdirs[0]))
+        assert {"a.txt", "b.txt"} <= held, f"the capture misses a deleted file: {held}"
+    else:
+        # S2 group snapshot captures files directly
+        held = _captured(proj)
+        assert "A" in held and "B" in held
 
 
 def test_the_project_root_is_still_refused(lab):
-    """The rule that produced the old ESCALATE is UNCHANGED - it refuses the
-    project root as a capture surface, because deep-copying the whole tree on
-    every two-file rm is "neither honest nor cheap". Only the base moved. An
-    agent standing AT the root still escalates."""
+    """Two files at the project root cannot collapse to a subdirectory: under pre-S2,
+    the common root is the project root itself, which snapshot() refuses as too broad.
+    An unearned REVERSIBLE here would be the defect this whole file exists to close.
+    Under S2+M1 on Linux, the set captures exactly them byte-exact, not the whole root."""
     proj, _sub = lab
     (proj / "a.txt").write_text("A")
     (proj / "b.txt").write_text("B")
@@ -264,7 +268,16 @@ def test_the_project_root_is_still_refused(lab):
         "hook_event_name": "PreToolUse", "tool_name": "Bash",
         "tool_input": {"command": "rm a.txt b.txt"},
         "cwd": str(proj), "session_id": "s"})), out)
-    assert _receipts(proj)[-1]["decision"] == "ESCALATE"
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
+    assert _receipts(proj)[-1]["decision"] == expected
+    if ENGINE_PATH:
+        gid = _receipts(proj)[-1]["group_id"]
+        entries = recovery.find_group(str(proj / ".demo_cli" / "recovery"), gid)
+        entry = {"kind": "group", "entries": entries}
+        assert_restores(entry, proj, {
+            "a.txt": b"A",
+            "b.txt": b"B",
+        })
 
 
 def test_the_home_directory_collapse_still_escalates(lab):
@@ -313,6 +326,7 @@ def test_a_failed_restore_is_loud(tmp_path, monkeypatch):
     Reverting it broke NOTHING until this test existed (2026-09-14).
     """
     from demo_cli.guard import agent_directory
+    start_cwd = os.getcwd()
     target = tmp_path / "elsewhere"
     target.mkdir()
     real = os.chdir
@@ -329,7 +343,7 @@ def test_a_failed_restore_is_loud(tmp_path, monkeypatch):
         with agent_directory(str(target)):
             pass
     monkeypatch.undo()
-    real(str(tmp_path))
+    real(start_cwd)
 
 
 def test_entering_is_reported_separately_from_failing_to_leave(tmp_path):

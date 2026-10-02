@@ -339,7 +339,8 @@ def _dir_size(path: str, cap: int, ignore_dirs=None, skip_path=None) -> int:
 def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snapshot",
              action: Optional[str] = None, ignore_dirs=None,
              notes: Optional[dict] = None,
-             allow_store_inside: bool = False) -> Optional[dict]:
+             allow_store_inside: bool = False,
+             group: Optional[str] = None) -> Optional[dict]:
     """Capture a recovery point for a target. Returns the recovery entry or None.
 
     `strategy` comes from config: "snapshot" captures; "none"/"attest" never
@@ -352,6 +353,9 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     recovery point exists.
 
     `allow_store_inside` is for the checkpoint alone: see the dir branch.
+
+    `group`, when given, binds this entry to a shared recovery group id so
+    one command's multiple destructions are restored together with one undo.
 
     `notes`, when given, receives a "refused" key explaining a cap refusal in
     words the caller can put in front of a person. Returning a bare None says
@@ -370,6 +374,8 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
         e = {"id": rid, "kind": kind, "target": ref,
              "recovery_point": recovery_point, "ts": ts, "action": action,
              **extra}
+        if group is not None:
+            e["group"] = group
         _record(recovery_dir, e)
         return e
 
@@ -639,27 +645,25 @@ def load_entries(recovery_dir: str) -> List[dict]:
     timestamp so a merged listing stays chronological rather than showing one
     file's history and then the other's.
     """
-    entries = _read_index(_index_path(recovery_dir))[0]
-    # Tombstones apply to the fs chain only. The main index is rewritten in
-    # place by prune, so a pruned main entry is simply not there to filter.
-    pruned = _read_pruned_fs(recovery_dir)
-    entries += [e for e in _read_index(_index_fs_path(recovery_dir))[0]
-                if e.get("id") not in pruned]
-    # "ts", not "timestamp". Recovery entries have always used "ts" (see
-    # _record's callers); "timestamp" is the RECEIPT key, and sorting on it
-    # here meant every key was the empty string. Python's sort is stable, so
-    # the merged list kept its concatenation order - every main entry, then
-    # every fs entry - which is precisely the "one file's history and then the
-    # other's" this docstring says it prevents.
-    #
-    # The consequence was not a subtle skew. latest() takes entries[-1], so it
-    # returned the newest FS entry whenever index-fs.jsonl was non-empty, no
-    # matter how much newer a main-chain entry was. `demo_cli undo` with no id
-    # then restored the wrong point and reported RESTORED.
-    #
-    # Invisible on Linux and on Windows before a mount, because an empty fs
-    # index leaves append order intact and the result is correct by accident.
-    # Sort chronologically by fixed-width zero-padded timestamp ("ts").
+    raw_main = _read_index(_index_path(recovery_dir))[0]
+    raw_fs = _read_index(_index_fs_path(recovery_dir))[0]
+    pruned_fs = _read_pruned_fs(recovery_dir)
+
+    all_raw = raw_main + raw_fs
+    tombstoned_ids = {e["id"] for e in all_raw if e.get("id") and (e.get("tombstone") or e.get("partial"))}
+    tombstoned_groups = {e["group"] for e in all_raw if e.get("group") and (e.get("tombstone") or e.get("partial"))}
+
+    entries = [e for e in raw_main
+               if not e.get("tombstone") and not e.get("partial")
+               and e.get("id") not in tombstoned_ids
+               and (not e.get("group") or e.get("group") not in tombstoned_groups)]
+
+    entries += [e for e in raw_fs
+                if e.get("id") not in pruned_fs
+                and not e.get("tombstone") and not e.get("partial")
+                and e.get("id") not in tombstoned_ids
+                and (not e.get("group") or e.get("group") not in tombstoned_groups)]
+
     return sorted(entries, key=lambda e: str(e.get("ts") or ""))
 
 
@@ -676,6 +680,84 @@ def find(recovery_dir: str, rid: str) -> Optional[dict]:
     matches = [e for e in load_entries(recovery_dir)
                if str(e.get("id", "")).startswith(rid)]
     return matches[-1] if len(matches) == 1 else None
+
+
+def find_group(recovery_dir: str, group_id: str) -> List[dict]:
+    """All valid recovery entries belonging to a group, in capture order."""
+    entries = load_entries(recovery_dir)
+    return [e for e in entries if e.get("group") and e["group"].startswith(group_id)]
+
+
+def resolve_entries(recovery_dir: str, ident: Optional[str] = None,
+                    target_ref: Optional[str] = None) -> List[dict]:
+    """Resolve recovery entries to restore: by group or entry id, else latest."""
+    if ident:
+        grp = find_group(recovery_dir, ident)
+        if grp:
+            return grp
+        e = find(recovery_dir, ident)
+        if e:
+            if e.get("group"):
+                grp = find_group(recovery_dir, e["group"])
+                if grp:
+                    return grp
+            return [e]
+        return []
+    entries = load_entries(recovery_dir)
+    if target_ref:
+        entries = [e for e in entries if e.get("target") == target_ref]
+    if not entries:
+        return []
+    last = entries[-1]
+    if last.get("group"):
+        grp = find_group(recovery_dir, last["group"])
+        if grp:
+            return grp
+    return [last]
+
+
+def snapshot_set(targets: List[Target], recovery_dir: str, strategy: str = "snapshot",
+                 action: Optional[str] = None, group: Optional[str] = None,
+                 notes: Optional[dict] = None,
+                 ignore_dirs: Optional[AbstractSet[str]] = None) -> Optional[dict]:
+    """Capture a set of targets under a shared group id. All or nothing.
+
+    If any target cannot be captured, earlier captures in the set are invalidated/tombstoned
+    and None is returned.
+    """
+    if not targets or strategy in ("none", "attest"):
+        return None
+
+    group_id = group or _new_id()
+    captured: List[dict] = []
+    for t in targets:
+        e = snapshot(t, recovery_dir, strategy=strategy, action=action,
+                     notes=notes, group=group_id, ignore_dirs=ignore_dirs)
+        if e is None:
+            # ALL OR NOTHING: invalidate any entries already written in this group
+            for prev in captured:
+                rp = prev.get("recovery_point")
+                if rp and os.path.exists(rp):
+                    try:
+                        shutil.rmtree(rp) if os.path.isdir(rp) else os.remove(rp)
+                    except OSError:
+                        pass
+                _record(recovery_dir, {"id": prev["id"], "group": group_id, "tombstone": True, "partial": True})
+            return None
+        captured.append(e)
+
+    return {
+        "id": group_id,
+        "group": group_id,
+        "kind": targets[0].kind if len(targets) == 1 else "set",
+        "target": targets[0].ref if len(targets) == 1 else f"{len(targets)} targets",
+        "recovery_point": captured[0]["recovery_point"],
+        "ts": captured[0]["ts"],
+        "action": action,
+        "count": len(captured),
+        "members": [e["id"] for e in captured],
+        "entries": captured,
+    }
 
 
 def entry_size(entry: dict) -> Optional[int]:
@@ -900,6 +982,11 @@ def _put_link(path: str, value: str) -> None:
 
 def restore_entry(entry: dict) -> bool:
     kind = entry.get("kind", "sqlite")
+    if kind in ("group", "set"):
+        members = entry.get("entries")
+        if members:
+            return all(restore_entry(m) for m in reversed(members))
+        return False
     rp, target = entry.get("recovery_point"), entry.get("target")
     if kind in ("sqlite", "file"):
         if not rp or not os.path.exists(rp):

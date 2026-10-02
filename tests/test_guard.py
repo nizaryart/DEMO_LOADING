@@ -1,5 +1,6 @@
 import io
 import json
+import os
 
 from demo_cli.config import Config
 from demo_cli.context import Intent
@@ -14,13 +15,21 @@ def _cfg(tmp_path, mode="enforce"):
 
 
 def test_guard_rm_rf_no_target_escalates(tmp_path):
-    # The headline regression: rm -rf with no resolvable target must not be
-    # reported as recoverable.
+    # Under M1, deleting an absent path (./build) is a safe effective no-op (ALLOW).
+    # Deleting an unresolvable / outside target must still ESCALATE.
     g = Guard(config=_cfg(tmp_path))
     r = g.evaluate("rm -rf ./build")
-    assert r.decision.decision == ESCALATE
-    assert r.recovery_entry is None
-    assert r.allowed is False
+    if os.name == "nt":
+        assert r.decision.decision == ESCALATE
+    else:
+        assert r.decision.decision == ALLOW
+        assert r.recovery_entry is None
+        assert r.allowed is True
+
+    r_out = g.evaluate("rm -rf /srv/data")
+    assert r_out.decision.decision == ESCALATE
+    assert r_out.recovery_entry is None
+    assert r_out.allowed is False
 
 
 def test_guard_snapshots_named_db_and_is_reversible(tmp_path):
@@ -33,7 +42,7 @@ def test_guard_snapshots_named_db_and_is_reversible(tmp_path):
     g = Guard(config=_cfg(tmp_path))
     r = g.evaluate(f"sqlite3 {db} 'DELETE FROM t'", explicit_db=str(db))
     assert r.recovery_entry is not None
-    assert r.decision.decision in (REVERSIBLE, "DRY_RUN")
+    assert r.decision.decision == "DRY_RUN"
     assert r.allowed is True
 
 
