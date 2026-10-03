@@ -102,7 +102,7 @@ def test_posix_copy_does_not_count_as_a_destructive_step(tmp_path):
     f = tmp_path / "old.txt"
     f.write_text("x")
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    r = g.evaluate(f"rm {f} && cp a.txt b.txt", dialect=POSIX)
+    r = g.evaluate(f"rm {sh_path(f)} && cp a.txt b.txt", dialect=POSIX)
     assert r.recovery_entry is not None
     assert r.decision.decision == REVERSIBLE
 

@@ -224,7 +224,7 @@ def test_diff_shows_an_ignored_directory_that_the_capture_holds(proj):
     (sub / "code.py").write_text("print(1)")
 
     g = Guard(Config(project_root=str(proj)), mode="enforce")
-    r = g.evaluate(f"rm -rf {sub}")
+    r = g.evaluate(f"rm -rf {sh_path(sub)}")
     assert r.recovery_entry, "no capture to diff"
     snap = r.recovery_entry["recovery_point"]
     assert os.path.isdir(os.path.join(snap, ".git")), \

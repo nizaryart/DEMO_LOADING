@@ -173,7 +173,7 @@ def test_diff_reports_a_change_inside_a_captured_git(proj):
     (sub / ".git").mkdir(parents=True)
     (sub / ".git" / "HEAD").write_text("ref: refs/heads/main")
     (sub / "code.py").write_text("print(1)")
-    r = _guard(proj).evaluate(f"rm -rf {sub}")
+    r = _guard(proj).evaluate(f"rm -rf {sh_path(sub)}")
     snap = r.recovery_entry["recovery_point"]
 
     (sub / ".git" / "HEAD").write_text("ref: refs/heads/other")

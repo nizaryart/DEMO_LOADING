@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 from . import config as config_mod
 from .config import load_config
 from . import deps as deps_mod
-from . import fsmount, mountstate, render, protect as protect_mod
+from . import fsmount, mountstate, protection, render, protect as protect_mod
 from .receipts import load_all_receipts, load_receipts, iter_all_receipts
 from .version import __version__
 
@@ -453,6 +453,7 @@ def cmd_doctor(a) -> int:
     checks.extend(d.as_check() for d in deps_mod.check_all(cfg.project_root))
 
     checks.extend(_hook_check_rows(cfg))
+    checks.extend(protection.rows(protection.gather(cfg)))
     hook = _any_hook_installed(cfg)   # Claude Code specifically - gates the self-test below
 
     checks.extend(_mount_checks(cfg))

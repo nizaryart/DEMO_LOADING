@@ -86,7 +86,7 @@ def test_both_doors_carry_the_same_refusal(tree):
     part is the only part that has to match."""
     root, big = tree
     g = _guard(root)
-    shell = g.evaluate(f"rm -rf {big}").decision.reason
+    shell = g.evaluate(f"rm -rf {sh_path(big)}").decision.reason
     edit = g.evaluate_file_edit(str(big), tool_name="Write").decision.reason
     needle = "holds more than 2 files"
     assert needle in shell and needle in edit

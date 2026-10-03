@@ -25,7 +25,7 @@ def test_guard_rm_rf_no_target_escalates(tmp_path):
 
     out_dir = tmp_path.parent / "srv_data"
     out_dir.mkdir(exist_ok=True)
-    r_out = g.evaluate(f"rm -rf {out_dir}")  # M2.0-C3: existing outside path escalates
+    r_out = g.evaluate(f"rm -rf {sh_path(out_dir)}")  # M2.0-C3: existing outside path escalates
     assert r_out.decision.decision == ESCALATE
     assert r_out.recovery_entry is None
     assert r_out.allowed is False
@@ -39,7 +39,7 @@ def test_guard_snapshots_named_db_and_is_reversible(tmp_path):
     con.commit()
     con.close()
     g = Guard(config=_cfg(tmp_path))
-    r = g.evaluate(f"sqlite3 {db} 'DELETE FROM t'", explicit_db=str(db))
+    r = g.evaluate(f"sqlite3 {sh_path(db)} 'DELETE FROM t'", explicit_db=str(db))
     assert r.recovery_entry is not None
     assert r.decision.decision == "DRY_RUN"
     assert r.allowed is True
@@ -87,7 +87,7 @@ def test_guard_rm_multi_path_out_of_project_escalates(tmp_path):
     outside_root = tmp_path / "elsewhere"; outside_root.mkdir()
     outside = outside_root / "b.txt"; outside.write_text("2")
     g = Guard(config=_cfg(project))
-    r = g.evaluate(f"rm -rf {inside} {outside}", actual_env="production")
+    r = g.evaluate(f"rm -rf {sh_path(inside)} {sh_path(outside)}", actual_env="production")
     assert r.decision.decision == ESCALATE
     assert r.recovery_entry is None
     assert r.allowed is False
@@ -97,7 +97,7 @@ def test_shadow_mode_never_blocks(tmp_path):
     g = Guard(config=_cfg(tmp_path, mode="shadow"))
     out_dir = tmp_path.parent / "srv_data"
     out_dir.mkdir(exist_ok=True)
-    r = g.evaluate(f"rm -rf {out_dir}")  # M2.0-C3: would escalate in enforce
+    r = g.evaluate(f"rm -rf {sh_path(out_dir)}")  # M2.0-C3: would escalate in enforce
     assert r.decision.decision == ESCALATE
     assert r.allowed is True  # observe-only
 
@@ -109,7 +109,7 @@ def test_context_mismatch_with_snapshot(tmp_path):
     con.commit()
     con.close()
     g = Guard(config=_cfg(tmp_path))
-    r = g.evaluate(f"sqlite3 {db} 'DELETE FROM t'", explicit_db=str(db),
+    r = g.evaluate(f"sqlite3 {sh_path(db)} 'DELETE FROM t'", explicit_db=str(db),
                    intent=Intent(env="staging"), actual_env="production")
     assert r.decision.decision == CONTEXT_MISMATCH
     assert r.permission == "ask"
@@ -119,7 +119,7 @@ def test_hook_denies_in_enforce(tmp_path):
     out_dir = tmp_path.parent / "srv_data"
     out_dir.mkdir(exist_ok=True)
     payload = {"tool_name": "Bash", "cwd": str(tmp_path),
-               "tool_input": {"command": f"rm -rf {out_dir}", "description": "cleanup"}}
+               "tool_input": {"command": f"rm -rf {sh_path(out_dir)}", "description": "cleanup"}}
     # write a config that enforces
     (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
     out = io.StringIO()

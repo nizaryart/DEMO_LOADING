@@ -89,7 +89,7 @@ def test_over_the_file_cap_refuses_even_though_bytes_are_tiny(tmp_path, monkeypa
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_FILES", "50")
     _tree(str(tmp_path / "assets"), 120)
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    r = g.evaluate(f"rm -rf {tmp_path / 'assets'}")
+    r = g.evaluate(f"rm -rf {sh_path(tmp_path / 'assets')}")
     assert r.decision.decision == ESCALATE
     assert r.recovery_entry is None
 
@@ -98,7 +98,7 @@ def test_under_the_cap_is_still_captured(tmp_path, monkeypatch):
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_FILES", "50")
     _tree(str(tmp_path / "src"), 5)
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    r = g.evaluate(f"rm -rf {tmp_path / 'src'}")
+    r = g.evaluate(f"rm -rf {sh_path(tmp_path / 'src')}")
     assert r.decision.decision == REVERSIBLE
     assert r.recovery_entry is not None
 
@@ -107,7 +107,7 @@ def test_the_refusal_says_which_cap_and_which_knob(tmp_path, monkeypatch):
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_FILES", "50")
     _tree(str(tmp_path / "assets"), 120)
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    reason = g.evaluate(f"rm -rf {tmp_path / 'assets'}").decision.reason
+    reason = g.evaluate(f"rm -rf {sh_path(tmp_path / 'assets')}").decision.reason
     assert "DEMO_CLI_MAX_SNAPSHOT_FILES" in reason
     assert "50" in reason
     # and it must not be confused with the byte cap's message
@@ -118,7 +118,7 @@ def test_the_byte_cap_refusal_also_explains_itself(tmp_path, monkeypatch):
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_MB", "0")
     _tree(str(tmp_path / "assets"), 3, size=4096)
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    reason = g.evaluate(f"rm -rf {tmp_path / 'assets'}").decision.reason
+    reason = g.evaluate(f"rm -rf {sh_path(tmp_path / 'assets')}").decision.reason
     assert "DEMO_CLI_MAX_SNAPSHOT_MB" in reason
 
 

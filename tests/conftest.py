@@ -75,6 +75,14 @@ def assert_restores(entry, root, expected):
             assert f.read() == data, f"{rel} not restored byte-exact"
 
 
+def sh_path(p) -> str:
+    """A path as a POSIX shell word that names p on THIS host: forward
+    slashes (Git Bash accepts C:/...), single-quoted. Identical to before on Linux."""
+    import pathlib, shlex
+    return shlex.quote(pathlib.PurePath(p).as_posix())
+
+
 builtins.ENGINE_PATH = ENGINE_PATH
 builtins.assert_restores = assert_restores
 builtins.portable_rel = portable_rel
+builtins.sh_path = sh_path

@@ -195,8 +195,8 @@ def test_crlf_overwrite_is_still_snapshotted(tmp_path):
     victim = tmp_path / "out.txt"
     victim.write_text("PRECIOUS DATA")
     guard = Guard(config=load_config(start=str(tmp_path)))
-    lf = guard.evaluate(f"echo x > {victim}\nls")
-    crlf = guard.evaluate(f"echo x > {victim}\r\nls")
+    lf = guard.evaluate(f"echo x > {sh_path(victim)}\nls")
+    crlf = guard.evaluate(f"echo x > {sh_path(victim)}\r\nls")
     assert lf.classification.matched_rule == crlf.classification.matched_rule == "fs_redirect_truncate"
     assert lf.decision.decision == crlf.decision.decision == "REVERSIBLE"
     assert bool(lf.recovery_entry) and bool(crlf.recovery_entry)
@@ -300,7 +300,7 @@ def test_a_bom_config_does_not_silently_disable_the_guard(tmp_path):
     victim.write_text("PRECIOUS")
     from demo_cli.config import load_config
     from demo_cli.guard import Guard
-    r = Guard(config=load_config(start=str(tmp_path))).evaluate(f"rm {victim}")
+    r = Guard(config=load_config(start=str(tmp_path))).evaluate(f"rm {sh_path(victim)}")
     assert r.decision.decision == "REVERSIBLE"
     assert r.recovery_entry is not None
 

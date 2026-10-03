@@ -352,6 +352,22 @@ def agent_directory(cwd: str):
                 f"everything that follows.") from None
 
 
+class _Facts:
+    __slots__ = ("target", "entry", "affected_paths", "snap_notes", "group_id",
+                 "supervisable", "net_name", "rewrite", "checkpoint_skipped",
+                 "checkpoint_taken", "remote_pg", "strategy", "c")
+
+    def __init__(self, target=None, entry=None, affected_paths=None, snap_notes=None,
+                 group_id=None, supervisable=False, net_name=None, rewrite=None,
+                 checkpoint_skipped=None, checkpoint_taken=False, remote_pg=False,
+                 strategy="snapshot", c=None):
+        self.target = target; self.entry = entry; self.affected_paths = affected_paths or []
+        self.snap_notes = snap_notes or {}; self.group_id = group_id
+        self.supervisable = supervisable; self.net_name = net_name; self.rewrite = rewrite
+        self.checkpoint_skipped = checkpoint_skipped; self.checkpoint_taken = checkpoint_taken
+        self.remote_pg = remote_pg; self.strategy = strategy; self.c = c
+
+
 class Guard:
     def __init__(self, config: Optional[Config] = None, mode: Optional[str] = None):
         self.config = config or load_config()
@@ -424,21 +440,12 @@ class Guard:
                            decision=decision, mode=self.mode, receipt=receipt,
                            prediction=prediction)
 
-    def evaluate(
-        self,
-        command: str,
-        target_path: Optional[str] = None,
-        explicit_db: Optional[str] = None,
-        db_url: Optional[str] = None,
-        intent: Optional[Intent] = None,
-        actual_env: Optional[str] = None,
-        approval_token: Optional[str] = None,
-        agent_id: str = "unknown",
-        session_id: str = "unknown",
-        dialect: str = POSIX,
-        door: Optional[str] = None,
-        can_supervise: bool = False,
-    ) -> GuardResult:
+    def evaluate(self, command: str, target_path: Optional[str] = None,
+                 explicit_db: Optional[str] = None, db_url: Optional[str] = None,
+                 intent: Optional[Intent] = None, actual_env: Optional[str] = None,
+                 approval_token: Optional[str] = None, agent_id: str = "unknown",
+                 session_id: str = "unknown", dialect: str = POSIX,
+                 door: Optional[str] = None, can_supervise: bool = False) -> GuardResult:
         """`dialect` says which shell wrote this text - POSIX or POWERSHELL.
         It decides how line continuations are folded, and the two spellings are
         not interchangeable (see classify.join_continuations). The adapters know
@@ -447,18 +454,28 @@ class Guard:
         `door` is "agent" from the agent hooks (Claude Code, Codex, Cursor).
         Only there is running a state-changing `demo_cli` subcommand refused:
         `check` and the `!` trap are the human's doors."""
-        intent = intent or Intent()
-        command = command.strip()
-        if os.name == "nt" and dialect == POSIX:
-            command = re.sub(r'([A-Za-z]:)(\\[^\s"\'|&;<>]+)', lambda m: m.group(1) + m.group(2).replace("\\", "/"), command)
-            command = re.sub(r'(\.\.?\\)([^\s"\'|&;<>]+)', lambda m: m.group(1).replace("\\", "/") + m.group(2).replace("\\", "/"), command)
-
-        if self.config.config_error:
-            return self._refuse_broken_config(command, agent_id, session_id)
-
+        intent = intent or Intent(); command = command.strip()
+        early = self._early_refusal(command, dialect, door, intent, agent_id, session_id)
+        if early: return early
         c = classify_pipeline(command, dialect)
         prediction, impact = _engine_predict(command, dialect, self.config, explicit_db, db_url)
+        refused = self._control_plane_refusal(command, dialect, door, c, impact, prediction, intent, agent_id, session_id)
+        if refused: return refused
+        if self._engine_applies(dialect, impact):
+            f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
+        else:
+            f = self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url, can_supervise, intent, actual_env)
+        ctx, mismatches, approval_ok = self._context(command, f, intent, actual_env, approval_token)
+        decision = self._decide(command, f, ctx, mismatches, approval_ok)
+        return self._record(command, c, f, ctx, decision, intent, prediction, dialect, agent_id, session_id)
 
+    def _early_refusal(self, command: str, dialect: str, door: Optional[str],
+                       intent: Intent, agent_id: str, session_id: str) -> Optional[GuardResult]:
+        return self._refuse_broken_config(command, agent_id, session_id) if self.config.config_error else None
+
+    def _control_plane_refusal(self, command: str, dialect: str, door: Optional[str],
+                               c: Classification, impact, prediction, intent: Intent,
+                               agent_id: str, session_id: str) -> Optional[GuardResult]:
         # DEMO_CLI'S OWN FILES AND STATE, before anything else. Before the
         # creation correction below on purpose: creating .demo_cli.toml or
         # .claude/settings.local.json is exactly as much a change to the
@@ -466,12 +483,9 @@ class Guard:
         if door == "agent":
             what = _agent_state_change(command, dialect)
             if what:
-                verb = ("uninstalls demo_cli" if " uninstall " in what
-                        else "changes demo_cli's own state")
+                verb = "uninstalls demo_cli" if " uninstall " in what else "changes demo_cli's own state"
                 return self._refuse_control_plane(
-                    command, c,
-                    f"This runs `{what}`, which {verb}. An agent may not do "
-                    f"that.",
+                    command, c, f"This runs `{what}`, which {verb}. An agent may not do that.",
                     ["Run it yourself, outside the agent."],
                     intent, agent_id, session_id, dialect, prediction)
         written = {os.path.abspath(p) for p in recovery.written_paths(command, dialect)}
@@ -483,397 +497,377 @@ class Guard:
                 command, c, _files_reason(hits, self.config),
                 ["Make this change yourself, outside the agent."],
                 intent, agent_id, session_id, dialect, prediction)
+        return None
 
-        engine_applies = (
-            dialect == POSIX
-            and impact is not None
-            and not impact.uncovered
-            and not impact.unknown
-        )
+    def _engine_applies(self, dialect: str, impact) -> bool:
+        return dialect == POSIX and impact is not None and not impact.uncovered and not impact.unknown
 
-        if engine_applies:
-            from .engine.verdict import REMOTE_POLICY, ESCALATE as REMOTE_ESCALATE
-            from .engine.effects import RUN
+    def _engine_facts(self, command: str, dialect: str, c: Classification, impact,
+                      target_path: Optional[str], explicit_db: Optional[str],
+                      db_url: Optional[str]) -> _Facts:
+        from .engine.verdict import REMOTE_POLICY, ESCALATE as REMOTE_ESCALATE
+        from .engine.effects import RUN
 
-            affected_paths = []
+        affected_paths, target, entry = [], None, None
+        snap_notes, strategy = {}, "snapshot"
+        checkpoint_skipped, checkpoint_taken = None, False
+        supervisable, net_name, rewrite, group_id = False, None, None, None
+
+        c.is_destructive = c.is_mutating = c.is_sql_mutating = False
+        c.is_file_writer = c.remote_exec = False
+        c.nonrecoverable_surface = None; c.destructive_segments = 0
+        # keep c.matched_rule / c.action_type / c.segments: they are receipt labels only
+
+        # 1. Escalating remote surfaces
+        escalating_remote = [
+            (lbl, knd) for lbl, knd in impact.remote.items()
+            if REMOTE_POLICY.get(knd, REMOTE_ESCALATE) == REMOTE_ESCALATE
+        ]
+        if escalating_remote:
+            lbl, knd = sorted(escalating_remote)[0]
+            if lbl.startswith("db:"):
+                c.nonrecoverable_surface = "remote_database"
+            elif lbl.startswith("device:"):
+                c.nonrecoverable_surface = "disk_format"
+            else:
+                c.nonrecoverable_surface = "remote_surface"
+            c.is_mutating = True
+            c.is_destructive = True
+
+        # 2. Unread execution (RUN)
+        if any(knd == RUN for knd in impact.remote.values()):
+            c.remote_exec = True
+
+        # 3. Databases with no capture path
+        if impact.no_capture:
+            c.is_mutating = True
+            c.is_destructive = True
+
+        # 4. Destroys (filesystem paths)
+        proj_root = os.path.abspath(self.config.project_root or os.getcwd())
+        c.destructive_segments = len(impact.destroys) + len(impact.no_capture) + len(escalating_remote)
+        if impact.destroys:
+            c.is_mutating = True
+            c.is_destructive = True
+            # Check if every destroyed path exists, is strictly within project, and not root
+            all_ok = all(recovery.within_project(p, proj_root) and os.path.lexists(p)
+                         for p in impact.destroys)
+            if all_ok and not impact.no_capture and not escalating_remote and not c.remote_exec:
+                targets = [recovery.Target(
+                    "dir" if (p in impact.destroyed_dirs or os.path.isdir(p)) else "file", p, p)
+                    for p in sorted(impact.destroys.keys())]
+                if impact.databases:
+                    db_targets, db_ok = _db_targets(impact)
+                    if db_ok:
+                        targets.extend(db_targets)
+                    else:
+                        all_ok = False
+
+                target = targets[0]
+                affected_paths = [t.ref for t in targets if t.kind in ("file", "dir")]
+                strategies = [(self.config.match_target(t.label).recovery if self.config.match_target(t.label) else "snapshot")
+                              for t in targets]
+                if any(s in ("none", "attest") for s in strategies) or not all_ok:
+                    entry = None
+                else:
+                    reached = recovery.unignorable_dirs(command, dialect)
+                    blast = list(set(impact.destroyed_dirs)
+                                 | {p for p in impact.destroys if os.path.isdir(p)}
+                                 | {t.ref for t in targets if t.kind == "dir"})
+                    reached = reached | recovery.ignored_dirs_under(blast)
+                    keep_out = (None if not reached
+                                 else frozenset(recovery.IGNORED_DIRS) - reached)
+                    entry = recovery.snapshot_set(targets, self.config.recovery_dir, strategy="snapshot",
+                                                  action=command, notes=snap_notes, ignore_dirs=keep_out)
+        elif impact.databases:
+            c.is_mutating = True
+            c.is_destructive = True
+            db_targets, all_db_ok = _db_targets(impact)
+            if all_db_ok and db_targets and not impact.no_capture and not escalating_remote and not c.remote_exec:
+                target = db_targets[0]
+                affected_paths = [t.ref for t in db_targets if t.kind in ("file", "dir")]
+                strategies = [(self.config.match_target(t.label).recovery if self.config.match_target(t.label) else "snapshot")
+                              for t in db_targets]
+                if any(s in ("none", "attest") for s in strategies):
+                    entry = None
+                else:
+                    entry = recovery.snapshot_set(db_targets, self.config.recovery_dir, strategy="snapshot",
+                                                  action=command, notes=snap_notes)
+
+        # 5. Nothing destroyed, no escalating remote, no no_capture -> ALLOW
+        if (not impact.destroys and not impact.databases
+                and not escalating_remote and not impact.no_capture):
+            c.is_destructive = False
+            c.is_mutating = False
+            c.matched_rule = None
             target = None
             entry = None
-            snap_notes = {}
-            strategy = "snapshot"
-            checkpoint_skipped, checkpoint_taken = None, False
-            supervisable = False
-            net_name = None
-            rewrite = None
-            group_id = None
 
-            c.is_destructive = c.is_mutating = False
-            c.is_sql_mutating = c.is_file_writer = c.remote_exec = False
-            c.nonrecoverable_surface = None
-            c.destructive_segments = 0
-            # keep c.matched_rule / c.action_type / c.segments: they are receipt labels only
+        if target_path:
+            ap_tp = os.path.abspath(target_path)
+            tgt_kind = "dir" if os.path.isdir(ap_tp) else "file"
+            user_tgt = recovery.Target(tgt_kind, ap_tp, ap_tp)
+            target = user_tgt
+            affected_paths = [ap_tp]
+            entry = recovery.snapshot(user_tgt, self.config.recovery_dir, strategy="snapshot",
+                                      action=command, notes=snap_notes)
+            c.is_destructive = True
+            c.is_mutating = True
 
-            # 1. Escalating remote surfaces
-            escalating_remote = [
-                (lbl, knd) for lbl, knd in impact.remote.items()
-                if REMOTE_POLICY.get(knd, REMOTE_ESCALATE) == REMOTE_ESCALATE
-            ]
-            if escalating_remote:
-                lbl, knd = sorted(escalating_remote)[0]
-                if lbl.startswith("db:"):
-                    c.nonrecoverable_surface = "remote_database"
-                elif lbl.startswith("device:"):
-                    c.nonrecoverable_surface = "disk_format"
-                else:
-                    c.nonrecoverable_surface = "remote_surface"
-                c.is_mutating = True
-                c.is_destructive = True
+        if entry:
+            group_id = entry.get("group")
 
-            # 2. Unread execution (RUN)
-            if any(knd == RUN for knd in impact.remote.values()):
-                c.remote_exec = True
+        return _Facts(target=target, entry=entry, affected_paths=affected_paths,
+                      snap_notes=snap_notes, group_id=group_id, supervisable=supervisable,
+                      net_name=net_name, rewrite=rewrite, checkpoint_skipped=checkpoint_skipped,
+                      checkpoint_taken=checkpoint_taken, remote_pg=False, strategy=strategy, c=c)
 
-            # 3. Databases with no capture path
-            if impact.no_capture:
-                c.is_mutating = True
-                c.is_destructive = True
+    def _legacy_facts(self, command: str, dialect: str, c: Classification,
+                      target_path: Optional[str], explicit_db: Optional[str],
+                      db_url: Optional[str], can_supervise: bool,
+                      intent: Intent, actual_env: Optional[str]) -> _Facts:
+        # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
+        # classifier rule says so. The rule cannot live in the classifier: it
+        # is filesystem-blind, and a vote there for `cp a new.txt` escalates an
+        # ordinary `rm x && cp a b` (test_posix_copy_does_not_count_as_a_
+        # destructive_step). So the vote is cast here, where we can stat, and
+        # only for a target that exists. It IS a vote: without it
+        # `DROP TABLE t; cp -f a b` would snapshot b and call the whole line
+        # REVERSIBLE - see multi_destructive below.
+        #
+        # In-place formatters (prettier --write f.js, black f.py) vote too.
+        # They were classified as writers and counted by nobody, so
+        # `git reset --hard; prettier --write f.js` came back REVERSIBLE.
+        overwriting = recovery.overwrites(command, dialect)
+        if overwriting:
+            c.is_destructive = c.is_mutating = True
+            c.matched_rule = c.matched_rule or overwriting[0]
+        c.destructive_segments += (len(overwriting)
+                                   + recovery.target_writer_segments(command, dialect))
 
-            # 4. Destroys (filesystem paths)
-            proj_root = os.path.abspath(self.config.project_root or os.getcwd())
-            c.destructive_segments = len(impact.destroys) + len(impact.no_capture) + len(escalating_remote)
-            if impact.destroys:
-                c.is_mutating = True
-                c.is_destructive = True
-                # Check if every destroyed path exists, is strictly within project, and not root
-                all_ok = all(
-                    recovery.within_project(p, proj_root) and os.path.lexists(p)
-                    for p in impact.destroys
-                )
-                if all_ok and not impact.no_capture and not escalating_remote and not c.remote_exec:
-                    targets = [
-                        recovery.Target(
-                            "dir" if (p in impact.destroyed_dirs or os.path.isdir(p)) else "file",
-                            p,
-                            p,
-                        )
-                        for p in sorted(impact.destroys.keys())
-                    ]
-                    if impact.databases:
-                        db_targets, db_ok = _db_targets(impact)
-                        if db_ok:
-                            targets.extend(db_targets)
-                        else:
-                            all_ok = False
-
-                    target = targets[0]
-                    affected_paths = [t.ref for t in targets if t.kind in ("file", "dir")]
-                    strategies = [
-                        (self.config.match_target(t.label).recovery if self.config.match_target(t.label) else "snapshot")
-                        for t in targets
-                    ]
-                    if any(s in ("none", "attest") for s in strategies) or not all_ok:
-                        entry = None
-                    else:
-                        reached = recovery.unignorable_dirs(command, dialect)
-                        blast = list(set(impact.destroyed_dirs)
-                                     | {p for p in impact.destroys if os.path.isdir(p)}
-                                     | {t.ref for t in targets if t.kind == "dir"})
-                        reached = reached | recovery.ignored_dirs_under(blast)
-                        keep_out = (None if not reached
-                                     else frozenset(recovery.IGNORED_DIRS) - reached)
-                        entry = recovery.snapshot_set(
-                            targets, self.config.recovery_dir, strategy="snapshot",
-                            action=command, notes=snap_notes, ignore_dirs=keep_out
-                        )
-            elif impact.databases:
-                c.is_mutating = True
-                c.is_destructive = True
-                db_targets, all_db_ok = _db_targets(impact)
-                if all_db_ok and db_targets and not impact.no_capture and not escalating_remote and not c.remote_exec:
-                    target = db_targets[0]
-                    affected_paths = [t.ref for t in db_targets if t.kind in ("file", "dir")]
-                    strategies = [
-                        (self.config.match_target(t.label).recovery if self.config.match_target(t.label) else "snapshot")
-                        for t in db_targets
-                    ]
-                    if any(s in ("none", "attest") for s in strategies):
-                        entry = None
-                    else:
-                        entry = recovery.snapshot_set(
-                            db_targets, self.config.recovery_dir, strategy="snapshot",
-                            action=command, notes=snap_notes
-                        )
-
-            # 5. Nothing destroyed, no escalating remote, no no_capture -> ALLOW
-            if (not impact.destroys and not impact.databases
-                    and not escalating_remote and not impact.no_capture):
+        # Writing to a path that does NOT yet exist CREATES it - there is nothing
+        # to destroy. classify.py is filesystem-blind (string only), so the
+        # correction happens here, where we can stat.
+        #
+        # Extended past `>` to the PowerShell cmdlets with the same shape:
+        # Set-Content / Out-File / New-Item make a new file, and a
+        # Move/Copy/Rename -Force onto a free name clobbers nothing.
+        #
+        # The distinction that matters: a name that RESOLVES but is absent from
+        # disk means creation, so the flag is cleared. A name that does not
+        # resolve at all is AMBIGUOUS and keeps its classification, so it still
+        # escalates - never quietly waved through.
+        if c.matched_rule == "fs_redirect_truncate":
+            # RESOLVED-AND-ABSENT IS THE ONLY CASE THAT CLEARS. This used to be
+            # `redirect_target(command)` on the raw line, and `if not rt or
+            # not exists(rt)` - so "I could not find the target" cleared the
+            # flag exactly like "the target is new". The comment above has
+            # always said the opposite, and the code was the thing that was
+            # wrong: five spellings of a truncating redirect reached ALLOW
+            # against an existing file with no snapshot and no receipt
+            # (2026-09-08). recovery.resolve_redirect_target reads the same
+            # effective, substituted segments the classifier judged, so the
+            # two can no longer disagree about what the command touches.
+            rt, resolved = recovery.resolve_redirect_target(command, dialect)
+            if resolved and not os.path.exists(rt) and _nothing_else_acts(c):
                 c.is_destructive = False
                 c.is_mutating = False
                 c.matched_rule = None
-                target = None
-                entry = None
+        elif c.matched_rule in _CREATES_IF_MISSING:
+            # Same three-way split as the redirect branch above: only
+            # RESOLVED-AND-ABSENT means "creates". An unresolvable name -
+            # $env:APPDATA\notes.txt, $(Get-Date).txt - used to come back as a
+            # literal that os.path.exists denied, and was read as creation.
+            named, resolved = recovery.ps_named_target(command, dialect)
+            if resolved and not os.path.exists(named) and _nothing_else_acts(c):
+                c.is_destructive = False
+                c.is_mutating = False
+                c.matched_rule = None
 
-            if target_path:
-                ap_tp = os.path.abspath(target_path)
-                tgt_kind = "dir" if os.path.isdir(ap_tp) else "file"
-                user_tgt = recovery.Target(tgt_kind, ap_tp, ap_tp)
-                target = user_tgt
-                affected_paths = [ap_tp]
-                entry = recovery.snapshot(
-                    user_tgt, self.config.recovery_dir, strategy="snapshot",
-                    action=command, notes=snap_notes
-                )
-                c.is_destructive = True
-                c.is_mutating = True
+        # The concrete file list an rm / mv will touch (brace/glob-expanded),
+        # surfaced so the preview can PRINT it - the file count the agent was
+        # actually asking for (claude-code#76626). Empty for non rm / mv.
+        affected_paths = recovery.expanded_operands(command, dialect)
 
-            label = target.label if target else None
-            config_env = self.config.declared_env(label)
-            ctx = build_context(command, target_label=label,
-                                declared_env=actual_env, config_env=config_env,
-                                cwd=self.config.project_root)
-            mismatches = compare_intent(intent, ctx)
-            approval_ok = False
-            key = self.config.approver_key
-            if approval_token and key:
-                approval_ok = approval.verify(command, approval_token, key)
-            if entry:
-                group_id = entry.get("group")
+        # Whether the USER named a target, captured before the block below
+        # overwrites target_path with whatever extraction found. The two mean
+        # very different things and sharing one name has already cost a fix.
+        user_named_target = target_path is not None
+
+        # Trou 2: when no target was supplied explicitly, resolve the real
+        # filesystem operand of an rm / mv so the snapshot actually fires on the
+        # auto-fire path (the flagship "rm -> undo" moment). Bounded to the
+        # project root so we never try to copy a home/system tree, and honest
+        # about multi-path rm (extract_path_operand returns None -> escalate).
+        cand: Optional[str] = None
+        if not target_path and not explicit_db and not db_url:
+            cand = recovery.extract_path_operand(command, dialect)
+            if cand:
+                ap = os.path.abspath(cand)
+                root = os.path.abspath(self.config.project_root or os.getcwd())
+                # Strictly inside the root, by path and by real path. The root
+                # itself is refused as a capture surface: a two-file rm at the
+                # top level collapses to a common root of the whole project,
+                # and silently deep-copying the entire tree on every such rm is
+                # neither honest nor cheap. Escalate instead - same spirit as
+                # _too_broad refusing $HOME / the filesystem root. A link out of
+                # the project is refused too - see recovery.within_project.
+                if recovery.within_project(ap, root) and os.path.exists(ap):
+                    target_path = ap
+
+        # THE DATABASE COMES FROM THE STATEMENT THAT WRITES IT (Part A3).
+        # resolve_target takes the first .db name or postgres URL in what it
+        # is given, and it was given the whole line: `echo app.db; sqlite3
+        # data/users.db "DELETE ..."` snapshotted and previewed app.db, and an
+        # echoed URL beat an operand the extractor had resolved. Now it reads
+        # only the statements that act, and when those still name more than
+        # one database - `ATTACH 'other.db'` - no target is guessed at all.
+        db_text = recovery.acting_text(command, dialect)
+        if (not (explicit_db or db_url or target_path)
+                and len(recovery.db_mentions(db_text)) > 1):
+            target = None
         else:
-            # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
-            # classifier rule says so. The rule cannot live in the classifier: it
-            # is filesystem-blind, and a vote there for `cp a new.txt` escalates an
-            # ordinary `rm x && cp a b` (test_posix_copy_does_not_count_as_a_
-            # destructive_step). So the vote is cast here, where we can stat, and
-            # only for a target that exists. It IS a vote: without it
-            # `DROP TABLE t; cp -f a b` would snapshot b and call the whole line
-            # REVERSIBLE - see multi_destructive below.
-            #
-            # In-place formatters (prettier --write f.js, black f.py) vote too.
-            # They were classified as writers and counted by nobody, so
-            # `git reset --hard; prettier --write f.js` came back REVERSIBLE.
-            overwriting = recovery.overwrites(command, dialect)
-            if overwriting:
-                c.is_destructive = c.is_mutating = True
-                c.matched_rule = c.matched_rule or overwriting[0]
-            c.destructive_segments += (len(overwriting)
-                                       + recovery.target_writer_segments(command, dialect))
-    
-            # Writing to a path that does NOT yet exist CREATES it - there is nothing
-            # to destroy. classify.py is filesystem-blind (string only), so the
-            # correction happens here, where we can stat.
-            #
-            # Extended past `>` to the PowerShell cmdlets with the same shape:
-            # Set-Content / Out-File / New-Item make a new file, and a
-            # Move/Copy/Rename -Force onto a free name clobbers nothing.
-            #
-            # The distinction that matters: a name that RESOLVES but is absent from
-            # disk means creation, so the flag is cleared. A name that does not
-            # resolve at all is AMBIGUOUS and keeps its classification, so it still
-            # escalates - never quietly waved through.
-            if c.matched_rule == "fs_redirect_truncate":
-                # RESOLVED-AND-ABSENT IS THE ONLY CASE THAT CLEARS. This used to be
-                # `redirect_target(command)` on the raw line, and `if not rt or
-                # not exists(rt)` - so "I could not find the target" cleared the
-                # flag exactly like "the target is new". The comment above has
-                # always said the opposite, and the code was the thing that was
-                # wrong: five spellings of a truncating redirect reached ALLOW
-                # against an existing file with no snapshot and no receipt
-                # (2026-09-08). recovery.resolve_redirect_target reads the same
-                # effective, substituted segments the classifier judged, so the
-                # two can no longer disagree about what the command touches.
-                rt, resolved = recovery.resolve_redirect_target(command, dialect)
-                if resolved and not os.path.exists(rt) and _nothing_else_acts(c):
-                    c.is_destructive = False
-                    c.is_mutating = False
-                    c.matched_rule = None
-            elif c.matched_rule in _CREATES_IF_MISSING:
-                # Same three-way split as the redirect branch above: only
-                # RESOLVED-AND-ABSENT means "creates". An unresolvable name -
-                # $env:APPDATA\notes.txt, $(Get-Date).txt - used to come back as a
-                # literal that os.path.exists denied, and was read as creation.
-                named, resolved = recovery.ps_named_target(command, dialect)
-                if resolved and not os.path.exists(named) and _nothing_else_acts(c):
-                    c.is_destructive = False
-                    c.is_mutating = False
-                    c.matched_rule = None
-    
-            # The concrete file list an rm / mv will touch (brace/glob-expanded),
-            # surfaced so the preview can PRINT it - the file count the agent was
-            # actually asking for (claude-code#76626). Empty for non rm / mv.
-            affected_paths = recovery.expanded_operands(command, dialect)
-    
-            # Whether the USER named a target, captured before the block below
-            # overwrites target_path with whatever extraction found. The two mean
-            # very different things and sharing one name has already cost a fix.
-            user_named_target = target_path is not None
-    
-            # Trou 2: when no target was supplied explicitly, resolve the real
-            # filesystem operand of an rm / mv so the snapshot actually fires on the
-            # auto-fire path (the flagship "rm -> undo" moment). Bounded to the
-            # project root so we never try to copy a home/system tree, and honest
-            # about multi-path rm (extract_path_operand returns None -> escalate).
-            cand: Optional[str] = None
-            if not target_path and not explicit_db and not db_url:
-                cand = recovery.extract_path_operand(command, dialect)
-                if cand:
-                    ap = os.path.abspath(cand)
-                    root = os.path.abspath(self.config.project_root or os.getcwd())
-                    # Strictly inside the root, by path and by real path. The root
-                    # itself is refused as a capture surface: a two-file rm at the
-                    # top level collapses to a common root of the whole project,
-                    # and silently deep-copying the entire tree on every such rm is
-                    # neither honest nor cheap. Escalate instead - same spirit as
-                    # _too_broad refusing $HOME / the filesystem root. A link out of
-                    # the project is refused too - see recovery.within_project.
-                    if recovery.within_project(ap, root) and os.path.exists(ap):
-                        target_path = ap
-    
-            # THE DATABASE COMES FROM THE STATEMENT THAT WRITES IT (Part A3).
-            # resolve_target takes the first .db name or postgres URL in what it
-            # is given, and it was given the whole line: `echo app.db; sqlite3
-            # data/users.db "DELETE ..."` snapshotted and previewed app.db, and an
-            # echoed URL beat an operand the extractor had resolved. Now it reads
-            # only the statements that act, and when those still name more than
-            # one database - `ATTACH 'other.db'` - no target is guessed at all.
-            db_text = recovery.acting_text(command, dialect)
-            if (not (explicit_db or db_url or target_path)
-                    and len(recovery.db_mentions(db_text)) > 1):
-                target = None
-            else:
-                target = recovery.resolve_target(db_text, explicit_db, db_url, target_path)
-    
-            # Trou #004: refuse a PARTIAL snapshot. For a filesystem delete/move whose
-            # full operand set we could NOT resolve to an in-root capture (multiple
-            # targets, or $()/backtick/globstar expansion we cannot evaluate), the
-            # operand extractor returns None. resolve_target may still find a stray
-            # .db name - but that covers only PART of what the command destroys. A
-            # partial snapshot dressed up as REVERSIBLE is the exact lie this tool
-            # exists to prevent, so drop the target and let the mutation escalate
-            # honestly instead of claiming a recovery we did not fully take.
-            #
-            # THE SAME REFUSAL, FOR REDIRECTS. is_fs_delete covers rm / mv /
-            # Remove-Item only, so a truncating redirect whose target set could
-            # not be resolved walked straight past this and kept whatever stray
-            # target resolve_target had found. `echo a > app.db; echo b > o2.db`
-            # snapshotted app.db - picked up independently by the sqlite name
-            # heuristic - and reported REVERSIBLE while o2.db was truncated with
-            # nothing captured. An unearned REVERSIBLE, which is the one failure
-            # this tool treats as unacceptable (2026-09-08).
-            #
-            # resolve_redirect_target already computes exactly the right answer
-            # here: (None, False) for two redirecting segments. It was simply
-            # being discarded by a path that never asked.
-            # MORE THAN ONE SEGMENT DESTROYS SOMETHING, and a snapshot covers one.
-            #
-            # F2 closed the file-verb half of this in recovery.py - `rm a; mv b c`
-            # no longer resolves a target. This is the half recovery.py cannot see:
-            # a git or SQL destruction paired with a file delete. The operand
-            # extractor resolves old.txt quite correctly, and the receipt then
-            # claims a recovery point for a command that also dropped a table.
-            #
-            #     DROP TABLE users; rm old.txt      -> was REVERSIBLE
-            #     git reset --hard; rm old.txt      -> was REVERSIBLE
-            #
-            # An explicit --target is left alone: the user named what they wanted
-            # captured, and overriding that would be its own kind of dishonesty.
-            multi_destructive = (c.destructive_segments > 1
-                                 and not user_named_target
-                                 and not explicit_db and not db_url)
-    
-            unresolved_redirect = (
-                c.matched_rule == "fs_redirect_truncate"
-                and not recovery.resolve_redirect_target(command, dialect)[1])
-            if target is not None and (
-                    (target_path is None
-                     and (recovery.is_fs_delete(command, dialect) or unresolved_redirect))
-                    or multi_destructive):
-                target = None
-    
-            label = target.label if target else None
-    
-            # Declared-first environment: config target match feeds the context.
-            config_env = self.config.declared_env(label)
-            ctx = build_context(command, target_label=label,
-                                declared_env=actual_env, config_env=config_env,
-                                cwd=self.config.project_root)
-    
-            mismatches = compare_intent(intent, ctx)
-    
-            # Snapshot the *real* target, honouring the per-target recovery strategy.
-            rule = self.config.match_target(label)
-            strategy = rule.recovery if rule else "snapshot"
-    
-            # Managed / remote Postgres: a pg_dump over the wire is not a recovery
-            # point we can stand behind for a system we don't control, so treat it
-            # as a non-recoverable surface (honest escalation) instead of claiming
-            # reversibility. Local Postgres (localhost) still snapshots normally.
-            remote_pg = bool(target and target.kind == "postgres" and recovery.is_remote_pg(target.ref))
-            if remote_pg and not c.nonrecoverable_surface:
-                c.nonrecoverable_surface = "managed_database"
-    
-            # An ignored directory the command reaches into must be captured after
-            # all - otherwise the snapshot silently omits part of the damage while
-            # the entry looks complete. See recovery.unignorable_dirs.
-            reached = recovery.unignorable_dirs(command, dialect)
-            # THE ANCESTOR CASE, which the name-based question above cannot see.
-            # `rm -rf proj` destroys proj/.git completely and names nothing
-            # ignored, so `reached` was empty, the ignore list held, and the
-            # capture was a subset reported REVERSIBLE (3 of 7 files, undo rc 0).
-            #
-            # The blast radius, not the capture root: scattered operands collapse
-            # to a common root they do not destroy, and lifting the ignore there
-            # would copy .git for a two-file delete.
-            #
-            # affected_paths is empty for anything that is not rm / mv, so a
-            # PowerShell `Remove-Item -Recurse -Force proj` falls back to the
-            # resolved directory target - the only other way this shape arrives.
-            blast = affected_paths or (
-                [target.ref] if target is not None and target.kind == "dir" else [])
-            reached = reached | recovery.ignored_dirs_under(blast)
-            keep_out = (None if not reached
-                        else frozenset(recovery.IGNORED_DIRS) - reached)
-            # Structural approval (only meaningful for the non-recoverable case).
-            approval_ok = False
-            key = self.config.approver_key
-            if approval_token and key:
-                approval_ok = approval.verify(command, approval_token, key)
-    
-            # Snapshot eligibility:
-            # A snapshot is ONLY meaningful for a mutating action that can genuinely
-            # be recovered locally. Opaque remote execution (fetch-and-run) and
-            # non-recoverable surfaces (external infra/payment/cluster/managed DB)
-            # cannot truthfully be recovered by a local snapshot, so we refuse to
-            # capture phantom snapshots that would pollute the recovery index and
-            # falsely suggest an escalated or unrecoverable command was reversible.
-            is_snapshot_eligible = bool(
-                c.needs_recovery
-                and not c.remote_exec
-                and not c.nonrecoverable_surface
-                and not remote_pg
-            )
-    
-            snap_notes: dict = {}
-            entry = (recovery.snapshot(target, self.config.recovery_dir, strategy,
-                                       action=command, ignore_dirs=keep_out,
-                                       notes=snap_notes)
-                     if is_snapshot_eligible else None)
-    
-            (supervisable, net_name, rewrite, group_id, entry,
-             checkpoint_skipped, checkpoint_taken) = self._runtime_net_or_checkpoint(
-                c, target, entry, command, dialect, can_supervise, mismatches,
-                cand=cand, affected_paths=affected_paths,
-            )
-    
-        recovery_captured = entry is not None
+            target = recovery.resolve_target(db_text, explicit_db, db_url, target_path)
+
+        # Trou #004: refuse a PARTIAL snapshot. For a filesystem delete/move whose
+        # full operand set we could NOT resolve to an in-root capture (multiple
+        # targets, or $()/backtick/globstar expansion we cannot evaluate), the
+        # operand extractor returns None. resolve_target may still find a stray
+        # .db name - but that covers only PART of what the command destroys. A
+        # partial snapshot dressed up as REVERSIBLE is the exact lie this tool
+        # exists to prevent, so drop the target and let the mutation escalate
+        # honestly instead of claiming a recovery we did not fully take.
+        #
+        # THE SAME REFUSAL, FOR REDIRECTS. is_fs_delete covers rm / mv /
+        # Remove-Item only, so a truncating redirect whose target set could
+        # not be resolved walked straight past this and kept whatever stray
+        # target resolve_target had found. `echo a > app.db; echo b > o2.db`
+        # snapshotted app.db - picked up independently by the sqlite name
+        # heuristic - and reported REVERSIBLE while o2.db was truncated with
+        # nothing captured. An unearned REVERSIBLE, which is the one failure
+        # this tool treats as unacceptable (2026-09-08).
+        #
+        # resolve_redirect_target already computes exactly the right answer
+        # here: (None, False) for two redirecting segments. It was simply
+        # being discarded by a path that never asked.
+        # MORE THAN ONE SEGMENT DESTROYS SOMETHING, and a snapshot covers one.
+        #
+        # F2 closed the file-verb half of this in recovery.py - `rm a; mv b c`
+        # no longer resolves a target. This is the half recovery.py cannot see:
+        # a git or SQL destruction paired with a file delete. The operand
+        # extractor resolves old.txt quite correctly, and the receipt then
+        # claims a recovery point for a command that also dropped a table.
+        #
+        #     DROP TABLE users; rm old.txt      -> was REVERSIBLE
+        #     git reset --hard; rm old.txt      -> was REVERSIBLE
+        #
+        # An explicit --target is left alone: the user named what they wanted
+        # captured, and overriding that would be its own kind of dishonesty.
+        multi_destructive = (c.destructive_segments > 1
+                             and not user_named_target
+                             and not explicit_db and not db_url)
+
+        unresolved_redirect = (
+            c.matched_rule == "fs_redirect_truncate"
+            and not recovery.resolve_redirect_target(command, dialect)[1])
+        if target is not None and (
+                (target_path is None
+                 and (recovery.is_fs_delete(command, dialect) or unresolved_redirect))
+                or multi_destructive):
+            target = None
+
+        temp_f = _Facts(target=target)
+        _, mismatches, _ = self._context(command, temp_f, intent, actual_env, None)
+
+        # Snapshot the *real* target, honouring the per-target recovery strategy.
+        label = target.label if target else None
+        rule = self.config.match_target(label)
+        strategy = rule.recovery if rule else "snapshot"
+
+        # Managed / remote Postgres: a pg_dump over the wire is not a recovery
+        # point we can stand behind for a system we don't control, so treat it
+        # as a non-recoverable surface (honest escalation) instead of claiming
+        # reversibility. Local Postgres (localhost) still snapshots normally.
+        remote_pg = bool(target and target.kind == "postgres" and recovery.is_remote_pg(target.ref))
+        if remote_pg and not c.nonrecoverable_surface:
+            c.nonrecoverable_surface = "managed_database"
+
+        # An ignored directory the command reaches into must be captured after
+        # all - otherwise the snapshot silently omits part of the damage while
+        # the entry looks complete. See recovery.unignorable_dirs.
+        reached = recovery.unignorable_dirs(command, dialect)
+        # THE ANCESTOR CASE, which the name-based question above cannot see.
+        # `rm -rf proj` destroys proj/.git completely and names nothing
+        # ignored, so `reached` was empty, the ignore list held, and the
+        # capture was a subset reported REVERSIBLE (3 of 7 files, undo rc 0).
+        #
+        # The blast radius, not the capture root: scattered operands collapse
+        # to a common root they do not destroy, and lifting the ignore there
+        # would copy .git for a two-file delete.
+        #
+        # affected_paths is empty for anything that is not rm / mv, so a
+        # PowerShell `Remove-Item -Recurse -Force proj` falls back to the
+        # resolved directory target - the only other way this shape arrives.
+        blast = affected_paths or (
+            [target.ref] if target is not None and target.kind == "dir" else [])
+        reached = reached | recovery.ignored_dirs_under(blast)
+        keep_out = (None if not reached
+                    else frozenset(recovery.IGNORED_DIRS) - reached)
+
+        # Snapshot eligibility:
+        # A snapshot is ONLY meaningful for a mutating action that can genuinely
+        # be recovered locally. Opaque remote execution (fetch-and-run) and
+        # non-recoverable surfaces (external infra/payment/cluster/managed DB)
+        # cannot truthfully be recovered by a local snapshot, so we refuse to
+        # capture phantom snapshots that would pollute the recovery index and
+        # falsely suggest an escalated or unrecoverable command was reversible.
+        is_snapshot_eligible = bool(
+            c.needs_recovery
+            and not c.remote_exec
+            and not c.nonrecoverable_surface
+            and not remote_pg
+        )
+
+        snap_notes: dict = {}
+        entry = (recovery.snapshot(target, self.config.recovery_dir, strategy, action=command,
+                                   ignore_dirs=keep_out, notes=snap_notes) if is_snapshot_eligible else None)
+
+        (supervisable, net_name, rewrite, group_id, entry, checkpoint_skipped,
+         checkpoint_taken) = self._runtime_net_or_checkpoint(
+            c, target, entry, command, dialect, can_supervise, mismatches,
+            cand=cand, affected_paths=affected_paths)
+
+        return _Facts(target=target, entry=entry, affected_paths=affected_paths,
+                      snap_notes=snap_notes, group_id=group_id, supervisable=supervisable,
+                      net_name=net_name, rewrite=rewrite, checkpoint_skipped=checkpoint_skipped,
+                      checkpoint_taken=checkpoint_taken, remote_pg=remote_pg, strategy=strategy, c=c)
+
+    def _context(self, command: str, f: _Facts, intent: Intent, actual_env: Optional[str],
+                 approval_token: Optional[str]) -> Tuple[Context, List[Tuple[str, str, str]], bool]:
+        label = f.target.label if f.target else None
+        config_env = self.config.declared_env(label)
+        ctx = build_context(command, target_label=label, declared_env=actual_env,
+                            config_env=config_env, cwd=self.config.project_root)
+        mismatches = compare_intent(intent, ctx)
+        approval_ok = False
+        key = self.config.approver_key
+        if approval_token and key:
+            approval_ok = approval.verify(command, approval_token, key)
+        return ctx, mismatches, approval_ok
+
+    def _decide(self, command: str, f: _Facts, ctx: Context, mismatches: list,
+                approval_ok: bool) -> Decision:
+        recovery_captured = f.entry is not None
 
         # Preview affected rows for previewable SQL on a recoverable target.
         preview_count, preview_rows, preview_cols = None, [], []
         if recovery_captured and is_sql_preview_candidate(command):
-            preview_count, preview_rows, preview_cols = preview_mod.preview(command, target)
+            preview_count, preview_rows, preview_cols = preview_mod.preview(command, f.target)
 
         decision = decide(
-            c, ctx.environment, recovery_captured,
+            f.c, ctx.environment, recovery_captured,
             mismatches=mismatches, approval_ok=approval_ok, preview_count=preview_count,
-            supervisable=supervisable, net=net_name,
+            supervisable=f.supervisable, net=f.net_name,
         )
 
         # Say which kind of recovery this is. A whole-workspace checkpoint is
@@ -882,22 +876,26 @@ class Guard:
         # to be able to tell that from a one-file snapshot, and someone whose
         # action was blocked has to be told why the checkpoint was refused.
         reason = decision.reason
-        if checkpoint_taken:
+        if f.checkpoint_taken:
             reason = (f"{reason} Recovery is a whole-workspace checkpoint "
                       f"(coarse): the target could not be resolved from the "
                       f"command text, so everything it could destroy was "
                       f"preserved. Undo restores the entire tree. The "
                       f"checkpoint is stored inside the project, so a command "
                       f"that deletes the whole project deletes it too.")
-        elif checkpoint_skipped:
-            reason = f"{reason} {checkpoint.reason_text(checkpoint_skipped, self.config)}"
+        elif f.checkpoint_skipped:
+            reason = f"{reason} {checkpoint.reason_text(f.checkpoint_skipped, self.config)}"
+        if decision.decision in ("REVERSIBLE", "DRY_RUN") and f.entry and (
+            f.entry.get("kind") == "postgres" or any(e.get("kind") == "postgres" for e in f.entry.get("entries", []))
+            or (f.target is not None and getattr(f.target, "kind", None) == "postgres")):
+            reason = f"{reason} {recovery.PG_UNDO_LIMITS}"
         # A cap refusal is the one "no recovery point" a person can act on, so
         # it says which cap, and which knob. Only when nothing was captured -
         # a checkpoint may have covered the command after the cap refused.
-        if entry is None and snap_notes.get("refused"):
-            reason = f"{reason} {snap_notes['refused']}"
-        if supervisable and group_id:
-            reason = f"{reason} Undo with `demo_cli undo {group_id}`."
+        if f.entry is None and f.snap_notes.get("refused"):
+            reason = f"{reason} {f.snap_notes['refused']}"
+        if f.supervisable and f.group_id:
+            reason = f"{reason} Undo with `demo_cli undo {f.group_id}`."
 
         # THE RECEIPT IS NOT THE PERSON. Everything above appended to a local
         # `reason` that only ever reached the Receipt, while every adapter
@@ -906,42 +904,37 @@ class Guard:
         # the checkpoint was refused", was told to the ledger and to nobody
         # else. Put the augmented text back on the decision so the two agree
         # and the adapters carry it without each having to remember.
-        decision.reason = reason
+        decision.reason, decision.preview_count = reason, preview_count
+        decision.preview_rows, decision.preview_cols, decision.mismatches = preview_rows, preview_cols, mismatches
+        return decision
 
-        gid = group_id or (entry.get("group") if entry else None)
+    def _record(self, command: str, c: Classification, f: _Facts, ctx: Context,
+                decision: Decision, intent: Intent, prediction, dialect: str,
+                agent_id: str, session_id: str) -> GuardResult:
+        preview_count = getattr(decision, "preview_count", None)
+        preview_rows, preview_cols = getattr(decision, "preview_rows", []), getattr(decision, "preview_cols", [])
+        mismatches = getattr(decision, "mismatches", [])
+        gid = f.group_id or (f.entry.get("group") if f.entry else None)
         receipt = Receipt(
-            action_raw=command,
-            action_type=c.action_type,
-            target_environment=ctx.environment,
-            decision=decision.decision,
-            reason=reason,
-            mode=self.mode,
+            action_raw=command, action_type=c.action_type, target_environment=ctx.environment,
+            decision=decision.decision, reason=decision.reason, mode=self.mode,
             matched_rule=c.matched_rule,
             classification="destructive" if c.is_destructive else ("mutating" if c.is_mutating else "safe"),
-            recovery_point=entry["recovery_point"] if entry else None,
-            nonrecoverable_surface=c.nonrecoverable_surface,
-            dry_run_affected_rows=preview_count,
-            context=ctx.as_dict(),
-            declared_intent=intent.as_dict(),
+            recovery_point=f.entry["recovery_point"] if f.entry else None,
+            nonrecoverable_surface=c.nonrecoverable_surface, dry_run_affected_rows=preview_count,
+            context=ctx.as_dict(), declared_intent=intent.as_dict(),
             context_mismatches=[list(m) for m in mismatches],
-            pipeline_segments=c.segments if c.is_pipeline else [],
-            remote_exec=c.remote_exec,
-            dialect=dialect,
-            agent_id=agent_id,
-            session_id=session_id,
-            prediction=prediction,
-            group_id=gid,
-        )
+            pipeline_segments=c.segments if c.is_pipeline else [], remote_exec=c.remote_exec,
+            dialect=dialect, agent_id=agent_id, session_id=session_id,
+            prediction=prediction, group_id=gid)
         _record_receipt(self.config.receipts_path, receipt)
 
         return GuardResult(
             command=command, classification=c, context=ctx, decision=decision, mode=self.mode,
-            target=target, recovery_entry=entry,
-            preview_count=preview_count, preview_rows=preview_rows, preview_cols=preview_cols,
-            mismatches=mismatches, affected_paths=affected_paths, receipt=receipt,
-            prediction=prediction, rewrite=rewrite, group_id=gid,
-        )
-
+            target=f.target, recovery_entry=f.entry, preview_count=preview_count,
+            preview_rows=preview_rows, preview_cols=preview_cols, mismatches=mismatches,
+            affected_paths=f.affected_paths, receipt=receipt, prediction=prediction,
+            rewrite=f.rewrite, group_id=gid)
     def _runtime_net_or_checkpoint(
         self,
         c: Classification,

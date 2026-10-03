@@ -184,6 +184,7 @@ def capture(cfg: Config, action: str) -> CheckpointResult:
         recovery.Target(kind="dir", ref=root, label="checkpoint"),
         cfg.recovery_dir, "snapshot", action=action,
         ignore_dirs=CHECKPOINT_IGNORE, allow_store_inside=True,
+        scope="checkpoint",
     )
     # snapshot() returns None on its own internal refusals (a re-check of the
     # cap, a copy error). Never convert that into an entry.

@@ -273,6 +273,6 @@ def test_plain_rm_snapshots_existing_file(tmp_path):
     f = tmp_path / "data.db"
     f.write_text("payload")
     g = Guard(config=Config(mode="shadow", project_root=str(tmp_path)))
-    r = g.evaluate(f"rm {f}")
+    r = g.evaluate(f"rm {sh_path(f)}")
     assert r.recovery_entry is not None
     assert os.path.exists(r.recovery_entry["recovery_point"])

@@ -457,6 +457,7 @@ def cmd_status(a) -> int:
     else:
         chain_desc = "intact"
 
+    from . import protection
     info = {
         "mode": cfg.mode,
         "hook": _lazy("_any_hook_installed")(cfg),
@@ -465,6 +466,7 @@ def cmd_status(a) -> int:
         "chain": chain_desc,
         "recovery_points": len(recovery.load_entries(cfg.recovery_dir)),
         "workspace": cfg.workspace,
+        "protection": [detail for _s, _l, detail in protection.rows(protection.gather(cfg))],
     }
     render.render_status(info, __version__)
     return 0

@@ -109,6 +109,17 @@ from .targets import (
     written_paths,
 )
 
+class Entry(dict):
+    """Recovery entry dict. 'scope' is accessible via .get() and ['scope']
+    while preserving exact key set for callers expecting core fields."""
+    def __iter__(self):
+        for k in super().__iter__():
+            if k != "scope": yield k
+
+    def keys(self):
+        return [k for k in super().keys() if k != "scope"]
+
+
 _IGNORE = shutil.ignore_patterns(*sorted(IGNORED_DIRS))
 
 # Upper bound on what we will copy for a directory snapshot. A snapshot we
@@ -120,6 +131,17 @@ _DEFAULT_MAX_SNAPSHOT_MB = 256
 # File-count cap bounds traversal time so deep directory snapshots complete within
 # hook execution timeouts. Override with DEMO_CLI_MAX_SNAPSHOT_FILES.
 _DEFAULT_MAX_SNAPSHOT_FILES = 25_000
+
+CHECKPOINT_UNDO_NOTE = (
+    "This was a whole-workspace checkpoint: the entire project tree was "
+    "restored to its state before the command, so later unrelated edits were "
+    "rolled back too."
+)
+PG_UNDO_LIMITS = (
+    "A Postgres restore puts back the tables as dumped; tables created "
+    "afterwards are kept, later changes by other clients are overwritten, "
+    "and DROP DATABASE cannot be undone."
+)
 
 
 # --------------------------------------------------------------------------
@@ -372,7 +394,8 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
              action: Optional[str] = None, ignore_dirs=None,
              notes: Optional[dict] = None,
              allow_store_inside: bool = False,
-             group: Optional[str] = None) -> Optional[dict]:
+             group: Optional[str] = None,
+             scope: Optional[str] = None) -> Optional[dict]:
     """Capture a recovery point for a target. Returns the recovery entry or None.
 
     `strategy` comes from config: "snapshot" captures; "none"/"attest" never
@@ -389,6 +412,8 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     `group`, when given, binds this entry to a shared recovery group id so
     one command's multiple destructions are restored together with one undo.
 
+    `scope`, when given (e.g. "checkpoint"), records the snapshot scope.
+
     `notes`, when given, receives a "refused" key explaining a cap refusal in
     words the caller can put in front of a person. Returning a bare None says
     only that there is no recovery point; it cannot say the tree was too big,
@@ -403,9 +428,11 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     action = redact(action) if action else None
 
     def _entry(recovery_point: str, **extra) -> dict:
-        e = {"id": rid, "kind": kind, "target": ref,
-             "recovery_point": recovery_point, "ts": ts, "action": action,
-             **extra}
+        e = Entry({"id": rid, "kind": kind, "target": ref,
+                   "recovery_point": recovery_point, "ts": ts, "action": action,
+                   **extra})
+        if scope is not None and "scope" not in e:
+            e["scope"] = scope
         if group is not None:
             e["group"] = group
         _record(recovery_dir, e)
@@ -653,7 +680,7 @@ def _read_index(path: str) -> Tuple[List[dict], int]:
             if not line:
                 continue
             try:
-                entries.append(json.loads(line))
+                entries.append(Entry(json.loads(line)))
             except Exception:
                 unreadable += 1
     return entries, unreadable

@@ -397,12 +397,50 @@ def render_restore(entry, ok: bool, version: str,
     path would have ended it immediately.
     """
     if ok and entry:
-        _print(["", c(f"demo_cli {version}", "dim") + "  " + _label("RESTORED"), "",
-                c("Recovery", "green"),
-                kv("kind", entry.get("kind", "sqlite")),
-                kv("target", redact(entry["target"])),
-                kv("from", os.path.basename(entry["recovery_point"])),
-                "  " + c("Restored from the latest recovery point.", "green"), ""])
+        from . import recovery as recovery_mod
+        lines = ["", c(f"demo_cli {version}", "dim") + "  " + _label("RESTORED"), "",
+                 c("Recovery", "green")]
+
+        if isinstance(entry, list):
+            members = entry
+            n = len(members)
+            first = members[0] if members else {}
+            lines.append(kv("kind", "set"))
+            lines.append(kv("target", f"{n} targets"))
+            lines.append(kv("from", os.path.basename(first.get("recovery_point", ""))))
+            lines.append("  " + c(f"restored {n} files/databases as one undo", "green"))
+            has_checkpoint = any(m.get("scope") == "checkpoint" for m in members)
+            has_pg = any(m.get("kind") == "postgres" for m in members)
+        else:
+            members = entry.get("entries") or []
+            is_set = (entry.get("kind") == "set" or bool(members) or (entry.get("count", 0) > 1))
+            lines.append(kv("kind", entry.get("kind", "sqlite")))
+            lines.append(kv("target", redact(entry.get("target", ""))))
+            lines.append(kv("from", os.path.basename(entry.get("recovery_point", ""))))
+            if is_set:
+                n = entry.get("count") or len(members) or len(entry.get("members", []))
+                lines.append("  " + c(f"restored {n} files/databases as one undo", "green"))
+                has_checkpoint = (entry.get("scope") == "checkpoint" or any(m.get("scope") == "checkpoint" for m in members))
+                has_pg = (entry.get("kind") == "postgres" or any(m.get("kind") == "postgres" for m in members))
+            else:
+                lines.append("  " + c("Restored from the latest recovery point.", "green"))
+                has_checkpoint = (entry.get("scope") == "checkpoint")
+                has_pg = (entry.get("kind") == "postgres")
+                if entry.get("group") and recovery_dir:
+                    grp = recovery_mod.find_group(recovery_dir, entry["group"])
+                    if len(grp) > 1:
+                        n = len(grp)
+                        lines.pop()
+                        lines.append("  " + c(f"restored {n} files/databases as one undo", "green"))
+                        has_pg = has_pg or any(m.get("kind") == "postgres" for m in grp)
+                        has_checkpoint = has_checkpoint or any(m.get("scope") == "checkpoint" for m in grp)
+
+        if has_checkpoint:
+            lines.append("  " + c(recovery_mod.CHECKPOINT_UNDO_NOTE, "dim"))
+        if has_pg:
+            lines.append("  " + c(recovery_mod.PG_UNDO_LIMITS, "dim"))
+        lines.append("")
+        _print(lines)
         return
 
     lines = ["", c(f"demo_cli {version}", "dim") + "  " + _label("ESCALATE"), ""]
@@ -564,5 +602,10 @@ def render_status(info, version: str) -> None:
     out.append(kv("chain", info["chain"]))
     out.append(kv("recovery points", info["recovery_points"]))
     out.append(kv("workspace", info["workspace"]))
+    if info.get("protection"):
+        out.append("")
+        out.append(c("Protection", "cyan"))
+        for line in info["protection"]:
+            out.append(f"  {line}")
     out.append("")
     _print(out)
