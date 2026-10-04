@@ -209,8 +209,9 @@ def test_a_checkpoint_is_an_ordinary_recovery_entry(workspace):
     guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
                                             agent_id="t", session_id="t")
     entries = recovery.load_entries(str(workspace / ".demo_cli" / "recovery"))
-    assert len(entries) == 1
-    assert set(entries[0]) == {"id", "kind", "target", "recovery_point", "ts", "action"}
+    # T3 (msg 026) + T5.0 (msg 033): a checkpoint entry records scope="checkpoint".
+    assert set(entries[0]) == {"id", "kind", "target", "recovery_point", "ts", "action", "scope"}
+    assert entries[0]["scope"] == "checkpoint"
     assert entries[0]["kind"] == "dir"
 
 

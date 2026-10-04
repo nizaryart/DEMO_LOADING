@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from .classify import Classification
+from . import policy
 
 # Dispositions
 ALLOW = "ALLOW"
@@ -52,32 +53,6 @@ def posture(disposition: str) -> str:
 
 INVARIANT = "mutating_actions_must_be_recoverable_and_match_the_declared_context"
 
-# Approach B: external surfaces aren't locally recoverable, but the PROVIDER
-# usually keeps its own version history. Concise "where to restore" pointers -
-# destinations only, no UI steps/URLs (those go stale). Generic fallback below.
-_RECOVERY_HINTS = {
-    "saas_deploy": "deploy rollback / previous theme version",
-    "saas_cms": "page/post version history or trash",
-    "paas_destroy": "DB backups (PITR) or release rollback",
-    "object_storage": "bucket versioning, if enabled",
-    "remote_database": "the database's PITR / snapshot",
-    "vcs_remote_state": "branch/tag protection or a fresh clone's reflog",
-    "external_payment": "the provider dashboard (refund/void) - not always possible",
-    "schema_migration": "the migration tool's downgrade",
-    "remote_vcs_history": "a teammate's un-force-pushed clone or the remote's reflog",
-    "http_api_write": "the API's own trash / restore endpoint, if it has one - often none",
-    "service_control": "the service's original definition (sc qc / Get-Service), if anyone captured it",
-    "account_control": "the account must be recreated by hand; its SID and grants do not come back",
-    "container_runtime": "rebuild from the Dockerfile / compose file, or a volume backup if one exists",
-    "datastore_flush": "the instance's own RDB or AOF snapshot, if persistence was enabled - otherwise none",
-    "package_registry": "the registry's restore window, if any - npm forbids re-publishing the same version",
-    "disk_format": "block-device restore / disk image backup",
-    "remote_surface": "its version history / rollback",
-}
-
-
-def _recovery_hint(surface: Optional[str]) -> str:
-    return _RECOVERY_HINTS.get(surface or "", "its version history / rollback")
 
 
 @dataclass
@@ -146,7 +121,7 @@ def decide(
             next_steps=[
                 "Confirm the external effect is intended and authorised.",
                 "Supply a structural approval token, or perform it outside the agent.",
-                f"If it already ran, restore from the provider: {_recovery_hint(c.nonrecoverable_surface)}.",
+                f"If it already ran, restore from the provider: {policy.recovery_hint(c.nonrecoverable_surface)}.",
             ],
         )
 

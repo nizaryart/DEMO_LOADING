@@ -505,8 +505,11 @@ class Guard:
     def _engine_facts(self, command: str, dialect: str, c: Classification, impact,
                       target_path: Optional[str], explicit_db: Optional[str],
                       db_url: Optional[str]) -> _Facts:
-        from .engine.verdict import REMOTE_POLICY, ESCALATE as REMOTE_ESCALATE
+        from .engine.verdict import assess
         from .engine.effects import RUN
+        from . import policy
+
+        a = assess(impact, self.config)
 
         affected_paths, target, entry = [], None, None
         snap_notes, strategy = {}, "snapshot"
@@ -519,18 +522,8 @@ class Guard:
         # keep c.matched_rule / c.action_type / c.segments: they are receipt labels only
 
         # 1. Escalating remote surfaces
-        escalating_remote = [
-            (lbl, knd) for lbl, knd in impact.remote.items()
-            if REMOTE_POLICY.get(knd, REMOTE_ESCALATE) == REMOTE_ESCALATE
-        ]
-        if escalating_remote:
-            lbl, knd = sorted(escalating_remote)[0]
-            if lbl.startswith("db:"):
-                c.nonrecoverable_surface = "remote_database"
-            elif lbl.startswith("device:"):
-                c.nonrecoverable_surface = "disk_format"
-            else:
-                c.nonrecoverable_surface = "remote_surface"
+        if a.remote_escalated:
+            c.nonrecoverable_surface = policy.surface_of(a.remote_escalated[0][0])
             c.is_mutating = True
             c.is_destructive = True
 
@@ -539,20 +532,17 @@ class Guard:
             c.remote_exec = True
 
         # 3. Databases with no capture path
-        if impact.no_capture:
+        if a.no_capture:
             c.is_mutating = True
             c.is_destructive = True
 
         # 4. Destroys (filesystem paths)
-        proj_root = os.path.abspath(self.config.project_root or os.getcwd())
-        c.destructive_segments = len(impact.destroys) + len(impact.no_capture) + len(escalating_remote)
+        c.destructive_segments = len(impact.destroys) + len(a.no_capture) + len(a.remote_escalated)
         if impact.destroys:
             c.is_mutating = True
             c.is_destructive = True
-            # Check if every destroyed path exists, is strictly within project, and not root
-            all_ok = all(recovery.within_project(p, proj_root) and os.path.lexists(p)
-                         for p in impact.destroys)
-            if all_ok and not impact.no_capture and not escalating_remote and not c.remote_exec:
+            all_ok = a.capturable
+            if all_ok and not c.remote_exec:
                 targets = [recovery.Target(
                     "dir" if (p in impact.destroyed_dirs or os.path.isdir(p)) else "file", p, p)
                     for p in sorted(impact.destroys.keys())]
@@ -583,7 +573,7 @@ class Guard:
             c.is_mutating = True
             c.is_destructive = True
             db_targets, all_db_ok = _db_targets(impact)
-            if all_db_ok and db_targets and not impact.no_capture and not escalating_remote and not c.remote_exec:
+            if all_db_ok and db_targets and not a.no_capture and not a.remote_escalated and not c.remote_exec:
                 target = db_targets[0]
                 affected_paths = [t.ref for t in db_targets if t.kind in ("file", "dir")]
                 strategies = [(self.config.match_target(t.label).recovery if self.config.match_target(t.label) else "snapshot")
@@ -596,7 +586,7 @@ class Guard:
 
         # 5. Nothing destroyed, no escalating remote, no no_capture -> ALLOW
         if (not impact.destroys and not impact.databases
-                and not escalating_remote and not impact.no_capture):
+                and not a.remote_escalated and not a.no_capture):
             c.is_destructive = False
             c.is_mutating = False
             c.matched_rule = None

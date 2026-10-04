@@ -1,17 +1,11 @@
-"""The shadow engine (Part B, 2026-09-27): understand a command the new way,
-record what it would conclude, and change nothing.
+"""The engine: understand a command the new way, simulate its effects,
+and judge them.
 
     parse (model.py) -> Invocation -> rules -> effects -> simulate -> Impact
-                     -> would-be decision
+                     -> decision
 
-Today's engine still decides everything. This one runs beside it on every
-Guard.evaluate and writes its prediction into the receipt, so the redesign
-can be compared with today's decisions on the 922-command corpus and on
-daily use before it decides anything (Part D).
-
-It can never reach the decision: predict_safely returns a dict or None and
-never raises, runs under a time budget, and nothing downstream reads it.
-DEMO_CLI_SHADOW_ENGINE=0 turns it off.
+The engine decides on the guard's engine path (M2.1); the prediction in the
+receipt is the same judgement, recorded. DEMO_CLI_SHADOW_ENGINE=0 turns it off.
 """
 from __future__ import annotations
 

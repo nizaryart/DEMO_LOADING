@@ -40,7 +40,9 @@ import pytest
 from demo_cli import approval
 from demo_cli.classify import classify_pipeline
 from demo_cli.config import Config
-from demo_cli.decide import ALLOW, ESCALATE, _RECOVERY_HINTS
+from demo_cli.decide import ALLOW, ESCALATE
+# T5 (msg 033): the hints moved to policy.py
+from demo_cli.policy import RECOVERY_HINTS as _RECOVERY_HINTS
 from demo_cli.guard import Guard
 
 # (command, expected surface). Every one of these was ALLOW before 2026-09-17,

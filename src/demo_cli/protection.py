@@ -6,8 +6,9 @@ THREAT_MODEL = (
     "demo_cli protects against an agent's MISTAKES, not a determined adversary: "
     "commands it understands are judged before they run; for commands it cannot "
     "read, the runtime net (syscall guard on Linux, WinFsp mount on Windows) is "
-    "the floor; remote changes cannot be undone locally and are always stopped "
-    "for review.")
+    "the floor; a remote change that can lose data or cannot be recalled is "
+    "stopped for review; one that only adds (a create, a service start) is "
+    "allowed and listed.")
 
 
 class Facts:
@@ -76,7 +77,7 @@ def rows(f: Facts) -> List[Tuple[str, str, str]]:
         out.append((status, label, detail))
 
     out.append(
-        ("ok", "remote changes", "always stopped for review: no local copy can undo them")
+        ("ok", "remote changes", "stopped for review when they can lose data or cannot be recalled; additions are allowed and listed")
     )
     return out
 

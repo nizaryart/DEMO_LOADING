@@ -18,7 +18,9 @@ import pytest
 
 from demo_cli.classify import POSIX, POWERSHELL, classify_pipeline
 from demo_cli.config import Config
-from demo_cli.decide import ALLOW, ESCALATE, _RECOVERY_HINTS
+from demo_cli.decide import ALLOW, ESCALATE
+# T5 (msg 033/035): the hints moved to policy.py
+from demo_cli.policy import RECOVERY_HINTS as _RECOVERY_HINTS
 from demo_cli.guard import Guard
 
 SERVICE_WRITES = [

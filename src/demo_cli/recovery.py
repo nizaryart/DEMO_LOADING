@@ -109,17 +109,6 @@ from .targets import (
     written_paths,
 )
 
-class Entry(dict):
-    """Recovery entry dict. 'scope' is accessible via .get() and ['scope']
-    while preserving exact key set for callers expecting core fields."""
-    def __iter__(self):
-        for k in super().__iter__():
-            if k != "scope": yield k
-
-    def keys(self):
-        return [k for k in super().keys() if k != "scope"]
-
-
 _IGNORE = shutil.ignore_patterns(*sorted(IGNORED_DIRS))
 
 # Upper bound on what we will copy for a directory snapshot. A snapshot we
@@ -428,9 +417,9 @@ def snapshot(target: Optional[Target], recovery_dir: str, strategy: str = "snaps
     action = redact(action) if action else None
 
     def _entry(recovery_point: str, **extra) -> dict:
-        e = Entry({"id": rid, "kind": kind, "target": ref,
-                   "recovery_point": recovery_point, "ts": ts, "action": action,
-                   **extra})
+        e = {"id": rid, "kind": kind, "target": ref,
+             "recovery_point": recovery_point, "ts": ts, "action": action,
+             **extra}
         if scope is not None and "scope" not in e:
             e["scope"] = scope
         if group is not None:
@@ -680,7 +669,7 @@ def _read_index(path: str) -> Tuple[List[dict], int]:
             if not line:
                 continue
             try:
-                entries.append(Entry(json.loads(line)))
+                entries.append(json.loads(line))
             except Exception:
                 unreadable += 1
     return entries, unreadable

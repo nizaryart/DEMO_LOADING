@@ -18,7 +18,8 @@ def test_protection_rows_cases():
         "protection: claude_code",
         "runs under the syscall guard (each destroyed file backed up at the moment of destruction)",
     )
-    assert r1[2] == ("ok", "remote changes", "always stopped for review: no local copy can undo them")
+    # T5 (msg 033) A2.3: the row now matches policy.REMOTE_POLICY.
+    assert r1[2] == ("ok", "remote changes", "stopped for review when they can lose data or cannot be recalled; additions are allowed and listed")
 
     # Case 2: Linux + codex (checkpoint disabled)
     f2 = Facts(os_name="posix", agents=("codex",), checkpoint_enabled=False)
