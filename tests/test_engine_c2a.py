@@ -556,6 +556,10 @@ def test_cr3_imports_are_outside_the_budget(proj, monkeypatch):
 
         def perf_counter(self):
             return self.t
+
+        # B0 (msg 037): the budget now reads the CPU clock too.
+        def process_time(self):
+            return self.t
     clock = Clock()
     real = rules_mod.family_rules
 

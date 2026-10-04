@@ -449,11 +449,9 @@ def _zip_members(path: str, budget) -> List[Tuple[str, bool, bool, bool]]:
     """(name, is_dir, is_symlink, encrypted) from the central directory only.
     The entry count is read from the end record FIRST, so a huge archive is
     refused before zipfile parses its directory."""
-    import time
-    t0 = time.perf_counter()
-    import struct
-    import zipfile
-    budget.deadline += time.perf_counter() - t0         # imports stay outside the budget
+    with budget.paused():
+        import struct
+        import zipfile
     too_many = _Unreadable(f"the archive lists more than {MAX_MEMBERS:,} members")
     try:
         end_record = getattr(zipfile, "_EndRecData", None)  # private: absent -> count after

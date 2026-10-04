@@ -33,6 +33,10 @@ class _SlowClock:
         self.t += 3600.0
         return self.t
 
+    # B0 (msg 037): the budget now reads the CPU clock too.
+    def process_time(self):
+        return self.perf_counter()
+
 
 
 @pytest.fixture(autouse=True)

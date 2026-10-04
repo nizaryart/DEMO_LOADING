@@ -26,6 +26,7 @@ SUBSHELLS: $( ), -c payloads, heredocs fed to a shell, pipeline members and
 """
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import glob as _glob
 import os
@@ -33,6 +34,11 @@ import re
 import stat
 import time
 from typing import Dict, FrozenSet, List, Optional, Tuple
+
+# B0.1 (msg 037), measured 2026-10-04: Linux process_time tick 0.0009 ms;
+# Windows process_time tick 15.625 ms -> perf_counter.
+_CPU_CLOCK = "perf_counter" if os.name == "nt" else "process_time"
+WALL_CEILING_MS = 250.0
 
 from ..model import Script, parse
 from .effects import CREATE, DELETE, MKDIR, OVERWRITE, TRUNCATE, Impact
@@ -72,11 +78,27 @@ class BudgetExceeded(Exception):
 
 class Budget:
     def __init__(self, ms: float):
-        self.deadline = time.perf_counter() + ms / 1000.0
+        clock = getattr(time, _CPU_CLOCK)
+        self.deadline = clock() + ms / 1000.0
+        wall_now = time.perf_counter()
+        # Bound wall time by ceiling, but don't truncate huge test budgets
+        self.wall_deadline = wall_now + max(WALL_CEILING_MS, ms) / 1000.0
 
     def check(self) -> None:
-        if time.perf_counter() > self.deadline:
+        clock = getattr(time, _CPU_CLOCK)
+        if clock() > self.deadline or time.perf_counter() > self.wall_deadline:
             raise BudgetExceeded()
+
+    @contextlib.contextmanager
+    def paused(self):
+        """Pause both deadlines while untimed work (imports, zip directory reads) runs."""
+        c0 = getattr(time, _CPU_CLOCK)()
+        w0 = time.perf_counter()
+        try:
+            yield
+        finally:
+            self.deadline += getattr(time, _CPU_CLOCK)() - c0
+            self.wall_deadline += time.perf_counter() - w0
 
 
 class Node:
@@ -681,11 +703,8 @@ class World:
     def untimed(self, fn):
         """Run `fn` outside the budget: the budget measures ANALYSIS, and a
         lazy import met mid-line must not eat it (review C2a, CR3)."""
-        t0 = time.perf_counter()
-        try:
+        with self.budget.paused():
             return fn()
-        finally:
-            self.budget.deadline += time.perf_counter() - t0
 
     def load_family(self, tool: str) -> List[Rule]:
         """A family's rules, imported the first time one of its tools is met."""

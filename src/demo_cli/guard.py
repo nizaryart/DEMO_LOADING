@@ -162,6 +162,7 @@ _STATE_CHANGING = frozenset({
     "install-hook", "install-shell-guard", "protect", "unprotect",
     "mount", "unmount", "prune",
 })
+ENGINE_UNAVAILABLE = "engine_unavailable"
 _PIP = re.compile(r"^pip(?:\d+(?:\.\d+)*)?$")
 
 
@@ -226,20 +227,31 @@ def _engine_predict(command: str, dialect: str, cfg: Config,
         out = {"engine": "shadow-1", "skipped": dialect}
         out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return out, None
+    retried = False
     try:
-        from .engine import predict, _render
+        from .engine import predict, _render, RETRY_BUDGET_MS
+        from .engine.simulate import BudgetExceeded
         if cfg.project_root and recovery.within_project(os.getcwd(), cfg.project_root):
             cwd = os.path.abspath(os.getcwd())
         else:
             cwd = os.path.abspath(cfg.project_root or os.getcwd())
-        pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url)
+        try:
+            pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url)
+        except BudgetExceeded:
+            retried = True
+            pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url,
+                           budget_ms=RETRY_BUDGET_MS)
         out = _render(pred, cfg)
+        if retried:
+            out["retried"] = True
         out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return out, pred.impact
     except Exception as exc:
         from .engine.simulate import BudgetExceeded
         why = "budget" if isinstance(exc, BudgetExceeded) else f"{type(exc).__name__}: {exc}"
         out = {"engine": "shadow-1", "error": why}
+        if retried:
+            out["retried"] = True
         out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return out, None
 
@@ -355,17 +367,18 @@ def agent_directory(cwd: str):
 class _Facts:
     __slots__ = ("target", "entry", "affected_paths", "snap_notes", "group_id",
                  "supervisable", "net_name", "rewrite", "checkpoint_skipped",
-                 "checkpoint_taken", "remote_pg", "strategy", "c")
+                 "checkpoint_taken", "remote_pg", "strategy", "c", "engine_error")
 
     def __init__(self, target=None, entry=None, affected_paths=None, snap_notes=None,
                  group_id=None, supervisable=False, net_name=None, rewrite=None,
                  checkpoint_skipped=None, checkpoint_taken=False, remote_pg=False,
-                 strategy="snapshot", c=None):
+                 strategy="snapshot", c=None, engine_error=None):
         self.target = target; self.entry = entry; self.affected_paths = affected_paths or []
         self.snap_notes = snap_notes or {}; self.group_id = group_id
         self.supervisable = supervisable; self.net_name = net_name; self.rewrite = rewrite
         self.checkpoint_skipped = checkpoint_skipped; self.checkpoint_taken = checkpoint_taken
         self.remote_pg = remote_pg; self.strategy = strategy; self.c = c
+        self.engine_error = engine_error
 
 
 class Guard:
@@ -464,7 +477,8 @@ class Guard:
         if self._engine_applies(dialect, impact):
             f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
         else:
-            f = self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url, can_supervise, intent, actual_env)
+            engine_error = (prediction or {}).get("error") if dialect == POSIX and impact is None else None
+            f = self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url, can_supervise, intent, actual_env, engine_error=engine_error)
         ctx, mismatches, approval_ok = self._context(command, f, intent, actual_env, approval_token)
         decision = self._decide(command, f, ctx, mismatches, approval_ok)
         return self._record(command, c, f, ctx, decision, intent, prediction, dialect, agent_id, session_id)
@@ -615,7 +629,16 @@ class Guard:
     def _legacy_facts(self, command: str, dialect: str, c: Classification,
                       target_path: Optional[str], explicit_db: Optional[str],
                       db_url: Optional[str], can_supervise: bool,
-                      intent: Intent, actual_env: Optional[str]) -> _Facts:
+                      intent: Intent, actual_env: Optional[str],
+                      engine_error: Optional[str] = None) -> _Facts:
+        # B0 (msg 037): legacy reads less than the engine. When the engine could not
+        # finish, legacy may keep a STRICTER answer (a capture, an escalation), never
+        # its ALLOW: an unread command is "not understood" -> runtime net,
+        # checkpoint, or escalate. r''m a.txt was ALLOW with nothing captured.
+        if engine_error and not c.needs_recovery and not c.remote_exec and not c.nonrecoverable_surface:
+            c.is_mutating = True
+            c.matched_rule = ENGINE_UNAVAILABLE          # "engine_unavailable", a receipt label
+
         # cp / sed -i / perl -i ONTO AN EXISTING FILE destroy it, and no
         # classifier rule says so. The rule cannot live in the classifier: it
         # is filesystem-blind, and a vote there for `cp a new.txt` escalates an
@@ -830,7 +853,8 @@ class Guard:
         return _Facts(target=target, entry=entry, affected_paths=affected_paths,
                       snap_notes=snap_notes, group_id=group_id, supervisable=supervisable,
                       net_name=net_name, rewrite=rewrite, checkpoint_skipped=checkpoint_skipped,
-                      checkpoint_taken=checkpoint_taken, remote_pg=remote_pg, strategy=strategy, c=c)
+                      checkpoint_taken=checkpoint_taken, remote_pg=remote_pg, strategy=strategy, c=c,
+                      engine_error=engine_error)
 
     def _context(self, command: str, f: _Facts, intent: Intent, actual_env: Optional[str],
                  approval_token: Optional[str]) -> Tuple[Context, List[Tuple[str, str, str]], bool]:
@@ -866,6 +890,9 @@ class Guard:
         # to be able to tell that from a one-file snapshot, and someone whose
         # action was blocked has to be told why the checkpoint was refused.
         reason = decision.reason
+        if f.c.matched_rule == ENGINE_UNAVAILABLE:
+            reason = (f"demo_cli could not finish reading this command (engine: {f.engine_error}), "
+                      f"so it is treated as not understood. {reason}")
         if f.checkpoint_taken:
             reason = (f"{reason} Recovery is a whole-workspace checkpoint "
                       f"(coarse): the target could not be resolved from the "

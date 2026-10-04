@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 
 ENGINE = "shadow-1"
 BUDGET_MS = 10.0
+RETRY_BUDGET_MS = 50.0
 KILL_SWITCH = "DEMO_CLI_SHADOW_ENGINE"
 _CAP = 20
 
