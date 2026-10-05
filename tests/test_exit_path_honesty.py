@@ -154,7 +154,12 @@ def test_an_ordinary_save_still_gets_the_save_banner(proj, monkeypatch):
     out = io.StringIO()
     cc.run_pretooluse(_payload(tool_input={"command": "rm app.db"},
                                cwd=str(proj)), out)
-    assert _emitted(out)["permissionDecision"] == "allow"
+    hso = _emitted(out)
+    data = json.loads(out.getvalue())
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    assert "permissionDecision" not in hso
+    assert "recovery point" in hso["additionalContext"]
+    assert "recovery point" in data["systemMessage"]
     assert called == ["save"]
 
 

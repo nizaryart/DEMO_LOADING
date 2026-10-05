@@ -110,8 +110,11 @@ def test_powershell_hook_allows_and_snapshots_recoverable_remove_item(tmp_path):
     rc = run_pretooluse(io.StringIO(json.dumps(payload)), out)
     assert rc == 0
     decision = json.loads(out.getvalue())
-    assert decision["hookSpecificOutput"]["permissionDecision"] == "allow"
-    assert "recovery point" in decision["hookSpecificOutput"]["permissionDecisionReason"]
+    hso = decision["hookSpecificOutput"]
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    assert "permissionDecision" not in hso
+    assert "recovery point" in hso["additionalContext"]
+    assert "recovery point" in decision["systemMessage"]
     entries = recovery.load_entries(os.path.join(str(tmp_path), ".demo_cli", "recovery"))
     assert len(entries) == 1
 

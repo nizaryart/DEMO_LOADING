@@ -8,7 +8,8 @@ THREAT_MODEL = (
     "read, the runtime net (syscall guard on Linux, WinFsp mount on Windows) is "
     "the floor; a remote change that can lose data or cannot be recalled is "
     "stopped for review; one that only adds (a create, a service start) is "
-    "allowed and listed.")
+    "allowed and listed."
+    " The runtime net runs in both modes: shadow only means that decisions do not block.")
 
 
 class Facts:

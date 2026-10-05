@@ -208,7 +208,7 @@ def _hook_selftest(tool_name: str, command: str) -> bool:
         response = json.loads(raw)
         hook_output = response.get("hookSpecificOutput", {})
         permission = hook_output.get("permissionDecision")
-        if permission not in {"allow", "deny", "ask"}:
+        if permission not in {"allow", "deny", "ask"} and "additionalContext" not in hook_output:
             return False
 
         # What doctor prints on a pass is "a test delete was intercepted and

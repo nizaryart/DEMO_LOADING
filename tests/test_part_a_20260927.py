@@ -224,7 +224,11 @@ def _claude(root, command, tool="Bash"):
     run_pretooluse(io.StringIO(json.dumps({
         "hook_event_name": "PreToolUse", "tool_name": tool, "cwd": str(root),
         "tool_input": {"command": command}})), out)
-    return json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecision"]
+    raw = out.getvalue()
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    if not raw.strip():
+        return "(proceed)"
+    return json.loads(raw)["hookSpecificOutput"]["permissionDecision"]
 
 
 # (changes demo_cli's state, a harmless neighbour allowed before and after)
@@ -248,12 +252,14 @@ AGENT_SELF_COMMANDS = [
 
 @pytest.mark.parametrize("command,neighbour", AGENT_SELF_COMMANDS)
 def test_a1b_an_agent_changing_demo_clis_state_is_denied(proj, command, neighbour):
-    assert _claude(proj, neighbour) == "allow", "control"
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    assert _claude(proj, neighbour) == "(proceed)", "control"
     assert _claude(proj, command) == "deny"
 
 
 def test_a1b_the_powershell_tool_is_an_agent_door_too(proj):
-    assert _claude(proj, "demo_cli status", tool="PowerShell") == "allow", "control"
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    assert _claude(proj, "demo_cli status", tool="PowerShell") == "(proceed)", "control"
     assert _claude(proj, "demo_cli teardown", tool="PowerShell") == "deny"
 
 

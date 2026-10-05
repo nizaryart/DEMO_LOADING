@@ -133,8 +133,12 @@ def test_hook_gates_edit_tool(tmp_path):
     f.write_text("original")
     out = _run_hook({"tool_name": "Edit", "cwd": str(tmp_path),
                      "tool_input": {"file_path": str(f)}})
-    decision = json.loads(out)["hookSpecificOutput"]["permissionDecision"]
-    assert decision == "allow"  # snapshotted, reversible
+    data = json.loads(out)
+    hso = data["hookSpecificOutput"]
+    # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    assert "permissionDecision" not in hso
+    assert "recovery point" in hso["additionalContext"]
+    assert "recovery point" in data["systemMessage"]
     # a recovery point now exists for the project
     rec = os.path.join(str(tmp_path), ".demo_cli", "recovery")
     assert len(recovery.load_entries(rec)) == 1

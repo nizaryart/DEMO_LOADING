@@ -510,9 +510,14 @@ def load_config(start: Optional[str] = None) -> Config:
         return cfg
     cfg.source_path = path
 
-    mode = str(data.get("mode", cfg.mode)).strip().lower()
-    if mode in VALID_MODES:
-        cfg.mode = mode
+    if "mode" in data:
+        raw_mode = data["mode"]
+        norm_mode = str(raw_mode).strip().lower()
+        if norm_mode in VALID_MODES:
+            cfg.mode = norm_mode
+        else:
+            if not cfg.config_error:
+                cfg.config_error = f"{path}: mode = {raw_mode!r} is not one of: shadow, enforce"
 
     ws = data.get("workspace", {})
     if isinstance(ws, dict) and ws.get("dir"):
@@ -525,6 +530,12 @@ def load_config(start: Optional[str] = None) -> Config:
     eg = data.get("egress", {})
     if isinstance(eg, dict):
         cfg.egress = eg
+        if "mode" in eg:
+            raw_emode = eg["mode"]
+            norm_emode = str(raw_emode).strip().lower()
+            if norm_emode not in VALID_MODES:
+                if not cfg.config_error:
+                    cfg.config_error = f"{path}: [egress] mode = {raw_emode!r} is not one of: shadow, enforce"
 
     cl = data.get("cloak", {})
     if isinstance(cl, dict):

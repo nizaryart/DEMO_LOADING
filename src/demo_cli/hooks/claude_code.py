@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from . import attributed
 from .. import fsreport
@@ -86,19 +86,32 @@ def _loud_block(result) -> None:
     _stderr("")
 
 
-def _emit(stdout, permission: str, reason: str, *,
-          updated_input: Optional[dict] = None) -> None:
-    hook_output: Dict = {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": permission,
-        # Prefixed at the single exit point, so no caller can
-        # forget. See hooks.attributed.
-        "permissionDecisionReason": attributed(reason),
-    }
-    if updated_input is not None:
-        hook_output["updatedInput"] = updated_input
-    stdout.write(json.dumps({"hookSpecificOutput": hook_output}))
-    stdout.flush()
+def _emit(stdout, permission: Optional[str] = None, reason: Optional[str] = None, *,
+          updated_input: Optional[dict] = None,
+          notice: Optional[str] = None) -> None:
+    if permission is not None:
+        hook_output: Dict = {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": permission,
+            # Prefixed at the single exit point, so no caller can
+            # forget. See hooks.attributed.
+            "permissionDecisionReason": attributed(reason or ""),
+        }
+        if updated_input is not None:
+            hook_output["updatedInput"] = updated_input
+        stdout.write(json.dumps({"hookSpecificOutput": hook_output}))
+        stdout.flush()
+    elif notice is not None:
+        hook_output = {
+            "hookEventName": "PreToolUse",
+            "additionalContext": attributed(notice),
+        }
+        top: Dict = {
+            "hookSpecificOutput": hook_output,
+            "systemMessage": attributed(notice),
+        }
+        stdout.write(json.dumps(top))
+        stdout.flush()
 
 
 def run_pretooluse(stdin, stdout) -> int:
@@ -225,17 +238,32 @@ def run_pretooluse(stdin, stdout) -> int:
     # command that never ran. The shadow block above already orders it this way.
     if result.decision.is_blocking:
         _loud_block(result)         # <-- make the block legible, with report link
-    elif result.recovery_entry:
-        rid = result.recovery_entry.get("id", "")
-        reason += f"  (recovery point {rid}; undo with `demo_cli undo {rid}`)"
-        _loud_save(result)          # <-- make the save FELT, on stderr
+        if fs_note:
+            reason += "\n\n" + fs_note
+        _emit(stdout, "deny", reason)
+        return 0
+
+    if result.decision.is_ask:
+        if fs_note:
+            reason += "\n\n" + fs_note
+        _emit(stdout, "ask", reason)
+        return 0
+
+    has_capture = bool(result.recovery_entry or result.decision.decision in ("REVERSIBLE", "DRY_RUN"))
+    if has_capture:
+        if result.recovery_entry:
+            rid = result.recovery_entry.get("id", "")
+            reason += f"  (recovery point {rid}; undo with `demo_cli undo {rid}`)"
+            _loud_save(result)          # <-- make the save FELT, on stderr
+        if fs_note:
+            reason += "\n\n" + fs_note
+        _emit(stdout, notice=reason)
+        return 0
+
     if fs_note:
-        # Also on the decision reason, not only stderr. Whether hook stderr
-        # reaches the model is up to the host and its version; this field
-        # reliably does, and an agent that cannot see the fs layer draws
-        # wrong conclusions about the whole guard.
-        reason += "\n\n" + fs_note
-    _emit(stdout, result.permission, reason)
+        _emit(stdout, notice=fs_note)
+        return 0
+
     return 0
 
 
