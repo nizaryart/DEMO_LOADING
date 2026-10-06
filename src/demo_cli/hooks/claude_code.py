@@ -88,7 +88,9 @@ def _loud_block(result) -> None:
 
 def _emit(stdout, permission: Optional[str] = None, reason: Optional[str] = None, *,
           updated_input: Optional[dict] = None,
-          notice: Optional[str] = None) -> None:
+          notice: Optional[str] = None,
+          system_message: Optional[str] = None,
+          additional_context: Optional[str] = None) -> None:
     if permission is not None:
         hook_output: Dict = {
             "hookEventName": "PreToolUse",
@@ -101,15 +103,21 @@ def _emit(stdout, permission: Optional[str] = None, reason: Optional[str] = None
             hook_output["updatedInput"] = updated_input
         stdout.write(json.dumps({"hookSpecificOutput": hook_output}))
         stdout.flush()
-    elif notice is not None:
+    else:
         hook_output = {
             "hookEventName": "PreToolUse",
-            "additionalContext": attributed(notice),
         }
+        if updated_input is not None:
+            hook_output["updatedInput"] = updated_input
+        ctx = additional_context if additional_context is not None else notice
+        if ctx is not None:
+            hook_output["additionalContext"] = attributed(ctx)
+        sys_msg = system_message if system_message is not None else notice
         top: Dict = {
             "hookSpecificOutput": hook_output,
-            "systemMessage": attributed(notice),
         }
+        if sys_msg is not None:
+            top["systemMessage"] = attributed(sys_msg)
         stdout.write(json.dumps(top))
         stdout.flush()
 
@@ -205,9 +213,26 @@ def run_pretooluse(stdin, stdout) -> int:
         return 0
 
     updated = None
-    if result.decision.decision == "SUPERVISED" and result.rewrite:
-        updated = dict(tool_input)
-        updated["command"] = result.rewrite
+    sys_msg = None
+    add_ctx = None
+    if result.decision.decision == "SUPERVISED":
+        if result.rewrite:
+            updated = dict(tool_input)
+            updated["command"] = result.rewrite
+            orig_disp = command if len(command) <= 200 else command[:200] + "…"
+            sys_msg = (
+                "demo_cli will run this under the syscall guard, "
+                f"so each file it destroys is backed up first: {orig_disp}"
+            )
+            gid = result.group_id or ""
+            add_ctx = (
+                f"this command was rewritten by demo_cli and runs as: {result.rewrite}. "
+                f"Each file it destroys is backed up at the moment of destruction; "
+                f"undo with `demo_cli undo {gid}`."
+            )
+        else:
+            sys_msg = result.decision.reason
+            add_ctx = result.decision.reason
 
     # shadow mode: observe only - but make a genuinely interesting decision or a
     # fresh snapshot *visible* on stderr, so value isn't silently buried.
@@ -215,7 +240,7 @@ def run_pretooluse(stdin, stdout) -> int:
         if result.decision.decision == "SUPERVISED":
             sys.stderr.write(f"demo_cli [shadow] SUPERVISED: {result.decision.reason}\n")
             if updated:
-                _emit(stdout, "allow", result.decision.reason, updated_input=updated)
+                _emit(stdout, updated_input=updated, system_message=sys_msg, additional_context=add_ctx)
                 return 0
         elif result.decision.is_blocking or result.decision.is_ask:
             sys.stderr.write(f"demo_cli [shadow] {result.decision.decision}: {result.decision.reason}\n")
@@ -230,7 +255,7 @@ def run_pretooluse(stdin, stdout) -> int:
         _stderr("")
         _stderr(f"demo_cli \u2705 {reason}")
         _stderr("")
-        _emit(stdout, "allow", reason, updated_input=updated)
+        _emit(stdout, updated_input=updated, system_message=sys_msg, additional_context=add_ctx)
         return 0
 
     # Blocking is tested FIRST. The nonrecoverable-surface branch captures and

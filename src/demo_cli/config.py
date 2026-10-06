@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import shutil
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Tuple
 
@@ -387,6 +388,9 @@ def control_plane_paths(cfg) -> List[str]:
     for where in (root, home):
         paths += [os.path.join(where, rel) for rel in HOOK_CONFIG_FILES]
     paths.append(os.path.expanduser(SHELL_GUARD_SCRIPT))
+    launcher = shutil.which("demo_cli")
+    if launcher:
+        paths.append(launcher)
     return [os.path.normpath(os.path.abspath(p)) for p in paths]
 
 

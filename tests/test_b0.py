@@ -218,7 +218,9 @@ def test_never_looser_with_net(tmp_path, monkeypatch):
 
     assert r.decision.decision == "SUPERVISED"
     assert r.rewrite is not None
-    assert r.rewrite.startswith(f"{sys.executable} -m demo_cli run --group ")
+    # B1b (msg 043): the rewrite is now "<launcher> sh -g <id> <quoted cmd>" and carries no permissionDecision.
+    from demo_cli import guard
+    assert r.rewrite.startswith(guard._launcher() + " sh -g ")
 
 
 def test_control_engine_working_r_quote_m(tmp_path):

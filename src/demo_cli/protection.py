@@ -62,6 +62,7 @@ def rows(f: Facts) -> List[Tuple[str, str, str]]:
                     detail = (
                         "runs under the syscall guard "
                         "(each destroyed file backed up at the moment of destruction)"
+                        "; in default mode you are asked first, and the prompt shows the demo_cli sh wrapper"
                     )
                 else:
                     status = "warn"

@@ -18,8 +18,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 import contextlib
+import functools
 import os
 import re
+import shutil
 import sys
 
 from . import approval, checkpoint, preview as preview_mod, recovery
@@ -30,6 +32,26 @@ from .context import Context, Intent, build_context, compare_intent
 from .decide import (ALLOW, ASK, BLOCKING, CONTEXT_MISMATCH, DRY_RUN, ESCALATE,
                      REVERSIBLE, Decision, decide)
 from .receipts import Receipt, append_receipt
+
+
+@functools.lru_cache(maxsize=32)
+def _launcher(project_root: Optional[str | os.PathLike] = None) -> str:
+    w = shutil.which("demo_cli")
+    fallback = f"{sys.executable} -m demo_cli"
+    if not w:
+        return fallback
+    cand = os.path.abspath(w)
+    root = os.path.abspath(os.fspath(project_root)) if project_root else None
+    if root is None:
+        try:
+            cfg = load_config()
+            if cfg and cfg.project_root:
+                root = os.path.abspath(cfg.project_root)
+        except Exception:
+            pass
+    if root and recovery.within_project(cand, root):
+        return fallback
+    return cand
 
 
 def _record_receipt(path: str, receipt: Receipt) -> bool:
@@ -1006,7 +1028,7 @@ class Guard:
                     net_name = "syscall_guard"
                     import shlex, uuid
                     group_id = uuid.uuid4().hex[:8]
-                    rewrite = f"{sys.executable} -m demo_cli run --group {group_id} -- bash -c {shlex.quote(command)}"
+                    rewrite = f"{_launcher(proj_root)} sh -g {group_id} {shlex.quote(command)}"
 
         checkpoint_skipped, checkpoint_taken = None, False
         if supervisable:

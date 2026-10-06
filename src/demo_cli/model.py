@@ -514,6 +514,63 @@ def _resolve(cmd: Command, line: str, depth: int = 0) -> None:
         if nested and nested[0].strip():
             cmd.nested_ps = nested[0]
             cmd.payload = (cmd.cmd_index + 1, len(cmd.words))
+        return
+
+    # demo_cli wrappers: demo_cli sh [-g X] SCRIPT
+    #                   demo_cli run [--group X] [--deny] -- ARGV...
+    # Also handles python [-m demo_cli] prefix, and path to demo_cli.
+    is_demo_cli = False
+    sub_idx = 0
+    if name == "demo_cli":
+        is_demo_cli = True
+        sub_idx = 1
+    elif (name.startswith("python") or name == "py") and len(argv) > 2:
+        if argv[1].value == "-m" and argv[2].value == "demo_cli":
+            is_demo_cli = True
+            sub_idx = 3
+
+    if is_demo_cli and sub_idx < len(argv):
+        sub = argv[sub_idx].value
+        if sub == "sh":
+            k = sub_idx + 1
+            while k < len(argv):
+                v = argv[k].value
+                if v in ("-g", "--group") and k + 1 < len(argv):
+                    k += 2
+                    continue
+                if v.startswith("--group="):
+                    k += 1
+                    continue
+                if v.startswith("-g") and len(v) > 2:
+                    k += 1
+                    continue
+                break
+            if k < len(argv):
+                cmd.nested = parse(argv[k].value, POSIX, depth + 1)
+                cmd.payload = (cmd.cmd_index + k, cmd.cmd_index + k + 1)
+            return
+        elif sub == "run":
+            k = sub_idx + 1
+            while k < len(argv):
+                v = argv[k].value
+                if v == "--":
+                    k += 1
+                    break
+                if v in ("-g", "--group") and k + 1 < len(argv):
+                    k += 2
+                    continue
+                if v.startswith("--group="):
+                    k += 1
+                    continue
+                if v == "--deny":
+                    k += 1
+                    continue
+                break
+            if k < len(argv):
+                payload = " ".join(w.raw for w in argv[k:])
+                cmd.nested = parse(payload, POSIX, depth + 1)
+                cmd.payload = (cmd.cmd_index + k, len(cmd.words))
+            return
 
 
 def _env_split_string(words: List[Word], i: int) -> Optional[Tuple[str, int]]:

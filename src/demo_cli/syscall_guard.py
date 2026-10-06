@@ -219,6 +219,78 @@ def available() -> bool:
     return True
 
 
+def _parse_tracer_pid(status_text: str) -> int:
+    for line in status_text.splitlines():
+        if line.startswith("TracerPid:"):
+            try:
+                return int(line.split(":", 1)[1].strip())
+            except ValueError:
+                return 0
+    return 0
+
+
+def _tracer_is_ours(status_text: str, cmdline_bytes: bytes) -> bool:
+    pid = _parse_tracer_pid(status_text)
+    if pid == 0:
+        return False
+    args = [a.decode("utf-8", errors="replace") for a in cmdline_bytes.split(b"\x00") if a]
+    if not args:
+        return False
+
+    def _clean(p: str) -> str:
+        base = os.path.basename(p.replace("\\", "/")).lower()
+        return base.removesuffix(".exe")
+
+    a0 = _clean(args[0])
+    # Shape 1: demo_cli (launcher directly executed) sh/run
+    if a0 == "demo_cli" and len(args) > 1 and args[1] in ("sh", "run"):
+        return True
+
+    # Shapes 2 & 3: python interpreter
+    if a0.startswith("python"):
+        # Shape 2: python <launcher> sh/run
+        if len(args) > 2 and _clean(args[1]) == "demo_cli" and args[2] in ("sh", "run"):
+            return True
+        # Shape 3: python -m demo_cli sh/run
+        if len(args) > 3 and args[1] == "-m" and args[2] == "demo_cli" and args[3] in ("sh", "run"):
+            return True
+
+    return False
+
+
+def _check_tracer() -> tuple[bool, int, str]:
+    if sys.platform != "linux":
+        return False, 0, ""
+    try:
+        with open("/proc/self/status", "r", encoding="utf-8") as f:
+            status_text = f.read()
+    except Exception:
+        return False, 0, ""
+
+    tracer_pid = _parse_tracer_pid(status_text)
+    if tracer_pid == 0:
+        return False, 0, ""
+
+    try:
+        with open(f"/proc/{tracer_pid}/cmdline", "rb") as f:
+            cmdline_bytes = f.read()
+    except Exception:
+        cmdline_bytes = b""
+
+    argv0 = ""
+    if cmdline_bytes:
+        raw_parts = [p.decode("utf-8", errors="replace") for p in cmdline_bytes.split(b"\x00") if p]
+        if raw_parts:
+            argv0 = raw_parts[0]
+
+    is_ours = _tracer_is_ours(status_text, cmdline_bytes)
+    return is_ours, tracer_pid, argv0
+
+
+def _is_traced() -> bool:
+    return _check_tracer()[1] != 0
+
+
 def run_supervised(argv: List[str], config: Optional[Config] = None,
                    deny: bool = False, group: Optional[str] = None) -> int:
     """Fork+exec argv under ptrace; snapshot any in-scope, pre-existing file a
@@ -227,6 +299,22 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
     (-EPERM) instead. Returns the child's exit code."""
     if sys.platform != "linux":
         raise RuntimeError("syscall guard requires Linux (ptrace).")
+    # If this process is itself already being traced (Linux: TracerPid in /proc/self/status
+    # is not 0), direct exec is permitted ONLY if the tracer is a demo_cli supervisor.
+    # If traced by a foreign process (strace, gdb, etc.), refuse to run unsupervised (exit 126).
+    is_ours, tracer_pid, argv0 = _check_tracer()
+    if tracer_pid != 0:
+        if is_ours:
+            try:
+                os.execvp(argv[0], argv)
+            except OSError as exc:
+                os.write(2, f"demo_cli run: cannot exec {argv[0]!r}: {exc}\n".encode())
+                os._exit(127)
+        else:
+            sys.stderr.write(
+                f"demo_cli sh: already traced by another process (pid {tracer_pid}: {argv0}); refusing to run unsupervised\n"
+            )
+            sys.exit(126)
     config = config or load_config()
     group = group or uuid.uuid4().hex[:8]
     root = os.path.abspath(config.project_root or os.getcwd())

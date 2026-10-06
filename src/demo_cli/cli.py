@@ -1321,6 +1321,21 @@ def cmd_run(a) -> int:
         return 1
 
 
+def cmd_sh(a) -> int:
+    """Run a shell command under the behavioral (syscall) guard [Linux only]."""
+    script = getattr(a, "script", None)
+    if not script:
+        print("usage: demo_cli sh [-g GROUP] SCRIPT")
+        return 1
+    try:
+        from .syscall_guard import run_supervised
+        return run_supervised(["bash", "-c", script], config=load_config(),
+                              group=getattr(a, "group", None))
+    except RuntimeError as exc:
+        print(f"demo_cli sh: {exc}")
+        return 1
+
+
 def cmd_target(a) -> int:
     target_action = getattr(a, "target_action", None)
     if target_action == "add":
@@ -1492,6 +1507,14 @@ def build_parser() -> argparse.ArgumentParser:
     rn.add_argument("argv", nargs=argparse.REMAINDER,
                     help="the command to run under the guard (e.g. demo_cli run rm -rf ./x)")
     rn.set_defaults(func=cmd_run)
+
+    sh_parser = sub.add_parser("sh", parents=[common],
+                               help="run a shell command under the syscall guard [Linux] (what the Claude Code hook rewrites to)")
+    sh_parser.add_argument("-g", "--group", default=None,
+                           help="shared recovery group id for all snapshots in this run")
+    sh_parser.add_argument("script",
+                           help="shell script to run under bash -c")
+    sh_parser.set_defaults(func=cmd_sh)
 
     isg = sub.add_parser("install-shell-guard", parents=[common],
                          help="gate `!`-mode / direct shell commands via a bash DEBUG-trap [bash]")

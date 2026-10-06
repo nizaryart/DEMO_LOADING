@@ -4,6 +4,7 @@ and in-place/background process handling.
 import io
 import json
 import os
+import shlex
 import signal
 import sys
 import time
@@ -20,7 +21,7 @@ from demo_cli.decide import (
 from demo_cli.guard import Guard, GuardResult
 from demo_cli.hooks.claude_code import run_pretooluse
 from demo_cli.mountstate import MountStatus
-from demo_cli import recovery, syscall_guard
+from demo_cli import guard, recovery, syscall_guard
 
 
 # ==============================================================================
@@ -80,8 +81,9 @@ def test_guard_evaluates_supervised_with_rewrite_on_unresolvable_command(tmp_pat
     assert r.decision.decision == SUPERVISED
     assert r.decision.recoverable is True
     assert r.rewrite is not None
-    assert f"{sys.executable} -m demo_cli run " in r.rewrite
-    assert " -- bash -c" in r.rewrite
+    # B1b (msg 043): the rewrite is now "<launcher> sh -g <id> <quoted cmd>" and carries no permissionDecision.
+    assert r.rewrite.startswith(guard._launcher() + " sh -g ")
+    assert r.rewrite.endswith(" " + shlex.quote("rm $(cat list.txt)"))
     assert "covered by the syscall guard" in r.decision.reason
 
 
@@ -197,11 +199,16 @@ def test_claude_hook_emits_updated_input_on_supervised_bash(tmp_path):
     out = io.StringIO()
     rc = run_pretooluse(io.StringIO(json.dumps(payload)), out)
     assert rc == 0
-    resp = json.loads(out.getvalue())["hookSpecificOutput"]
-    assert resp["permissionDecision"] == "allow"
+    # B1b (msg 043): the rewrite is now "<launcher> sh -g <id> <quoted cmd>" and carries no permissionDecision.
+    resp_top = json.loads(out.getvalue())
+    resp = resp_top["hookSpecificOutput"]
+    assert "permissionDecision" not in resp
     assert "updatedInput" in resp
-    assert f"{sys.executable} -m demo_cli run " in resp["updatedInput"]["command"]
-    assert " -- bash -c" in resp["updatedInput"]["command"]
+    assert resp["updatedInput"]["command"].startswith(guard._launcher() + " sh -g ")
+    assert resp["updatedInput"]["command"].endswith(" " + shlex.quote("rm $(cat list.txt)"))
+    assert "additionalContext" in resp
+    assert "systemMessage" in resp_top
+    assert "rm $(cat list.txt)" in resp_top["systemMessage"]
 
 
 def test_claude_hook_never_rewrites_powershell(tmp_path):
@@ -233,8 +240,9 @@ def test_claude_hook_rewrites_in_shadow_mode_too(tmp_path):
     out = io.StringIO()
     rc = run_pretooluse(io.StringIO(json.dumps(payload)), out)
     assert rc == 0
+    # B1b (msg 043): the rewrite is now "<launcher> sh -g <id> <quoted cmd>" and carries no permissionDecision.
     resp = json.loads(out.getvalue())["hookSpecificOutput"]
-    assert resp["permissionDecision"] == "allow"
+    assert "permissionDecision" not in resp
     assert "updatedInput" in resp
 
 
