@@ -482,9 +482,17 @@ def unzip(w, inv, parsed, state, tool) -> None:
     "replace?" prompt and treats it as None - nothing is overwritten. -o
     overwrites, -n never does. Members come from the archive (review ruling 1):
     one that escapes (absolute, or `..`) counts as destroyed OUTSIDE, so the
-    verdict is ESCALATE; a symlink member or an encrypted archive is UNKNOWN."""
+    verdict is ESCALATE; a symlink member is UNKNOWN.
+
+    -P PASSWORD (I1c, VERIFIED with UnZip 6.0): inside a cluster P takes the
+    rest of the word as its value - `-oPsecret` is -o plus the password
+    "secret", `-Pxo` is the password "xo" - or the next word when nothing
+    follows. With -P an encrypted member is extracted like any other (a wrong
+    password only means less is written); without it, with no terminal, unzip
+    cannot ask for one, and an encrypted member stays UNKNOWN as before."""
     args = inv.argv[1:]
     opts, exdir, zipword, members, excludes, in_x = set(), None, None, [], [], False
+    password = False
     i = 0
     while i < len(args):
         a = args[i]
@@ -498,8 +506,13 @@ def unzip(w, inv, parsed, state, tool) -> None:
                 in_x = False
             elif v.startswith("-d"):
                 exdir = _sub(a, 2, v[2:])
-            elif v == "-P":
-                i += 1
+            elif "P" in v[1:]:
+                body = v[1:]
+                k = body.index("P")
+                opts |= set(body[:k])                    # the letters before P are options
+                password = True
+                if k == len(body) - 1:
+                    i += 1                               # `-P secret`: the next word is it
             else:
                 opts |= set(v[1:])
             i += 1
@@ -544,7 +557,7 @@ def unzip(w, inv, parsed, state, tool) -> None:
         if is_link:
             w.impact.not_understood(inv.text, "the archive holds a symbolic link")
             continue
-        if encrypted:
+        if encrypted and not password:
             w.impact.not_understood(inv.text, "the archive is encrypted")
             continue
         rel = os.path.basename(name.rstrip("/")) if "j" in opts else name
