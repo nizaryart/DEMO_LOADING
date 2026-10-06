@@ -2,7 +2,7 @@
 destroy."
 
 When a command mutates something and no target can be resolved from its text -
-`rm $(cat list.txt)`, `rm $TARGET` with the assignment out of reach - the guard
+`rm $(git ls-files -o)`, `rm $TARGET` with the assignment out of reach - the guard
 escalates. That is honest, and it is also the branch that gets a tool
 uninstalled. Checkpointing offers the other answer: preserve everything the
 command could destroy, and if that cannot be done honestly, escalate exactly as
@@ -40,6 +40,7 @@ def workspace(tmp_path, monkeypatch):
     return tmp_path
 
 
+# I1b (msg 053): $(cat FILE) is now read; $(git ls-files -o) stays not understood.
 def guard(root, **ck):
     return Guard(Config(mode="enforce", project_root=str(root), checkpoint=ck))
 
@@ -56,13 +57,13 @@ def contents(snapdir):
 def test_checkpointing_is_off_by_default(workspace):
     """Copying a workspace before a command is a real cost. A guard that
     becomes slow without being asked is a guard that gets uninstalled."""
-    r = guard(workspace).evaluate("rm $(cat list.txt)", agent_id="t", session_id="t")
+    r = guard(workspace).evaluate("rm $(git ls-files -o)", agent_id="t", session_id="t")
     assert r.receipt.decision == "ESCALATE"
     assert not r.receipt.recovery_point
 
 
 def test_enabling_it_turns_that_escalation_into_a_recovery(workspace):
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert r.receipt.decision == "REVERSIBLE"
     assert r.receipt.recovery_point.endswith(".snapdir")
@@ -78,7 +79,7 @@ def test_git_is_included_because_nothing_else_holds_it(workspace):
     is preserved", and a script that deletes .git falsifies that. History is
     the one thing in a workspace that cannot be rebuilt from the rest of it.
     """
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert ".git/HEAD" in contents(r.receipt.recovery_point)
 
@@ -87,13 +88,13 @@ def test_git_is_included_because_nothing_else_holds_it(workspace):
 def test_regenerable_output_is_excluded(workspace, regenerable):
     """The rule is "can this be rebuilt from what the checkpoint DOES hold?".
     node_modules comes back from package.json; .pyc files from the .py files."""
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert not any(regenerable in p for p in contents(r.receipt.recovery_point))
 
 
 def test_the_working_tree_is_captured(workspace):
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     got = contents(r.receipt.recovery_point)
     assert {"notes.txt", "src/app.py"} <= got
@@ -176,7 +177,7 @@ def test_a_refusal_leaves_the_escalation_exactly_as_it_was(workspace, monkeypatc
     """The module can only ever turn an escalation into a recovery. It must
     never turn a refusal into an allow on the strength of a partial copy."""
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_MB", "0.00001")   # ~10 bytes: below the fixture
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert r.receipt.decision == "ESCALATE"
     assert not r.receipt.recovery_point
@@ -184,7 +185,7 @@ def test_a_refusal_leaves_the_escalation_exactly_as_it_was(workspace, monkeypatc
 
 def test_a_refusal_explains_itself_actionably(workspace, monkeypatch):
     monkeypatch.setenv("DEMO_CLI_MAX_SNAPSHOT_MB", "0.00001")   # ~10 bytes: below the fixture
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert "DEMO_CLI_MAX_SNAPSHOT_MB" in r.receipt.reason
 
@@ -197,7 +198,7 @@ def test_the_receipt_says_the_recovery_is_a_coarse_checkpoint(workspace):
     """Undo on a checkpoint restores the ENTIRE tree, rolling back unrelated
     edits made afterwards. Someone reading the receipt has to be able to tell
     that from a one-file snapshot."""
-    r = guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    r = guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                                 agent_id="t", session_id="t")
     assert "checkpoint" in r.receipt.reason.lower()
     assert "coarse" in r.receipt.reason.lower()
@@ -206,7 +207,7 @@ def test_the_receipt_says_the_recovery_is_a_coarse_checkpoint(workspace):
 def test_a_checkpoint_is_an_ordinary_recovery_entry(workspace):
     """undo, log, diff and verify must need no special case for these - the
     same property snapshot_bytes was built for on the WinFsp side."""
-    guard(workspace, enabled=True).evaluate("rm $(cat list.txt)",
+    guard(workspace, enabled=True).evaluate("rm $(git ls-files -o)",
                                             agent_id="t", session_id="t")
     entries = recovery.load_entries(str(workspace / ".demo_cli" / "recovery"))
     # T3 (msg 026) + T5.0 (msg 033): a checkpoint entry records scope="checkpoint".
@@ -218,7 +219,7 @@ def test_a_checkpoint_is_an_ordinary_recovery_entry(workspace):
 def test_undo_restores_the_workspace_from_a_checkpoint(workspace):
     """End to end: destroy something the guard could not name, and get it back."""
     g = guard(workspace, enabled=True)
-    r = g.evaluate("rm $(cat list.txt)", agent_id="t", session_id="t")
+    r = g.evaluate("rm $(git ls-files -o)", agent_id="t", session_id="t")
     (workspace / "notes.txt").unlink()          # the command runs for real
     (workspace / "src" / "app.py").unlink()
 

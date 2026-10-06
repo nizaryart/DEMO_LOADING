@@ -38,6 +38,7 @@ from .classify import (POSIX, POWERSHELL, _WRAPPERS, _WRAPPER_LONG_VALUE,
 class Script:
     line: str
     commands: List["Command"] = field(default_factory=list)
+    functions: List[str] = field(default_factory=list)   # names defined on this line (I1b)
 
 
 @dataclass
@@ -414,7 +415,8 @@ def parse(line: str, dialect: str = POSIX, _depth: int = 0) -> Script:
             if op == "(":
                 if not cur.words:
                     subshell += 1
-                # else: `name()` - a function definition header
+                else:                             # `name()` - a function definition header
+                    script.functions.append(cur.words[-1].value)
             elif op == ")":
                 if subshell:
                     subshell -= 1
@@ -425,6 +427,9 @@ def parse(line: str, dialect: str = POSIX, _depth: int = 0) -> Script:
                 finish(op)
         k += 1
     finish("")
+    for cm in script.commands:                    # `function name { ...`
+        if len(cm.words) > 1 and cm.words[0].value == "function" and not cm.words[0].quoted:
+            script.functions.append(cm.words[1].value)
     return script
 
 

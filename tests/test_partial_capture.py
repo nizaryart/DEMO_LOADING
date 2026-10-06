@@ -23,8 +23,8 @@ def test_command_substitution_escalates(tmp_path, monkeypatch):
     (tmp_path / "keeper.db").write_text("k")
     (tmp_path / "extra.txt").write_text("e")
     (tmp_path / "targets.txt").write_text("extra.txt\n")
-    # $() targets are invisible to the expander -> partial capture -> escalate
-    assert _decision("rm -f keeper.db $(cat targets.txt)", tmp_path) == "ESCALATE"
+    # I1b (msg 053): $(cat FILE) is now read; $(git ls-files -o) stays not understood.
+    assert _decision("rm -f keeper.db $(git ls-files -o)", tmp_path) == "ESCALATE"
 
 
 def test_globstar_escalates(tmp_path, monkeypatch):

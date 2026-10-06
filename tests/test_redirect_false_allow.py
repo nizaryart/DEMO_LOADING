@@ -154,12 +154,13 @@ def test_resolver_and_classifier_cannot_disagree(lab):
 # same mistake in different spellings.
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("cmd", [
-    'echo x > $(cat name.txt)',
-    'echo x > `cat name.txt`',
-    'echo x > $(date +%F).log',
+# I1b (msg 053): $(cat FILE) is now read; $(git ls-files -o) stays not understood.
+@pytest.mark.parametrize("cmd,decision", [
+    ('echo x > $(cat name.txt)', "REVERSIBLE"),
+    ('echo x > `cat name.txt`', "REVERSIBLE"),
+    ('echo x > $(date +%F).log', "ESCALATE"),
 ])
-def test_command_substitution_is_unresolved_not_absent(lab, cmd):
+def test_command_substitution_is_unresolved_not_absent(lab, cmd, decision):
     """redirect_target reads the target token up to whitespace, so
     `$(cat name.txt)` arrives as the partial token `$(cat`. The first version
     of _UNEXPANDED looked for `$\\w` and `${` and matched neither, so the
@@ -169,11 +170,12 @@ def test_command_substitution_is_unresolved_not_absent(lab, cmd):
     The exact inference the resolver was written to remove, arriving through a
     different door. `> $(date +%F).log` and `> $(hostname).sql` are ordinary
     idioms, not evasion, so this is the RESOLUTION gap and belongs on the
-    escalate path.
+    escalate path. The engine now reads `$(cat name.txt)` -> app.db, which
+    exists, so the truncation is captured.
     """
     (lab / "name.txt").write_text("app.db")
     assert recovery.resolve_redirect_target(cmd) == (None, False), cmd
-    assert _decide(cmd) == "ESCALATE", cmd
+    assert _decide(cmd) == decision, cmd
 
 
 @pytest.mark.parametrize("cmd", [

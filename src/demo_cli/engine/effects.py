@@ -61,7 +61,7 @@ class Impact:
     """
     __slots__ = ("destroys", "destroyed_dirs", "created", "creates", "changes",
                  "touched", "remote", "unknown", "uncovered", "within", "databases",
-                 "no_capture", "db_urls")
+                 "no_capture", "db_urls", "computed")
 
     def __init__(self) -> None:
         self.destroys: Dict[str, str] = {}
@@ -80,6 +80,7 @@ class Impact:
         self.databases: Dict[str, str] = {}   # "db:host/name" -> kind
         self.no_capture: Dict[str, str] = {}  # "db:host/name" -> why
         self.db_urls: Dict[str, str] = {}
+        self.computed: List[Tuple[str, str]] = []   # (a $( ) the engine read, its output) - I1b
 
     def reach(self, label: str, kind: str) -> None:
         """A remote surface is reached; the same one twice keeps the kind

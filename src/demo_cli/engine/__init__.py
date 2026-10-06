@@ -40,7 +40,7 @@ def predict(command: str, cfg, rules: Optional[Tuple] = None,
     from .rules import RULES
     from .simulate import simulate
     from .verdict import verdict
-    impact = simulate(command, rules or RULES, cwd=cwd,
+    impact = simulate(command, rules or RULES, cwd=cwd, root=cfg.project_root,
                       budget_ms=BUDGET_MS if budget_ms is None else budget_ms,
                       sql_target=(explicit_db, db_url))
     decision, why = verdict(impact, cfg)
@@ -91,5 +91,8 @@ def _render(p: Prediction, cfg) -> dict:
                  or len(imp.unknown) > 10 or len(imp.uncovered) > _CAP
                  or len(imp.remote) > _CAP or len(imp.databases) > _CAP
                  or len(imp.no_capture) > _CAP)
-    return {"engine": ENGINE, "decision": p.decision, "why": p.why, **lists,
-            "truncated": truncated}
+    out = {"engine": ENGINE, "decision": p.decision, "why": p.why, **lists,
+           "truncated": truncated}
+    if imp.computed:
+        out["computed"] = [[t[:120], o[:200]] for t, o in imp.computed[:10]]
+    return out

@@ -130,15 +130,20 @@ class State:
 
 
 class World:
-    def __init__(self, rules: Tuple[Rule, ...], budget: Budget):
+    def __init__(self, rules: Tuple[Rule, ...], budget: Budget, root: Optional[str] = None):
         self.table = rules_by_tool(rules)
         self.budget = budget
+        self.root = root                                 # $( ) reads files only inside it (I1b)
+        self.functions: set = set()                      # names defined on this line (I1b)
+        self.redefined: Optional[str] = None             # alias / enable / hash met (I1b)
+        self.outputs: Dict[int, Dict[str, Tuple[bool, str]]] = {}   # id(inv) -> $( ) outputs
         self.real: Dict[str, Node] = {}
         self.impact = Impact()
         self.upstream: Optional[Invocation] = None     # the pipeline member feeding stdin
         self.sql_target: Tuple[Optional[str], Optional[str]] = (None, None)  # --db, --db-url
 
-    def read_text(self, state: State, path: str, cap: int) -> Tuple[Optional[str], str]:
+    def read_text(self, state: State, path: str, cap: int,
+                  raw: bool = False) -> Tuple[Optional[str], str]:
         """A file's text AS THE LINE LEAVES IT at this point, or (None, why)
         (C2 review, R4). Content created or overwritten earlier on the line
         is unknown; a moved file is read at its origin.
@@ -179,6 +184,8 @@ class World:
             if len(data) > cap:                               # grew after the stat
                 return None, f"{name} is larger than {cap // 1024} KiB"
             text = data.decode("utf-8", errors="replace")
+            if raw:
+                return text, ""                          # the bytes as written: $( ) (I1b)
             return text.replace("\r\n", "\n").replace("\r", "\n"), ""   # what text mode did
         except OSError as exc:
             return None, f"{name} cannot be read ({exc.strerror})"
@@ -277,7 +284,8 @@ class World:
         for w in words:
             self.budget.check()
             try:
-                fields = expand(w, state.vars, state.cwd, lambda p: self.glob(state, p))
+                fields = expand(w, state.vars, state.cwd, lambda p: self.glob(state, p),
+                                outputs=self.outputs.get(id(inv)))
             except Unknown as u:
                 self.impact.not_understood(inv.text, str(u))
                 continue
@@ -555,6 +563,7 @@ class World:
         if depth > MAX_DEPTH:
             self.impact.not_understood(script.line[:80], "nested too deep to follow")
             return state
+        self.functions.update(script.functions)
         invs = build(script)
         if not invs:
             return state
@@ -622,15 +631,20 @@ class World:
 
     def run(self, inv: Invocation, state: State, depth: int, piped_in: bool,
             upstream: Optional[Invocation] = None) -> Tuple[Optional[State], Optional[State]]:
+        outs: Dict[str, Tuple[bool, str]] = {}
         for sub in inv.subs:                             # $( ) runs before the command
+            got = self.output(sub, state)
+            if outs.setdefault(sub.line, got) != got:
+                outs[sub.line] = (False, "the same $( ) gives two results on this line")
             self.subshell(sub, state, depth)
+        self.outputs[id(inv)] = outs
         if inv.clause:
             if inv.clause in ("for", "select") and len(inv.command.words) > 1:
                 state.vars[inv.command.words[1].value] = None   # loop variable (C)
             return state, None
         if not inv.argv:
             for w in inv.prefix:
-                self.assign(w, state)
+                self.assign(w, state, inv)
             self.redirect(inv, state)
             return state, None
 
@@ -642,6 +656,8 @@ class World:
         tool = os.path.basename(head[0].replace("\\", "/")) if head else ""
         if tool.lower().endswith(".exe"):
             tool = tool[:-4]
+        if tool in ("alias", "enable", "hash"):
+            self.redefined = tool                        # a name may no longer be its command (I1b)
 
         shell_stdin = False
         if tool in SHELLS and inv.payload is None:
@@ -665,7 +681,7 @@ class World:
         if tool in _VAR_BUILTINS:
             for w in inv.argv[1:]:
                 if "=" in w.raw and not w.value.startswith("-"):
-                    self.assign(w, state)
+                    self.assign(w, state, inv)
             return state, None
         if tool == "unset":
             for w in inv.argv[1:]:
@@ -765,17 +781,30 @@ class World:
             for p in self.paths([r.target], state, inv):
                 self.write(state, p, r.op in (">>", "&>>"))     # /dev: see device()
 
-    def assign(self, w, state: State) -> None:
+    def output(self, sub: Script, state: State) -> Tuple[bool, str]:
+        """(True, what `sub` prints, trailing newlines removed) for the few
+        read-only commands engine/outputs.py knows, else (False, why)."""
+        outputs = self.untimed(_outputs)                 # an import, not analysis
+        try:
+            text = outputs.output(self, sub, state)
+        except Unknown as u:
+            return False, str(u)
+        self.impact.computed.append((sub.line, text))
+        return True, text
+
+    def assign(self, w, state: State, inv: Optional[Invocation] = None) -> None:
         name, _eq, _rest = w.raw.partition("=")
         if name.endswith("+"):
             state.vars[name[:-1]] = None                 # += appends to what we may not know
             return
         value_raw = w.raw[len(name) + 1:]
         from ..model import Word
-        value = Word(value_raw, value_raw, 0, 0, expands="$" in value_raw or "`" in value_raw)
+        value = Word(value_raw, value_raw, w.start + len(name) + 1, w.end, subs=list(w.subs),
+                     expands="$" in value_raw or "`" in value_raw)
         try:
-            state.vars[name] = " ".join(expand(value, state.vars, state.cwd,
-                                               lambda p: [], plain=True))
+            state.vars[name] = " ".join(expand(value, state.vars, state.cwd, lambda p: [],
+                                               plain=True,
+                                               outputs=self.outputs.get(id(inv)) if inv else None))
         except Unknown:
             state.vars[name] = None
 
@@ -844,6 +873,11 @@ def _resolvers():
     return resolvers
 
 
+def _outputs():
+    from . import outputs
+    return outputs
+
+
 def preload(command: str, sql_target: Tuple[Optional[str], Optional[str]]) -> None:
     """Import the lazy families (and warm their patterns) the line names,
     BEFORE the budget's clock starts: every hook call is a fresh process, and
@@ -866,16 +900,16 @@ def preload(command: str, sql_target: Tuple[Optional[str], Optional[str]]) -> No
 
 
 def simulate(command: str, rules: Tuple[Rule, ...] = RULES, cwd: Optional[str] = None,
-             budget_ms: float = 10.0,
+             budget_ms: float = 10.0, root: Optional[str] = None,
              sql_target: Tuple[Optional[str], Optional[str]] = (None, None)) -> Impact:
     """The Impact of `command` if it ran now, from `cwd` (default: here).
     `sql_target` is the check door's (--db, --db-url): with it, or when the
     line starts with an UPPERCASE SQL keyword, the line is SQL, not shell
     (C2a, Q3) - a shell would parse `WHERE id < 10` as a redirection."""
     preload(command, sql_target)
-    world = World(rules, Budget(budget_ms))
-    world.sql_target = sql_target
     here = os.path.abspath(cwd or os.getcwd())
+    world = World(rules, Budget(budget_ms), root=os.path.abspath(root) if root else here)
+    world.sql_target = sql_target
     start = State({}, here, here, {})
     if _is_bare_sql(command, sql_target):
         from .sqlclients import run_bare_sql                  # lazy: SQL lines only

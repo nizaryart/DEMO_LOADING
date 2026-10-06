@@ -29,6 +29,8 @@ from ..targets import _expand_braces
 
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _GLOB = "*?["
+_IFS_WS = (" ", "\t", "\n")                    # bash's default IFS: nothing else splits
+_IFS_SPLIT = re.compile(r"[ \t\n]+")
 
 Chars = List[Tuple[str, bool]]          # (character, quoted?)
 
@@ -38,7 +40,8 @@ class Unknown(Exception):
 
 
 def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
-           globber: Callable[[str], List[str]], plain: bool = False) -> List[str]:
+           globber: Callable[[str], List[str]], plain: bool = False,
+           outputs: Optional[Dict[str, Tuple[bool, str]]] = None) -> List[str]:
     """The fields `word` becomes. Globbed fields are absolute paths; the rest
     are as written, for the caller to resolve. Raises Unknown.
 
@@ -53,12 +56,33 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
     def lit(ch: str, quoted: bool) -> None:
         fields[-1].append((ch, quoted))
 
+    def emit(value: str, quoted: bool) -> None:
+        if quoted or plain:
+            for ch in value:
+                lit(ch, True)
+            return
+        if "IFS" in vars_:
+            raise Unknown("IFS is changed on this line")
+        parts = [p for p in _IFS_SPLIT.split(value) if p]
+        if value[:1] in _IFS_WS and fields[-1]:
+            fields.append([])
+        for k, part in enumerate(parts):
+            if k:
+                fields.append([])
+            for ch in part:
+                lit(ch, False)
+        if value[-1:] in _IFS_WS and parts:
+            fields.append([])
+
     def param(i: int, quoted: bool) -> int:
         """Expand the $... starting at raw[i] ('$'); returns the next index."""
         nxt = raw[i + 1] if i + 1 < n else ""
         if nxt == "(":
-            raise Unknown("arithmetic expansion" if raw.startswith("$((", i)
-                          else "command substitution")
+            if raw.startswith("$((", i):
+                raise Unknown("arithmetic expansion")
+            value, end = _substituted(word, i + 2, outputs, backtick=False)
+            emit(value, quoted)
+            return end
         if nxt == "{":
             j = raw.find("}", i + 2)
             inner = raw[i + 2:j] if j != -1 else ""
@@ -73,21 +97,7 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
                 lit("$", quoted)
                 return i + 1
             name, end = m.group(0), m.end()
-        value = _lookup(name, vars_, cwd)
-        if quoted or plain:
-            for ch in value:
-                lit(ch, True)
-        else:
-            parts = value.split()
-            if value[:1].isspace() and fields[-1]:
-                fields.append([])
-            for k, part in enumerate(parts):
-                if k:
-                    fields.append([])
-                for ch in part:
-                    lit(ch, False)
-            if value[-1:].isspace() and parts:
-                fields.append([])
+        emit(_lookup(name, vars_, cwd), quoted)
         return end
 
     while i < n:
@@ -119,7 +129,8 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
                 elif c == "$":
                     i = param(i, True)
                 elif c == "`":
-                    raise Unknown("command substitution")
+                    value, i = _substituted(word, i + 1, outputs, backtick=True)
+                    emit(value, True)
                 else:
                     lit(c, True)
                     i += 1
@@ -127,7 +138,8 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
         elif ch == "$":
             i = param(i, False)
         elif ch == "`":
-            raise Unknown("command substitution")
+            value, i = _substituted(word, i + 1, outputs, backtick=True)
+            emit(value, False)
         elif ch in "<>" and raw.startswith("(", i + 1):
             raise Unknown("process substitution")
         elif ch == "~" and i == 0 and (n == 1 or raw[1] == "/"):
@@ -172,6 +184,18 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
             else:
                 out.append(text)
     return out
+
+
+def _substituted(word: Word, at: int, outputs, backtick: bool) -> Tuple[str, int]:
+    for a, b, inner in word.subs:
+        if a == word.start + at:
+            if outputs is None or inner not in outputs or (backtick and "\\" in inner):
+                raise Unknown("command substitution")
+            ok, text = outputs[inner]
+            if not ok:
+                raise Unknown(f"command substitution: {text}")
+            return text, b - word.start + 1
+    raise Unknown("command substitution")
 
 
 def _lookup(name: str, vars_: Dict[str, Optional[str]], cwd: Optional[str]) -> str:

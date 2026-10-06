@@ -148,7 +148,9 @@ RULES: Tuple[Rule, ...] = (
                note="a prefix assignment does not feed its own command: $X is "
                     "whatever the shell already had, which the hook cannot see"),
             ex("rm '$X'", note="single quotes: a literal name"),
-            ex("rm $(cat list.txt)", unknown=True),
+            ex("rm $(cat list.txt)", destroys={"a.txt"},
+               note="I1b: cat's output is read through the simulation"),
+            ex("rm $(git ls-files -o)", unknown=True, note="git is not on the I1b list"),
             ex("cat list.txt | xargs rm", unknown=True, note="operands come from stdin"),
             ex('echo "rm -rf dir"', note="text, not a command"),
             ex("# rm -rf dir", note="a comment"),

@@ -112,8 +112,9 @@ def test_created_then_deleted_destroys_nothing(root):
 
 def test_what_cannot_be_resolved_is_unknown_never_guessed(root):
     assert not sim(root, "X=a.txt; rm $X")[2].unknown, "control: a same-line value is known"
-    for command in ("X=$(cat list.txt); rm $X", "rm $UNSET", "for f in a b; do rm $f; done",
-                    "rm $(cat list.txt)", "cd $SOMEWHERE && rm a.txt"):
+    # I1b (msg 053): $(cat FILE) is now read; $(git ls-files -o) stays not understood.
+    for command in ("X=$(git ls-files -o); rm $X", "rm $UNSET", "for f in a b; do rm $f; done",
+                    "rm $(git ls-files -o)", "cd $SOMEWHERE && rm a.txt"):
         destroys, _c, imp = sim(root, command)
         assert imp.unknown, command
         assert destroys == set(), command
