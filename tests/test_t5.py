@@ -20,6 +20,9 @@ def test_every_surface_has_a_non_empty_hint_and_no_hint_is_dead():
             "managed_database",
             policy.surface_of("db:h/x"),
             policy.surface_of("device:/dev/sda"),
+            # M2.2a: git's own labels
+            policy.surface_of("vcs-remote:origin"),
+            policy.surface_of("vcs-local:reflog"),
             policy.surface_of("x:y"),
         }
     )
@@ -59,12 +62,15 @@ def test_escalation_names_hint_end_to_end_per_family(tmp_path):
 
 
 def test_statement_matches_table():
-    from demo_cli.engine.effects import CREATE, SERVICE_KEEP
+    from demo_cli.engine.effects import CREATE, REF, SERVICE_KEEP
     from demo_cli import policy, protection
 
     allowed_remote = {k for k, v in policy.REMOTE_POLICY.items() if v == policy.ALLOW}
-    assert allowed_remote == {CREATE, SERVICE_KEEP}
+    # M2.2a (msg to come), ruling (c): REF joins them - a history move the
+    # repository's own reflog brings back is allowed and listed.
+    assert allowed_remote == {CREATE, SERVICE_KEEP, REF}
     assert "only adds" in protection.THREAT_MODEL
+    assert "reflog" in protection.THREAT_MODEL
     assert "always stopped" not in protection.THREAT_MODEL
 
 

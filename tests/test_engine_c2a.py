@@ -234,11 +234,11 @@ def test_the_guard_passes_the_check_doors_target(proj):
 # ---- Q1: one policy table ------------------------------------------------------------------
 
 def test_the_remote_policy_table():
-    from demo_cli.engine.effects import SEND, SERVICE_KEEP, SERVICE_LOSS
+    from demo_cli.engine.effects import REF, SEND, SERVICE_KEEP, SERVICE_LOSS  # M2.2a (msg 065): ruling (c)
     from demo_cli.engine.verdict import REMOTE_POLICY, verdict
     assert REMOTE_POLICY == {DELETE: "ESCALATE", OVERWRITE: "ESCALATE", SEND: "ESCALATE",
                              RUN: "ESCALATE", SERVICE_LOSS: "ESCALATE", SERVICE_KEEP: "ALLOW",
-                             CREATE: "ALLOW"}
+                             CREATE: "ALLOW", REF: "ALLOW"}  # M2.2a (msg 065): ruling (c)
     cfg = Config(project_root="/nonexistent-project")
     imp = Impact()
     imp.reach("db:h/app", OVERWRITE)

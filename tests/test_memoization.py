@@ -79,9 +79,11 @@ def test_split_segments_mutation_isolation():
     assert s1 is not s2
 
 
-def test_guard_evaluate_multi_call_cache_acceleration():
+def test_guard_evaluate_multi_call_cache_acceleration(tmp_path, monkeypatch):
     """Verify that evaluating a complex pipeline hits the memoized caches multiple times."""
     from demo_cli.guard import Guard
+    # M2.2a (msg 067): judged in an empty project of its own, not in whatever directory pytest runs from - inside a git repository the engine now reads the git command itself and the old tokenizer is never asked.
+    monkeypatch.chdir(tmp_path)
 
     from demo_cli.model import posix_units
     _tokenize_cached.cache_clear()

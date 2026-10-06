@@ -3,8 +3,8 @@ which surface an engine label names, and where a person can restore it from.
 
 decide.py, engine/verdict.py, guard.py and protection.py read this module and
 nothing else for these answers. Change a decision or a hint HERE, once."""
-from .engine.effects import (CREATE, DELETE, OVERWRITE, RUN, SEND, SERVICE_KEEP,
-                             SERVICE_LOSS)
+from .engine.effects import (CREATE, DELETE, OVERWRITE, REF, RUN, SEND,
+                             SERVICE_KEEP, SERVICE_LOSS)
 
 ALLOW, ESCALATE = "ALLOW", "ESCALATE"
 
@@ -14,6 +14,10 @@ ALLOW, ESCALATE = "ALLOW", "ESCALATE"
 REMOTE_POLICY = {
     DELETE: ESCALATE, OVERWRITE: ESCALATE, SEND: ESCALATE, RUN: ESCALATE,
     SERVICE_LOSS: ESCALATE, SERVICE_KEEP: ALLOW, CREATE: ALLOW,
+    # M2.2a, ruling (c): a history move a reflog entry brings back is allowed
+    # and listed in the receipt. The commands that destroy the reflog itself
+    # carry DELETE or OVERWRITE instead, and escalate with the rest.
+    REF: ALLOW,
 }
 
 def remote_decision(kind: str) -> str:
@@ -22,7 +26,9 @@ def remote_decision(kind: str) -> str:
 
 # Engine remote labels -> surface. The receipt and the gate key `surface`
 # read these names; they are unchanged from guard._engine_facts.
-_LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"))
+_LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
+                   ("vcs-remote:", "remote_vcs_history"),
+                   ("vcs-local:", "local_vcs_history"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
@@ -60,6 +66,9 @@ RECOVERY_HINTS = {
     "remote_filesystem": "the remote host's own backups",
     "recursive_force_delete": "an independent backup only - the recycle bin is bypassed",
     "managed_database": "the provider's PITR / snapshot",
+    # M2.2a: .git is never snapshotted, so the repository's own history is
+    # where these come back from - when anything still holds them.
+    "local_vcs_history": "git reflog, or the dangling objects git fsck lists - neither survives a prune",
 }
 GENERIC_HINT = "its version history / rollback"
 

@@ -682,6 +682,15 @@ def _find_exec(w, inv, state, cmd, roots) -> None:
 
 # ---- Part C2a: SQL clients (engine/sqlclients.py, imported only when met) -----------
 
+def git(w, inv, parsed, state, tool) -> None:
+    """git (M2.2a). The implementation is in git_ops.py, imported the first
+    time a line names git - outside the budget, like the SQL clients."""
+    def load():
+        from .git_ops import git as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def sql_client(w, inv, parsed, state, tool) -> None:
     def load():
         from . import sql

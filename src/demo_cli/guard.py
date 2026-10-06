@@ -389,18 +389,20 @@ def agent_directory(cwd: str):
 class _Facts:
     __slots__ = ("target", "entry", "affected_paths", "snap_notes", "group_id",
                  "supervisable", "net_name", "rewrite", "checkpoint_skipped",
-                 "checkpoint_taken", "remote_pg", "strategy", "c", "engine_error")
+                 "checkpoint_taken", "remote_pg", "strategy", "c", "engine_error",
+                 "remote_listed")
 
     def __init__(self, target=None, entry=None, affected_paths=None, snap_notes=None,
                  group_id=None, supervisable=False, net_name=None, rewrite=None,
                  checkpoint_skipped=None, checkpoint_taken=False, remote_pg=False,
-                 strategy="snapshot", c=None, engine_error=None):
+                 strategy="snapshot", c=None, engine_error=None, remote_listed=None):
         self.target = target; self.entry = entry; self.affected_paths = affected_paths or []
         self.snap_notes = snap_notes or {}; self.group_id = group_id
         self.supervisable = supervisable; self.net_name = net_name; self.rewrite = rewrite
         self.checkpoint_skipped = checkpoint_skipped; self.checkpoint_taken = checkpoint_taken
         self.remote_pg = remote_pg; self.strategy = strategy; self.c = c
         self.engine_error = engine_error
+        self.remote_listed = remote_listed or []
 
 
 class Guard:
@@ -643,10 +645,16 @@ class Guard:
         if entry:
             group_id = entry.get("group")
 
+        # A change the policy ALLOWS is still a change: name it, so a reader is
+        # not told a branch deletion was "non-mutating" (M2.2a, ruling (c)).
+        listed = sorted(k for k, kind in impact.remote.items()
+                        if policy.remote_decision(kind) == policy.ALLOW)
+
         return _Facts(target=target, entry=entry, affected_paths=affected_paths,
                       snap_notes=snap_notes, group_id=group_id, supervisable=supervisable,
                       net_name=net_name, rewrite=rewrite, checkpoint_skipped=checkpoint_skipped,
-                      checkpoint_taken=checkpoint_taken, remote_pg=False, strategy=strategy, c=c)
+                      checkpoint_taken=checkpoint_taken, remote_pg=False, strategy=strategy, c=c,
+                      remote_listed=listed)
 
     def _legacy_facts(self, command: str, dialect: str, c: Classification,
                       target_path: Optional[str], explicit_db: Optional[str],
@@ -935,6 +943,13 @@ class Guard:
             reason = f"{reason} {f.snap_notes['refused']}"
         if f.supervisable and f.group_id:
             reason = f"{reason} Undo with `demo_cli undo {f.group_id}`."
+        if f.remote_listed:
+            from . import policy
+            names = ", ".join(f.remote_listed[:3])
+            if len(f.remote_listed) > 3:
+                names += f", +{len(f.remote_listed) - 3} more"
+            reason = (f"{reason} Recorded and allowed: {names} "
+                      f"(if it has to come back: {policy.recovery_hint(policy.surface_of(f.remote_listed[0]))}).")
 
         # THE RECEIPT IS NOT THE PERSON. Everything above appended to a local
         # `reason` that only ever reached the Receipt, while every adapter

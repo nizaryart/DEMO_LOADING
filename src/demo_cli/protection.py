@@ -7,8 +7,8 @@ THREAT_MODEL = (
     "commands it understands are judged before they run; for commands it cannot "
     "read, the runtime net (syscall guard on Linux, WinFsp mount on Windows) is "
     "the floor; a remote change that can lose data or cannot be recalled is "
-    "stopped for review; one that only adds (a create, a service start) is "
-    "allowed and listed."
+    "stopped for review; one that only adds (a create, a service start), or a "
+    "history move the repository's own reflog brings back, is allowed and listed."
     " The runtime net runs in both modes: shadow only means that decisions do not block.")
 
 

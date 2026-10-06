@@ -125,7 +125,7 @@ def test_guard_c2_sql_and_git_exclusions(tmp_path):
     assert g.evaluate('mysql -e "DROP DATABASE d"', can_supervise=True).decision.decision == ESCALATE
 
     # git exclusions (modifies .git which is deliberately ignored by both nets)
-    assert g.evaluate("git branch -D feat", can_supervise=True).decision.decision == ESCALATE
+    assert g.evaluate("git reflog expire --expire=now --all", can_supervise=True).decision.decision == ESCALATE  # M2.2a (msg 065): ruling (c)
     assert g.evaluate("git reset --hard HEAD~1", can_supervise=True).decision.decision == ESCALATE
 
     # Control: unresolvable file delete IS supervised

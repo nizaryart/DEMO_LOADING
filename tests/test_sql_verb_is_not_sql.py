@@ -143,7 +143,7 @@ def test_readonly_kubectl_is_left_alone():
 
 def test_all_three_still_escalate_end_to_end(tmp_path):
     g = Guard(config=Config(mode="enforce", project_root=str(tmp_path)))
-    for cmd in ["git branch --delete --force feat",
+    for cmd in ["git push --delete origin feat",  # M2.2a (msg 065): ruling (c)
                 "curl -X DELETE https://api.example.com/users/1",
                 "kubectl delete pod x"]:
         r = g.evaluate(cmd)

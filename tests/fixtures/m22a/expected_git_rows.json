@@ -1,0 +1,613 @@
+{
+ "git push --force": {
+  "decision": "ESCALATE",
+  "rule": "git_force_push",
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git push -f origin main": {
+  "decision": "ESCALATE",
+  "rule": "git_force_push",
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git push --force-with-lease": {
+  "decision": "ESCALATE",
+  "rule": "git_force_push",
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git push origin +main": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git push origin :feature": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "DELETE"
+  },
+  "destroys": []
+ },
+ "git push --delete origin feature": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "DELETE"
+  },
+  "destroys": []
+ },
+ "git push --mirror": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git reset --hard": {
+  "decision": "ESCALATE",
+  "rule": "git_reset_hard",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:reset": "REF"
+  },
+  "destroys": [
+   "./"
+  ]
+ },
+ "git reset --hard HEAD~3": {
+  "decision": "ESCALATE",
+  "rule": "git_reset_hard",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:reset": "REF"
+  },
+  "destroys": [
+   "./"
+  ]
+ },
+ "git reset --keep HEAD~1": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:reset": "REF"
+  },
+  "destroys": []
+ },
+ "git clean -fd": {
+  "decision": "ESCALATE",
+  "rule": "git_clean",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git clean -fdx": {
+  "decision": "ESCALATE",
+  "rule": "git_clean",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git clean -f": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git checkout -- .": {
+  "decision": "ESCALATE",
+  "rule": "git_checkout_discard",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git checkout .": {
+  "decision": "ESCALATE",
+  "rule": "git_checkout_discard",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git checkout -f main": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git switch --discard-changes main": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "./"
+  ]
+ },
+ "git restore src/m.py": {
+  "decision": "REVERSIBLE",
+  "rule": "git_restore",
+  "surface": null,
+  "captured": true,
+  "engine": "REVERSIBLE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "src/m.py"
+  ]
+ },
+ "git restore --staged src/m.py": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git stash drop": {
+  "decision": "ESCALATE",
+  "rule": "git_stash_drop",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:stash": "DELETE"
+  },
+  "destroys": []
+ },
+ "git stash clear": {
+  "decision": "ESCALATE",
+  "rule": "git_stash_drop",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:stash": "DELETE"
+  },
+  "destroys": []
+ },
+ "git stash pop": {
+  "decision": "ESCALATE",
+  "rule": "git_stash_pop",
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:stash": "REF"
+  },
+  "destroys": [
+   "./"
+  ]
+ },
+ "git branch -D feat": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:branch": "REF"
+  },
+  "destroys": []
+ },
+ "git branch -d -f feat": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:branch": "REF"
+  },
+  "destroys": []
+ },
+ "git branch -d feat": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:branch": "REF"
+  },
+  "destroys": []
+ },
+ "git tag -d v1": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:tag": "REF"
+  },
+  "destroys": []
+ },
+ "git worktree remove --force wt": {
+  "decision": "REVERSIBLE",
+  "rule": "git_worktree_remove",
+  "surface": null,
+  "captured": true,
+  "engine": "REVERSIBLE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "wt/"
+  ]
+ },
+ "git reflog expire --expire=now --all": {
+  "decision": "ESCALATE",
+  "rule": "git_reflog_expire",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:reflog": "DELETE"
+  },
+  "destroys": []
+ },
+ "git gc --prune=now": {
+  "decision": "ESCALATE",
+  "rule": "git_gc_prune",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:objects": "DELETE"
+  },
+  "destroys": []
+ },
+ "git filter-branch --tree-filter 'rm x' HEAD": {
+  "decision": "ESCALATE",
+  "rule": "git_filter_branch",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:history": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git filter-repo --path x --invert-paths": {
+  "decision": "ESCALATE",
+  "rule": "git_filter_branch",
+  "surface": "local_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:history": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git update-ref -d refs/heads/x": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:ref": "REF"
+  },
+  "destroys": []
+ },
+ "git rebase -i HEAD~3": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:rebase": "REF"
+  },
+  "destroys": []
+ },
+ "git commit --amend -m x": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:commit": "REF"
+  },
+  "destroys": []
+ },
+ "git rm -r src": {
+  "decision": "REVERSIBLE",
+  "rule": null,
+  "surface": null,
+  "captured": true,
+  "engine": "REVERSIBLE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": [
+   "src/"
+  ]
+ },
+ "git mv a.txt b.txt": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git config --global alias.st '!rm -rf ~'": {
+  "decision": "SUPERVISED",
+  "rule": "rm_rf",
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [
+   "git config"
+  ],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git config core.hooksPath /tmp/h": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [
+   "git config"
+  ],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git status": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git log": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {},
+  "destroys": []
+ },
+ "git -C repo push --force": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git -c core.x=y reset --hard": {
+  "decision": "ESCALATE",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:reset": "REF"
+  },
+  "destroys": [
+   "./"
+  ]
+ },
+ "git --git-dir=.git clean -fd": {
+  "decision": "ESCALATE",
+  "rule": "git_clean",
+  "surface": null,
+  "captured": false,
+  "engine": "DEFER",
+  "uncovered": [],
+  "unknown": [
+   "git --git-dir points at another tree"
+  ],
+  "remote": {},
+  "destroys": []
+ },
+ "git --no-pager branch -D x": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "ALLOW",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-local:branch": "REF"
+  },
+  "destroys": []
+ },
+ "nohup git push --force &": {
+  "decision": "ESCALATE",
+  "rule": "git_force_push",
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ },
+ "git apply x.diff": {
+  "decision": "ALLOW",
+  "rule": null,
+  "surface": null,
+  "captured": false,
+  "engine": "DEFER",
+  "uncovered": [],
+  "unknown": [
+   "the patch names the files git apply writes"
+  ],
+  "remote": {},
+  "destroys": []
+ },
+ "git $'push' --force": {
+  "decision": "ESCALATE",
+  "rule": "git_force_push",
+  "surface": "remote_vcs_history",
+  "captured": false,
+  "engine": "ESCALATE",
+  "uncovered": [],
+  "unknown": [],
+  "remote": {
+   "vcs-remote:origin": "OVERWRITE"
+  },
+  "destroys": []
+ }
+}
