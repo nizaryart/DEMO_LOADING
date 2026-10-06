@@ -24,7 +24,7 @@ import os
 import re
 from typing import Callable, Dict, List, Optional, Tuple
 
-from ..model import Word
+from ..model import Word, ansi_c
 from ..targets import _expand_braces
 
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -116,7 +116,10 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
             j = i + 2
             while j < n and raw[j] != "'":
                 j += 2 if raw[j] == "\\" else 1
-            for c in raw[i + 2:j]:
+            decoded = ansi_c(raw[i + 2:j])
+            if decoded is None:
+                raise Unknown("an ANSI-C escape this engine does not decode")
+            for c in decoded:
                 lit(c, True)
             i = j + 1
         elif ch == '"':

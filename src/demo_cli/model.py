@@ -107,6 +107,59 @@ class Command:
 
 _BLANK = " \t"
 _META = set(" \t\n;&|()<>")
+# ANSI-C quoting, $'...' (W0, VERIFIED against bash 5): the escapes bash
+# decodes. \0 (bash cuts the word there), \cX, \u and \U (locale-dependent)
+# are left undecoded on purpose: the word is then not understood.
+_ANSI_SIMPLE = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n",
+                "r": "\r", "t": "\t", "v": "\v", "\\": "\\", "'": "'", '"': '"', "?": "?"}
+_OCT = "01234567"
+_HEX = "0123456789abcdefABCDEF"
+
+
+def ansi_c(body: str) -> Optional[str]:
+    """The text bash makes of the body of $'...', or None when it holds an
+    escape this parser does not decode exactly."""
+    out, i, n = [], 0, len(body)
+    while i < n:
+        c = body[i]
+        if c != "\\" or i + 1 >= n:
+            out.append(c)
+            i += 1
+            continue
+        e = body[i + 1]
+        if e in _ANSI_SIMPLE:
+            out.append(_ANSI_SIMPLE[e])
+            i += 2
+        elif e in _OCT:
+            j = i + 1
+            while j < n and j < i + 4 and body[j] in _OCT:
+                j += 1
+            code = int(body[i + 1:j], 8) & 0xFF
+            if code == 0:
+                return None                       # bash cuts the word at NUL
+            out.append(chr(code))
+            i = j
+        elif e == "x":
+            j = i + 2
+            while j < n and j < i + 4 and body[j] in _HEX:
+                j += 1
+            if j == i + 2:
+                out.append("\\x")                    # no digits: kept as written
+                i += 2
+                continue
+            code = int(body[i + 2:j], 16)
+            if code == 0:
+                return None
+            out.append(chr(code))
+            i = j
+        elif e in "cuU":
+            return None                           # control / unicode: not decoded here
+        else:
+            out.append("\\" + e)                     # unknown escape: bash keeps both
+            i += 2
+    return "".join(out)
+
+
 _REDIRECT_OPS = ("<<<", "<<-", "&>>", "<<", ">>", ">|", ">&", "<&", "<>", "&>", "<", ">")
 
 
@@ -198,7 +251,12 @@ class _Lexer:
                 while k < n and s[k] != "'":
                     k += 2 if s[k] == "\\" else 1
                 w.quotes.append((i, min(k + 1, n), "ansi"))
-                val.append(s[i + 2:k])
+                decoded = ansi_c(s[i + 2:k])
+                if decoded is None:
+                    w.expands = True                  # not decoded: never trusted as plain text
+                    val.append(s[i + 2:k])
+                else:
+                    val.append(decoded)
                 self.i = min(k + 1, n)
                 continue
             if c == '"':
@@ -679,7 +737,7 @@ def _units(script: Script, outer_sep: str = "") -> List[Tuple[str, str, str, boo
             out += _heredoc_units(cm, False)
             continue
         a, b = cm.argv[0].start, cm.end
-        text = _blanked(line, a, b, subs)          # subs are judged as their own units
+        text = _blanked(line, a, b, subs, _ansi_spans(cm, subs))  # subs are judged as their own units
         # A redirection written BEFORE the command word still applies to it:
         # `> app.db echo hi` truncates app.db. The unit starts at the command
         # word so anchored rules see it first; the prefix redirections follow.
@@ -692,13 +750,39 @@ def _units(script: Script, outer_sep: str = "") -> List[Tuple[str, str, str, boo
     return out
 
 
-def _blanked(line: str, a: int, b: int, subs) -> str:
-    """line[a:b] with every substitution's inside replaced by `_`, same length."""
+def _blanked(line: str, a: int, b: int, subs, ansi=()) -> str:
+    """line[a:b] with every substitution's inside replaced by `_`, same length,
+    then every decoded $'...' replaced by the plain text bash makes of it
+    (W0): the rule table reads `git $'push'` as `git push`."""
     text = list(line[a:b])
     for sa, sb, _inner in subs:
         for k in range(max(sa, a), min(sb, b)):
             text[k - a] = "_"
+    for qa, qb, plain in sorted(ansi, reverse=True):
+        if a <= qa and qb <= b:
+            text[qa - a:qb - a] = list(plain)
     return "".join(text).strip()
+
+
+def _ansi_spans(cm: "Command", subs) -> List[Tuple[int, int, str]]:
+    """(start, end, shell-quoted decoded text) for each $'...' in `cm`'s words
+    that decodes exactly and lies outside every substitution."""
+    import shlex
+    out = []
+    for w in cm.words:
+        for qa, qb, kind in w.quotes:
+            if kind != "ansi" or any(sa <= qa < sb for sa, sb, _i in subs):
+                continue
+            decoded = ansi_c(line_body(w, qa, qb))
+            if decoded is not None:
+                out.append((qa, qb, shlex.quote(decoded)))
+    return out
+
+
+def line_body(w: "Word", qa: int, qb: int) -> str:
+    """The body of the $'...' quote at line offsets [qa, qb) of word `w`."""
+    raw = w.raw[qa - w.start:qb - w.start]
+    return raw[2:-1] if raw.endswith("'") else raw[2:]
 
 
 def _heredoc_units(cm: Command, inert: bool) -> List[Tuple[str, str, str, bool]]:
