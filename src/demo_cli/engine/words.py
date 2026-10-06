@@ -11,6 +11,7 @@ quoting intact:
   * $NAME / ${NAME} come from assignments made EARLIER on the same line;
     anything else - $( ), `..`, $((..)), ${X:-..}, $1, $@, an unset name -
     is UNKNOWN, with the reason. Nothing is guessed;
+  * a field the tool would read as an option (a value or a glob hit that starts with '-') is UNKNOWN (I1a);
   * an unquoted expansion is split on whitespace;
   * a leading unquoted ~ is the home directory;
   * braces, then globs, on unquoted text only. Globs see the real
@@ -160,6 +161,13 @@ def expand(word: Word, vars_: Dict[str, Optional[str]], cwd: Optional[str],
                     raise Unknown("a glob in an unknown working directory")
                 base = pattern if os.path.isabs(pattern) else os.path.join(cwd or "", pattern)
                 hits = globber(base)
+                if (hits and not os.path.isabs(pattern)
+                        and pattern_chars[0][0] in _GLOB and not pattern_chars[0][1]
+                        and any(os.path.relpath(h, cwd).startswith("-") for h in hits)):
+                    # I1a (msg 049): `rm *` hands a file named -rf to rm as `-rf`.
+                    # Only a pattern that STARTS with a glob character can make a
+                    # field that starts with '-': `./*` gives ./-rf, a file name.
+                    raise Unknown("a file name that starts with '-' would be read as an option")
                 out.extend(hits if hits else [text])       # no match: literal, as bash
             else:
                 out.append(text)

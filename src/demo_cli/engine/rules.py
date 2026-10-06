@@ -140,6 +140,10 @@ RULES: Tuple[Rule, ...] = (
             ex("rm {a,b}.txt", destroys={"a.txt", "b.txt"}),
             ex('rm "dir/*.txt"', note="quoted: a literal name, which does not exist"),
             ex("X=a.txt; rm $X", destroys={"a.txt"}),
+            ex("X=-rf; rm $X dir", unknown=True,
+               note="the value is an option for rm, not a file name (I1a)"),
+            ex("rm *", unknown=True,
+               note="the fixture's file -f reaches rm as the option -f (I1a)"),
             ex("X=a.txt rm $X", unknown=True,
                note="a prefix assignment does not feed its own command: $X is "
                     "whatever the shell already had, which the hook cannot see"),

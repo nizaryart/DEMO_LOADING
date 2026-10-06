@@ -141,22 +141,47 @@ class World:
     def read_text(self, state: State, path: str, cap: int) -> Tuple[Optional[str], str]:
         """A file's text AS THE LINE LEAVES IT at this point, or (None, why)
         (C2 review, R4). Content created or overwritten earlier on the line
-        is unknown; a moved file is read at its origin."""
+        is unknown; a moved file is read at its origin.
+
+        Only a REGULAR file is read, and never more than `cap` + 1 bytes (I1a,
+        msg 049): open() on a FIFO blocks until a writer comes and /dev/zero
+        never ends - the budget is checked between steps and cannot stop either."""
         n = self.node(state, path)
+        name = os.path.basename(path)
         if not n.exists:
-            return None, f"{os.path.basename(path)} does not exist"
+            return None, f"{name} does not exist"
         if n.is_dir:
-            return None, f"{os.path.basename(path)} is a directory"
+            return None, f"{name} is a directory"
         if NEW in n.origins or len(n.origins) != 1:
-            return None, f"{os.path.basename(path)} is written earlier on this line"
+            return None, f"{name} is written earlier on this line"
         origin = next(iter(n.origins))
+        if origin == "/dev/null":
+            return "", ""                                # reads as empty, as open() did
         try:
-            if os.path.getsize(origin) > cap:
-                return None, f"{os.path.basename(path)} is larger than {cap // 1024} KiB"
-            with open(origin, encoding="utf-8", errors="replace") as fh:
-                return fh.read(), ""
+            st = os.stat(origin)                          # follows a link, as open() does
+            if not stat.S_ISREG(st.st_mode):
+                return None, f"{name} is not a regular file"
+            if st.st_size > cap:
+                return None, f"{name} is larger than {cap // 1024} KiB"
+            fd = os.open(origin, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0)
+                         | getattr(os, "O_BINARY", 0))
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):    # replaced after the stat
+                    return None, f"{name} is not a regular file"
+                data = b""
+                while len(data) <= cap:
+                    chunk = os.read(fd, cap + 1 - len(data))
+                    if not chunk:
+                        break
+                    data += chunk
+            finally:
+                os.close(fd)
+            if len(data) > cap:                               # grew after the stat
+                return None, f"{name} is larger than {cap // 1024} KiB"
+            text = data.decode("utf-8", errors="replace")
+            return text.replace("\r\n", "\n").replace("\r", "\n"), ""   # what text mode did
         except OSError as exc:
-            return None, f"{os.path.basename(path)} cannot be read ({exc.strerror})"
+            return None, f"{name} cannot be read ({exc.strerror})"
 
     # ---- the filesystem, as the simulation has changed it ----------------
     def real_node(self, path: str) -> Node:
@@ -257,6 +282,13 @@ class World:
                 self.impact.not_understood(inv.text, str(u))
                 continue
             for f in fields:
+                if w.expands and f.startswith("-") and f != "-":
+                    # I1a (msg 049): the tool reads this value as an OPTION -
+                    # `X=-rf; rm $X src` is `rm -rf src` - but parse_options
+                    # filed the word as an operand before its value was known.
+                    self.impact.not_understood(
+                        inv.text, "an expansion that starts with '-' may be read as an option")
+                    continue
                 if f in SINKS or f.startswith("/dev/fd/"):
                     out.append(f)
                     continue
