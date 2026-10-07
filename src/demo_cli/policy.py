@@ -35,7 +35,9 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    # M2.2b2a: cloud CLIs and object stores
                    ("storage:", "object_storage"), ("cred:", "credential_rotation"),
                    ("secret:", "secret_write"), ("queue:", "message_queue"),
-                   ("cloud:", "cloud_resource_delete"))
+                   ("cloud:", "cloud_resource_delete"),
+                   # M2.2b2b: railway volumes keep the surface the old rule gave them
+                   ("volume:", "remote_volume"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")

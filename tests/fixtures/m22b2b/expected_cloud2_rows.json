@@ -1,0 +1,1074 @@
+{
+ "gcloud compute instances delete vm1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:compute": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud sql instances delete db1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:sql": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az group delete -n rg": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:group": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil rm -r gs://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az storage blob delete -c c -n x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "DELETE"
+  },
+  "uncovered": []
+ },
+ "railway volume delete v": {
+  "decision": "ESCALATE",
+  "surface": "remote_volume",
+  "captured": false,
+  "remote": {
+   "volume:railway:volume": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud --project p compute instances delete vm1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:compute": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy remove https://x.blob.core.windows.net/c --recursive": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:x.blob.core.windows.net": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud compute instances list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud compute instances describe vm1 --zone z": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud iam roles list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud iam service-accounts delete sa@p.iam.gserviceaccount.com": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:gcloud:iam": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud secrets versions access latest --secret s": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud (option)"
+  ]
+ },
+ "gcloud secrets delete s": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:gcloud:secrets": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud pubsub topics publish t --message m": {
+  "decision": "ESCALATE",
+  "surface": "message_queue",
+  "captured": false,
+  "remote": {
+   "queue:gcloud:pubsub": "SEND"
+  },
+  "uncovered": []
+ },
+ "gcloud sql databases delete db --instance i": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:sql": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud run deploy svc --image img": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:run": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gcloud run services delete svc": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:run": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud app deploy": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:app": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gcloud functions deploy f --runtime python312": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:functions": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gcloud compute instances stop vm1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:compute": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "gcloud compute instances start vm1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud compute (verb not listed)"
+  ]
+ },
+ "gcloud compute instances create vm1 --metadata startup-script='rm -rf /'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud (option)"
+  ]
+ },
+ "gcloud container clusters get-credentials c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud get-credentials"
+  ]
+ },
+ "gcloud config set project p": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud config"
+  ]
+ },
+ "gcloud auth login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud auth"
+  ]
+ },
+ "gcloud compute os-config patch-deployments list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud kms import-jobs list --location l --keyring k": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud deploy releases create r --delivery-pipeline p": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud (option)"
+  ]
+ },
+ "gcloud alpha compute instances delete vm1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:compute": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud --foo compute instances delete vm1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud (option)"
+  ]
+ },
+ "gcloud compute instances delete $VM": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:gcloud:compute": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud $GROUP instances delete vm1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud storage ls gs://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud storage rm -r gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gcloud:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud storage cp a.txt gs://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gcloud:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gcloud storage cp -n a.txt gs://b/": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:gcloud:gs://b": "CREATE"
+  },
+  "uncovered": []
+ },
+ "gcloud storage cp --no-clobber --custom-metadata k='rm -rf /' a.txt gs://b/": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gcloud storage cp (data on the line)"
+  ]
+ },
+ "gcloud storage cp gs://b/a.txt a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud storage rsync dir gs://b --delete-unmatched-destination-objects": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gcloud:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud storage rsync gs://b sub --recursive --delete-unmatched-destination-objects": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud storage rsync dir gs://b --dry-run --delete-unmatched-destination-objects": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud storage mv a.txt gs://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gcloud:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gcloud storage buckets delete gs://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gcloud:storage": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gcloud compute instances delete vm1 --help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil ls gs://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil rm gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil -m del gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil rb gs://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil rsync -d sub gs://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil rsync -n -d sub gs://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil rsync -d gs://b sub": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil cp a.txt gs://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gsutil cp -n a.txt gs://b/": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "CREATE"
+  },
+  "uncovered": []
+ },
+ "gsutil -h \"x-goog-meta-k:rm -rf /\" cp -n a.txt gs://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gsutil cp (data on the line)"
+  ]
+ },
+ "gsutil cp gs://b/a.txt a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil mv a.txt gs://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gsutil acl ch -u u:R gs://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gsutil acl get gs://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil setmeta -h \"Cache-Control:no-cache\" gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "gsutil config": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gsutil config"
+  ]
+ },
+ "gsutil hmac delete key": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:gsutil:hmac": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil -o \"Boto:x=y\" rm gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:gsutil:gs://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "gsutil --foo rm gs://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gsutil (option)"
+  ]
+ },
+ "az group list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az group show -n rg": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az group delete -n rg --yes": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:group": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az role assignment list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az role assignment delete --assignee a": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:az:role": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az ad sp delete --id x": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:az:ad": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az keyvault secret show --vault-name v -n s": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az keyvault secret delete --vault-name v -n s": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:az:keyvault": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az vm deallocate -n vm1 -g rg": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:vm": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "az vm start -n vm1 -g rg": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az vm start"
+  ]
+ },
+ "az vm create -n vm1 -g rg --custom-data 'rm -rf /'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az vm create"
+  ]
+ },
+ "az vm run-command invoke -g rg -n vm1 --command-id RunShellScript --scripts 'ls'": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:vm": "RUN"
+  },
+  "uncovered": []
+ },
+ "az aks get-credentials -n c -g rg": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az aks get-credentials"
+  ]
+ },
+ "az login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az login"
+  ]
+ },
+ "az account set -s sub": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az account set"
+  ]
+ },
+ "az webapp deploy -g rg -n app --src-path app.zip": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:webapp": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "az rest --method delete --url https://management.azure.com/x": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:rest": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az rest --url https://management.azure.com/x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az rest -m post --url https://management.azure.com/x --body '{}'": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:rest": "SEND"
+  },
+  "uncovered": []
+ },
+ "az storage blob list -c c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob delete-batch -s c --dryrun": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob upload -c c -f a.txt -n a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "CREATE"
+  },
+  "uncovered": []
+ },
+ "az storage blob upload -c c -f a.txt -n a.txt --overwrite": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "az storage blob upload -c c -f a.txt -n a.txt --metadata k='rm -rf /'": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "az storage blob upload (data on the line)"
+  ]
+ },
+ "az storage blob download -c c -n x -f a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob download -c c -n x -f a.txt --overwrite false": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob download-batch -s c -d sub": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob download-batch -s c -d sub --overwrite": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob sync -c c -s sub --delete-destination true": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az storage container delete -n c": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az storage account delete -n a -g rg": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:az:storage": "DELETE"
+  },
+  "uncovered": []
+ },
+ "az group delete -n $RG --yes": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:az:group": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy list https://a.blob.core.windows.net/c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "azcopy remove https://a.blob.core.windows.net/c --recursive": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy rm https://a.blob.core.windows.net/c/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy r https://a.blob.core.windows.net/c/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy copy a.txt https://a.blob.core.windows.net/c/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "azcopy cp a.txt https://a.blob.core.windows.net/c/ --overwrite=false": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "CREATE"
+  },
+  "uncovered": []
+ },
+ "azcopy copy a.txt https://a.blob.core.windows.net/c/ --overwrite=false --metadata=k=v": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "azcopy copy (data on the line)"
+  ]
+ },
+ "azcopy copy https://a.blob.core.windows.net/c/a.txt a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "azcopy copy https://a.blob.core.windows.net/c sub --recursive": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "azcopy sync sub https://a.blob.core.windows.net/c --delete-destination=true": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:azcopy:a.blob.core.windows.net": "DELETE"
+  },
+  "uncovered": []
+ },
+ "azcopy sync https://a.blob.core.windows.net/c sub --delete-destination=true": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "azcopy remove https://a.blob.core.windows.net/c --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "azcopy login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "azcopy login"
+  ]
+ },
+ "azcopy jobs list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "railway status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "railway volume list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "railway down": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:railway:down": "DELETE"
+  },
+  "uncovered": []
+ },
+ "railway delete": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:railway:delete": "DELETE"
+  },
+  "uncovered": []
+ },
+ "railway variable set K=V": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:railway:variable": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "railway variable delete K": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:railway:variable": "DELETE"
+  },
+  "uncovered": []
+ },
+ "railway up": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:railway:up": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "railway redeploy": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:railway:redeploy": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "railway restart": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cloud:railway:restart": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "railway run python manage.py migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "railway run"
+  ]
+ },
+ "railway run psql -c \"DROP TABLE users\" --environment production": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "railway run"
+  ]
+ },
+ "railway connect postgres": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "railway connect"
+  ]
+ },
+ "railway login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "railway login"
+  ]
+ },
+ "gcloud logging read \"textPayload:delete\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gcloud logging read \"rm -rf\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az monitor activity-log list --query \"[?contains(operationName.value,'delete')]\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gsutil cat gs://b/drop.sql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "az storage blob list -c drop-table-backups": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ }
+}

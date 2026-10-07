@@ -710,6 +710,15 @@ def cloud(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def cloud2(w, inv, parsed, state, tool) -> None:
+    """gcloud, gsutil, az, azcopy, railway (M2.2b2b), in cloud2_ops.py, imported
+    the first time a line names one of them - outside the budget."""
+    def load():
+        from .cloud2_ops import cloud2 as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def sql_client(w, inv, parsed, state, tool) -> None:
     def load():
         from . import sql

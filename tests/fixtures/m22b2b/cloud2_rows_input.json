@@ -1,0 +1,514 @@
+[
+ {
+  "cmd": "gcloud compute instances delete vm1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "gcloud sql instances delete db1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "az group delete -n rg",
+  "source": "inventory"
+ },
+ {
+  "cmd": "gsutil rm -r gs://b",
+  "source": "inventory"
+ },
+ {
+  "cmd": "az storage blob delete -c c -n x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "railway volume delete v",
+  "source": "inventory"
+ },
+ {
+  "cmd": "gcloud --project p compute instances delete vm1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "azcopy remove https://x.blob.core.windows.net/c --recursive",
+  "source": "inventory"
+ },
+ {
+  "cmd": "gcloud compute instances list",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances describe vm1 --zone z",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud iam roles list",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud iam service-accounts delete sa@p.iam.gserviceaccount.com",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud secrets versions access latest --secret s",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud secrets delete s",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud pubsub topics publish t --message m",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud sql databases delete db --instance i",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud run deploy svc --image img",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud run services delete svc",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud app deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud functions deploy f --runtime python312",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances stop vm1",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances start vm1",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances create vm1 --metadata startup-script='rm -rf /'",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud container clusters get-credentials c",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud config set project p",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud auth login",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute os-config patch-deployments list",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud kms import-jobs list --location l --keyring k",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud deploy releases create r --delivery-pipeline p",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud alpha compute instances delete vm1",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud --foo compute instances delete vm1",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances delete $VM",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud $GROUP instances delete vm1",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage ls gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage rm -r gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage cp a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage cp -n a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage cp --no-clobber --custom-metadata k='rm -rf /' a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage cp gs://b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage rsync dir gs://b --delete-unmatched-destination-objects",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage rsync gs://b sub --recursive --delete-unmatched-destination-objects",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage rsync dir gs://b --dry-run --delete-unmatched-destination-objects",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage mv a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud storage buckets delete gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud compute instances delete vm1 --help",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil ls gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil rm gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil -m del gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil rb gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil rsync -d sub gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil rsync -n -d sub gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil rsync -d gs://b sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil cp a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil cp -n a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil -h \"x-goog-meta-k:rm -rf /\" cp -n a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil cp gs://b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil mv a.txt gs://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil acl ch -u u:R gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil acl get gs://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil setmeta -h \"Cache-Control:no-cache\" gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil config",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil hmac delete key",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil -o \"Boto:x=y\" rm gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "gsutil --foo rm gs://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "az group list",
+  "source": "orch"
+ },
+ {
+  "cmd": "az group show -n rg",
+  "source": "orch"
+ },
+ {
+  "cmd": "az group delete -n rg --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "az role assignment list",
+  "source": "orch"
+ },
+ {
+  "cmd": "az role assignment delete --assignee a",
+  "source": "orch"
+ },
+ {
+  "cmd": "az ad sp delete --id x",
+  "source": "orch"
+ },
+ {
+  "cmd": "az keyvault secret show --vault-name v -n s",
+  "source": "orch"
+ },
+ {
+  "cmd": "az keyvault secret delete --vault-name v -n s",
+  "source": "orch"
+ },
+ {
+  "cmd": "az vm deallocate -n vm1 -g rg",
+  "source": "orch"
+ },
+ {
+  "cmd": "az vm start -n vm1 -g rg",
+  "source": "orch"
+ },
+ {
+  "cmd": "az vm create -n vm1 -g rg --custom-data 'rm -rf /'",
+  "source": "orch"
+ },
+ {
+  "cmd": "az vm run-command invoke -g rg -n vm1 --command-id RunShellScript --scripts 'ls'",
+  "source": "orch"
+ },
+ {
+  "cmd": "az aks get-credentials -n c -g rg",
+  "source": "orch"
+ },
+ {
+  "cmd": "az login",
+  "source": "orch"
+ },
+ {
+  "cmd": "az account set -s sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "az webapp deploy -g rg -n app --src-path app.zip",
+  "source": "orch"
+ },
+ {
+  "cmd": "az rest --method delete --url https://management.azure.com/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "az rest --url https://management.azure.com/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "az rest -m post --url https://management.azure.com/x --body '{}'",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob list -c c",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob delete-batch -s c --dryrun",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob upload -c c -f a.txt -n a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob upload -c c -f a.txt -n a.txt --overwrite",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob upload -c c -f a.txt -n a.txt --metadata k='rm -rf /'",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob download -c c -n x -f a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob download -c c -n x -f a.txt --overwrite false",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob download-batch -s c -d sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob download-batch -s c -d sub --overwrite",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage blob sync -c c -s sub --delete-destination true",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage container delete -n c",
+  "source": "orch"
+ },
+ {
+  "cmd": "az storage account delete -n a -g rg",
+  "source": "orch"
+ },
+ {
+  "cmd": "az group delete -n $RG --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy list https://a.blob.core.windows.net/c",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy remove https://a.blob.core.windows.net/c --recursive",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy rm https://a.blob.core.windows.net/c/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy r https://a.blob.core.windows.net/c/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy copy a.txt https://a.blob.core.windows.net/c/",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy cp a.txt https://a.blob.core.windows.net/c/ --overwrite=false",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy copy a.txt https://a.blob.core.windows.net/c/ --overwrite=false --metadata=k=v",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy copy https://a.blob.core.windows.net/c/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy copy https://a.blob.core.windows.net/c sub --recursive",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy sync sub https://a.blob.core.windows.net/c --delete-destination=true",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy sync https://a.blob.core.windows.net/c sub --delete-destination=true",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy remove https://a.blob.core.windows.net/c --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy login",
+  "source": "orch"
+ },
+ {
+  "cmd": "azcopy jobs list",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway status",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway volume list",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway down",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway variable set K=V",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway variable delete K",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway up",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway redeploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway restart",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway run python manage.py migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway run psql -c \"DROP TABLE users\" --environment production",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway connect postgres",
+  "source": "orch"
+ },
+ {
+  "cmd": "railway login",
+  "source": "orch"
+ },
+ {
+  "cmd": "gcloud logging read \"textPayload:delete\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "gcloud logging read \"rm -rf\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "az monitor activity-log list --query \"[?contains(operationName.value,'delete')]\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "gsutil cat gs://b/drop.sql",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "az storage blob list -c drop-table-backups",
+  "source": "orch-accidental"
+ }
+]
