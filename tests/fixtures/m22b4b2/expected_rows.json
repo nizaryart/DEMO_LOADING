@@ -1,0 +1,834 @@
+{
+ "wp db reset": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "shopify theme push": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "stripe refunds create --charge ch_1": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {
+   "payment:stripe": "SEND"
+  },
+  "uncovered": []
+ },
+ "alembic downgrade base": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:alembic": "DELETE"
+  },
+  "uncovered": []
+ },
+ "alembic upgrade head": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:alembic": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "python manage.py migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "python"
+  ]
+ },
+ "prisma migrate reset": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:prisma": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:drop": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "npx prisma generate": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "npx"
+  ]
+ },
+ "echo \"we use stripe charge in prod\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "gem install rails": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "gem install"
+  ]
+ },
+ "shopify theme delete": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "shopify theme pull": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "stripe charge create --amount 5000": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "stripe charge create"
+  ]
+ },
+ "stripe refund create": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "stripe refund create"
+  ]
+ },
+ "wp db drop": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp db export": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wp db export"
+  ]
+ },
+ "wp option delete foo": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp post delete 42": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp post list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wp post list"
+  ]
+ },
+ "wp site empty": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp user delete 3": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "shopify theme publish -t 1": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "shopify theme delete -t 1": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "shopify theme:delete -t 1": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "shopify theme dev": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "shopify theme dev"
+  ]
+ },
+ "shopify app deploy": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "shopify app release --version v1": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:shopify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wp db drop --yes": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp db reset --yes": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp db import dump.sql": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wp db query \"DELETE FROM wp_posts\"": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wp db query"
+  ]
+ },
+ "wp search-replace http://a https://b": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wp search-replace http://a https://b --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wp post delete 42 --force": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp option set blogname x": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wp option get blogname": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wp option get"
+  ]
+ },
+ "wp plugin uninstall akismet": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp theme uninstall twentytwenty": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp --ssh=prod db reset --yes": {
+  "decision": "ESCALATE",
+  "surface": "saas_cms",
+  "captured": false,
+  "remote": {
+   "cms:wp": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wp --exec='echo 1;' post list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wp eval 'wp_delete_post(1);'": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wp eval wp_delete_post(1);"
+  ]
+ },
+ "stripe charges create --amount 100 --currency usd": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {
+   "payment:stripe": "SEND"
+  },
+  "uncovered": []
+ },
+ "stripe payouts create --amount 100": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {
+   "payment:stripe": "SEND"
+  },
+  "uncovered": []
+ },
+ "stripe payment_intents confirm pi_1": {
+  "decision": "ESCALATE",
+  "surface": "external_payment",
+  "captured": false,
+  "remote": {
+   "payment:stripe": "SEND"
+  },
+  "uncovered": []
+ },
+ "stripe customers update cus_1 --email a@b.c": {
+  "decision": "ESCALATE",
+  "surface": "http_api_write",
+  "captured": false,
+  "remote": {
+   "http:api.stripe.com": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "stripe customers delete cus_1": {
+  "decision": "ESCALATE",
+  "surface": "http_api_write",
+  "captured": false,
+  "remote": {
+   "http:api.stripe.com": "DELETE"
+  },
+  "uncovered": []
+ },
+ "stripe customers list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "stripe products create --name x": {
+  "decision": "ESCALATE",
+  "surface": "http_api_write",
+  "captured": false,
+  "remote": {
+   "http:api.stripe.com": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "stripe listen": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "stripe listen"
+  ]
+ },
+ "stripe trigger payment_intent.succeeded": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "stripe trigger payment_intent.succeeded"
+  ]
+ },
+ "bin/rails db:drop": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "rails db:rollback STEP=2": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:reset": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:seed:replant": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:migrate:status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rails db:drop:primary": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rails db:create": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rails db:create"
+  ]
+ },
+ "rails server": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rails server"
+  ]
+ },
+ "rake db:migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:rails": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "django-admin flush --noinput": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:django": "DELETE"
+  },
+  "uncovered": []
+ },
+ "manage.py migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:django": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "manage.py migrate app 0001": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:django": "DELETE"
+  },
+  "uncovered": []
+ },
+ "manage.py migrate --plan": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "manage.py showmigrations": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "manage.py runserver": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "manage.py runserver"
+  ]
+ },
+ "alembic downgrade -1": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:alembic": "DELETE"
+  },
+  "uncovered": []
+ },
+ "alembic downgrade base --sql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "alembic -c alt.ini upgrade head": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:alembic": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "alembic current": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "alembic revision -m x": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "alembic revision"
+  ]
+ },
+ "prisma migrate reset --force": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:prisma": "DELETE"
+  },
+  "uncovered": []
+ },
+ "prisma migrate deploy": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:prisma": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "prisma migrate dev --create-only": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "prisma migrate dev --create-only"
+  ]
+ },
+ "prisma migrate status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "prisma db push": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:prisma": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "prisma db push --force-reset": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:prisma": "DELETE"
+  },
+  "uncovered": []
+ },
+ "prisma db execute --file x.sql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "npx prisma migrate reset": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "npx"
+  ]
+ },
+ "knex migrate:latest": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:knex": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "knex migrate:rollback --all": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:knex": "DELETE"
+  },
+  "uncovered": []
+ },
+ "knex migrate:list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "knex migrate:make x": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "knex migrate:make"
+  ]
+ },
+ "knex seed:run": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:knex": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "flyway migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:flyway": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "flyway clean": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:flyway": "DELETE"
+  },
+  "uncovered": []
+ },
+ "flyway -url=jdbc:x clean migrate": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:flyway": "DELETE"
+  },
+  "uncovered": []
+ },
+ "flyway info": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "liquibase update": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:liquibase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "liquibase drop-all": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:liquibase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "liquibase dropAll": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:liquibase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "liquibase rollback-count 1": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:liquibase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "liquibase update-sql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "liquibase --url jdbc:x update": {
+  "decision": "ESCALATE",
+  "surface": "schema_migration",
+  "captured": false,
+  "remote": {
+   "migration:liquibase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "liquibase status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ }
+}

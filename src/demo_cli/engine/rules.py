@@ -689,6 +689,8 @@ LAZY_FAMILIES: Dict[str, str] = {
     "redis-cli": "rules_datastore", "mongosh": "rules_datastore", "mongo": "rules_datastore",
     "dropdb": "rules_datastore", "pg_restore": "rules_datastore", "pg_dump": "rules_datastore",
     "mysqladmin": "rules_datastore", "sqlcmd": "rules_datastore",
+    # M2.2b4b2: stores, CMS, payments, migrations
+    "shopify": "rules_saas", "wp": "rules_saas", "stripe": "rules_saas", "rails": "rules_saas", "rake": "rules_saas", "manage.py": "rules_saas", "django-admin": "rules_saas", "alembic": "rules_saas", "prisma": "rules_saas", "knex": "rules_saas", "flyway": "rules_saas", "liquibase": "rules_saas",
     # M2.2b4b1: PaaS CLIs
     "heroku": "rules_paas", "fly": "rules_paas", "flyctl": "rules_paas", "vercel": "rules_paas", "vc": "rules_paas", "netlify": "rules_paas", "wrangler": "rules_paas", "firebase": "rules_paas",
     # M2.2b4a: what leaves the machine

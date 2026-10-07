@@ -1,0 +1,386 @@
+[
+ {
+  "cmd": "wp db reset",
+  "source": "inventory"
+ },
+ {
+  "cmd": "shopify theme push",
+  "source": "inventory"
+ },
+ {
+  "cmd": "stripe refunds create --charge ch_1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "alembic downgrade base",
+  "source": "inventory"
+ },
+ {
+  "cmd": "alembic upgrade head",
+  "source": "inventory"
+ },
+ {
+  "cmd": "python manage.py migrate",
+  "source": "inventory"
+ },
+ {
+  "cmd": "prisma migrate reset",
+  "source": "inventory"
+ },
+ {
+  "cmd": "rails db:drop",
+  "source": "inventory"
+ },
+ {
+  "cmd": "npx prisma generate",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo \"we use stripe charge in prod\"",
+  "source": "gate"
+ },
+ {
+  "cmd": "gem install rails",
+  "source": "gate"
+ },
+ {
+  "cmd": "shopify theme delete",
+  "source": "gate"
+ },
+ {
+  "cmd": "shopify theme pull",
+  "source": "gate"
+ },
+ {
+  "cmd": "stripe charge create --amount 5000",
+  "source": "gate"
+ },
+ {
+  "cmd": "stripe refund create",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp db drop",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp db export",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp option delete foo",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp post delete 42",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp post list",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp site empty",
+  "source": "gate"
+ },
+ {
+  "cmd": "wp user delete 3",
+  "source": "gate"
+ },
+ {
+  "cmd": "shopify theme publish -t 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "shopify theme delete -t 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "shopify theme:delete -t 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "shopify theme dev",
+  "source": "orch"
+ },
+ {
+  "cmd": "shopify app deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "shopify app release --version v1",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp db drop --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp db reset --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp db import dump.sql",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp db query \"DELETE FROM wp_posts\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp search-replace http://a https://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp search-replace http://a https://b --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp post delete 42 --force",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp option set blogname x",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp option get blogname",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp plugin uninstall akismet",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp theme uninstall twentytwenty",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp --ssh=prod db reset --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp --exec='echo 1;' post list",
+  "source": "orch"
+ },
+ {
+  "cmd": "wp eval 'wp_delete_post(1);'",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe charges create --amount 100 --currency usd",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe payouts create --amount 100",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe payment_intents confirm pi_1",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe customers update cus_1 --email a@b.c",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe customers delete cus_1",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe customers list",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe products create --name x",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe listen",
+  "source": "orch"
+ },
+ {
+  "cmd": "stripe trigger payment_intent.succeeded",
+  "source": "orch"
+ },
+ {
+  "cmd": "bin/rails db:drop",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:rollback STEP=2",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:seed:replant",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:migrate:status",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:drop:primary",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails db:create",
+  "source": "orch"
+ },
+ {
+  "cmd": "rails server",
+  "source": "orch"
+ },
+ {
+  "cmd": "rake db:migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "django-admin flush --noinput",
+  "source": "orch"
+ },
+ {
+  "cmd": "manage.py migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "manage.py migrate app 0001",
+  "source": "orch"
+ },
+ {
+  "cmd": "manage.py migrate --plan",
+  "source": "orch"
+ },
+ {
+  "cmd": "manage.py showmigrations",
+  "source": "orch"
+ },
+ {
+  "cmd": "manage.py runserver",
+  "source": "orch"
+ },
+ {
+  "cmd": "alembic downgrade -1",
+  "source": "orch"
+ },
+ {
+  "cmd": "alembic downgrade base --sql",
+  "source": "orch"
+ },
+ {
+  "cmd": "alembic -c alt.ini upgrade head",
+  "source": "orch"
+ },
+ {
+  "cmd": "alembic current",
+  "source": "orch"
+ },
+ {
+  "cmd": "alembic revision -m x",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma migrate reset --force",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma migrate deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma migrate dev --create-only",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma migrate status",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma db push",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma db push --force-reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "prisma db execute --file x.sql",
+  "source": "orch"
+ },
+ {
+  "cmd": "npx prisma migrate reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "knex migrate:latest",
+  "source": "orch"
+ },
+ {
+  "cmd": "knex migrate:rollback --all",
+  "source": "orch"
+ },
+ {
+  "cmd": "knex migrate:list",
+  "source": "orch"
+ },
+ {
+  "cmd": "knex migrate:make x",
+  "source": "orch"
+ },
+ {
+  "cmd": "knex seed:run",
+  "source": "orch"
+ },
+ {
+  "cmd": "flyway migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "flyway clean",
+  "source": "orch"
+ },
+ {
+  "cmd": "flyway -url=jdbc:x clean migrate",
+  "source": "orch"
+ },
+ {
+  "cmd": "flyway info",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase update",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase drop-all",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase dropAll",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase rollback-count 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase update-sql",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase --url jdbc:x update",
+  "source": "orch"
+ },
+ {
+  "cmd": "liquibase status",
+  "source": "orch"
+ }
+]

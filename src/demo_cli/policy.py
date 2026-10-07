@@ -47,7 +47,10 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("mail:", "external_email"), ("host:", "remote_filesystem"),
                    ("registry:", "package_registry"),
                    # M2.2b4b1: PaaS CLIs keep the surfaces the old rules gave them
-                   ("paas:", "paas_destroy"), ("deploy:", "saas_deploy"))
+                   ("paas:", "paas_destroy"), ("deploy:", "saas_deploy"),
+                   # M2.2b4b2: stores, CMS, payments, migrations
+                   ("cms:", "saas_cms"), ("payment:", "external_payment"),
+                   ("migration:", "schema_migration"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")

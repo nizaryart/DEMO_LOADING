@@ -740,6 +740,15 @@ def paas(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def saas(w, inv, parsed, state, tool) -> None:
+    """shopify, wp-cli, stripe and the migration tools (M2.2b4b2), in
+    saas_ops.py - imported the first time a line names one of them."""
+    def load():
+        from .saas_ops import saas as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def _send_ops():
     from . import send_ops
     return send_ops
