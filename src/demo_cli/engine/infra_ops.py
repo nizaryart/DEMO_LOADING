@@ -47,17 +47,24 @@ subcommand could be an option (`--dry-run=client`, `--replicas=0`,
 OVERWRITE - the two that lose the most (effects._LOSS_ORDER), which no option
 can make worse; anywhere else the line is not understood.
 
-GRAMMARS ARE VERIFIED (2026-10-06) against terraform 1.9.8, tofu 1.8.5,
-kubectl 1.31.2, helm 3.16.2, pulumi 3.137.0 and aws-cdk 2.164.1: every option
-table below is the tool's own --help, and these facts were run:
-  - terraform / tofu: `-chdir` needs `=` (`-chdir infra` is an error and
-    nothing runs); any other option before the subcommand is refused; -h,
-    -help and --help anywhere before `--` print help; `--x` works like `-x`.
+GRAMMARS ARE VERIFIED against the releases current on 2026-10-07 - terraform
+1.16.5, tofu 1.13.1, kubectl 1.37.1, helm 4.3.0, pulumi 3.268.0, cdk CLI
+2.1144.0 - and, where a fact differs, the earlier major still in wide use
+(helm 3.16.2; first verified 2026-10-06 with terraform 1.9.8, tofu 1.8.5,
+kubectl 1.31.2, pulumi 3.137.0, cdk 2.164.1). Every option table below is
+the tool's own --help, and these facts were run:
+  - terraform: `-chdir` needs `=` (`-chdir infra` is an error and nothing
+    runs). tofu 1.13 also takes `-chdir DIR`, and of two the LAST wins. Any
+    other option before the subcommand is refused; -h, -help and --help
+    anywhere before `--` print help; `--x` works like `-x`.
   - kubectl, helm, pulumi (cobra): a value option takes the next word even
     when it starts with `-` (`kubectl -n -h delete pod x` deletes in the
     namespace "-h"); a boolean option never takes a separate `true`; an
     option the tool does not know before the subcommand is refused, or eats
     the subcommand as its value. `--dry-run` takes its value only after `=`.
+  - helm 4: `rollback --dry-run` became a string like install / upgrade's:
+    bare or `=client` / `=server` / `=true` simulate, `=none` RUNS (helm 3's
+    rollback took a boolean: `=false` runs). uninstall's stays a boolean.
   - cdk (yargs): an unknown option takes the next word as its value
     (`cdk --foo destroy` runs no command); a boolean option DOES take a
     following `true` / `false` (`cdk --trace true destroy` destroys).
@@ -305,12 +312,16 @@ def terraform(w, inv, parsed, state, tool) -> None:
         word = args[i]
         v = word.value
         if v.startswith("-chdir="):
-            if chdir is not None:
+            if chdir is not None and tool != "tofu":
                 w.impact.not_covered(f"{tool} (option)")     # VERIFIED: refused
                 return
             chdir = Word(word.raw, v[len("-chdir="):], word.start, word.end,
                          expands=word.expands)
             i += 1
+            continue
+        if v == "-chdir" and tool == "tofu" and i + 1 < len(args):
+            chdir = args[i + 1]                               # VERIFIED: tofu 1.13
+            i += 2
             continue
         if word.expands:
             w.impact.not_understood(inv.text, f"a {tool} option or subcommand named by an expansion")
@@ -364,7 +375,7 @@ def terraform(w, inv, parsed, state, tool) -> None:
     if not ok:
         return
     if sub == "state":
-        if action in (None, "list", "show", "pull"):
+        if action in (None, "list", "show", "pull", "identities"):
             return
         if action == "rm":
             return _remote(w, inv, label, DELETE, rest, tool)
@@ -451,6 +462,8 @@ def _tf_fmt(w, inv, state, wd: Optional[str], rest: List[Word], tool: str) -> No
 
 _KUBECTL_GLOBALS = _Globals(
     values={"--as": "as", "--as-group": "as_group", "--as-uid": "as_uid",
+            "--as-user-extra": "as_user_extra", "--kuberc": "kuberc",
+            "--proxy-url": "proxy_url",
             "--cache-dir": "cache_dir", "--certificate-authority": "ca",
             "--client-certificate": "cert", "--client-key": "key",
             "--cluster": "cluster", "--context": "context",
@@ -592,7 +605,9 @@ _HELM_GLOBALS = _Globals(
             "--kubeconfig": "kubeconfig", "-n": "namespace", "--namespace": "namespace",
             "--qps": "qps", "--registry-config": "registry_config",
             "--repository-cache": "repository_cache",
-            "--repository-config": "repository_config"},
+            "--repository-config": "repository_config",
+            # helm 4
+            "--color": "color", "--colour": "color", "--content-cache": "content_cache"},
     flags=frozenset({"--debug", "--kube-insecure-skip-tls-verify"}))
 
 _HELM_READ = frozenset({"completion", "env", "get", "help", "history", "hist", "lint",
@@ -631,11 +646,17 @@ def helm(w, inv, parsed, state, tool) -> None:
                 return w.impact.not_covered("helm install (values on the line)")
             return _remote(w, inv, label, CREATE, rest, tool)
         return _remote(w, inv, label, OVERWRITE, rest, tool)
-    if sub in _HELM_UNINSTALL or sub == "rollback":
+    if sub == "rollback":
+        # helm 4: a string like install's (`=none` RUNS); helm 3: a boolean
+        # (`=false` runs). Only the values that simulate in either count.
+        present, val = _long(rest, "--dry-run", takes_next=False)
+        if present and (val is None or val.value in _HELM_DRY):
+            return
+        return _remote(w, inv, label, OVERWRITE, rest, tool)
+    if sub in _HELM_UNINSTALL:
         if _go_dry(rest):
             return
-        return _remote(w, inv, label, DELETE if sub in _HELM_UNINSTALL else OVERWRITE,
-                       rest, tool)
+        return _remote(w, inv, label, DELETE, rest, tool)
     if sub not in ("dependency", "dep", "dependencies", "plugin", "repo"):
         return w.impact.not_covered(f"helm {sub}")
     ok, action = _action(w, inv, rest, tool, _HELM_GLOBALS)
@@ -647,7 +668,7 @@ def helm(w, inv, parsed, state, tool) -> None:
 
 
 def _go_dry(rest: List[Word]) -> bool:
-    """A boolean `--dry-run` (helm uninstall / rollback)."""
+    """A boolean `--dry-run` (helm uninstall, in helm 3 and 4)."""
     for a in _before_dashdash(rest):
         if a.expands:
             continue
@@ -664,12 +685,14 @@ _PULUMI_GLOBALS = _Globals(
     values={"--color": "color", "-C": "cwd", "--cwd": "cwd",
             "--memprofilerate": "memprofilerate", "--profiling": "profiling",
             "--tracing": "tracing", "-v": "verbose", "--verbose": "verbose",
+            "--otel-traces": "otel_traces",
             # a subcommand's own option, which cobra also reads before it
             # (VERIFIED: pulumi -s dev destroy)
             "-s": "stack", "--stack": "stack"},
     flags=frozenset({"--disable-integrity-checking", "-e", "--emoji", "-Q",
                      "--fully-qualify-stack-names", "--logflow", "--logtostderr",
-                     "--non-interactive"}))
+                     "--non-interactive"}),
+    version=frozenset({"--version"}))
 
 _PULUMI_READ = frozenset({"whoami", "version", "about", "logs", "console",
                           "gen-completion", "help"})
@@ -707,19 +730,23 @@ def pulumi(w, inv, parsed, state, tool) -> None:
     if not ok:
         return
     if sub == "stack":
-        if action in (None, "ls", "output", "history", "export", "select", "unselect"):
+        if action in (None, "ls", "list", "output", "history", "export", "select",
+                      "unselect", "get"):
             return
         if action == "init":
             return _remote(w, inv, label, CREATE, rest, tool)
-        if action == "rm":
+        if action in ("rm", "remove", "delete"):                # VERIFIED aliases
             return _remote(w, inv, label, DELETE, rest, tool)
         if action in ("import", "rename", "tag", "change-secrets-provider"):
             return _remote(w, inv, label, OVERWRITE, rest, tool)
         return w.impact.not_covered(f"pulumi stack {action}")
     if sub == "state":
-        if action == "delete":
+        if action == "get":
+            return
+        if action in ("delete", "remove", "rm"):                # VERIFIED aliases
             return _remote(w, inv, label, DELETE, rest, tool)
-        if action in ("move", "rename", "repair", "unprotect", "upgrade"):
+        if action in ("move", "rename", "repair", "unprotect", "upgrade", "protect",
+                      "promote", "taint", "untaint"):
             return _remote(w, inv, label, OVERWRITE, rest, tool)
         return w.impact.not_covered(f"pulumi state {action}")
     w.impact.not_covered(f"pulumi {sub}")
@@ -732,11 +759,15 @@ _CDK_GLOBALS = _Globals(
             "--context": "context", "-p": "plugin", "--plugin": "plugin",
             "--profile": "profile", "--proxy": "proxy", "--ca-bundle-path": "ca",
             "-r": "role_arn", "--role-arn": "role_arn", "-o": "output",
-            "--output": "output", "--unstable": "unstable"},
+            "--output": "output", "--unstable": "unstable",
+            # cdk CLI 2.1144
+            "--region": "region", "--telemetry-file": "telemetry_file"},
     flags=frozenset({"--trace", "--strict", "--lookups", "--ignore-errors", "-j", "--json",
                      "-v", "-vv", "-vvv", "--verbose", "--debug", "-i", "--ec2creds",
                      "--version-reporting", "--path-metadata", "--asset-metadata",
-                     "--staging", "--notices", "--no-color", "--ci"}),
+                     "--staging", "--notices", "--no-color", "--ci",
+                     # cdk CLI 2.1144
+                     "--yes", "-y", "--debug-app", "--debug-cli", "--color"}),
     bool_value=True, version=frozenset({"--version"}))
 
 

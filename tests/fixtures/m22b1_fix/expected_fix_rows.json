@@ -1,0 +1,272 @@
+{
+ "helm rollback api 1 --dry-run=none": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "helm rollback api 1 --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm rollback api 1 --dry-run=client": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm rollback api 1 --dry-run=false": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "helm rollback api 1 --dry-run=true": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm uninstall api --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm --color never -n prod uninstall api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "helm --content-cache d uninstall api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --kuberc k delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --proxy-url http://p:3128 delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --as-user-extra a=b delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi stack remove dev": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi stack delete dev": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi stack list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi stack get": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi state remove urn:x": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi state rm urn:x": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi state taint urn:x": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "pulumi state get urn:x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi --version": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi --otel-traces f destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "tofu -chdir infra destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:tofu:infra": "DELETE"
+  },
+  "uncovered": []
+ },
+ "tofu -chdir=a -chdir infra apply": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:tofu:infra": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform -chdir infra destroy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "terraform (option)"
+  ]
+ },
+ "terraform state identities -json": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "cdk --yes destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk -y destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk --region eu-west-1 destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk --color true destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk --debug-app deploy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "cdk --telemetry-file t.json destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk publish-assets": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "cdk publish-assets"
+  ]
+ }
+}

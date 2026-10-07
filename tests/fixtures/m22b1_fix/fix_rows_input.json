@@ -1,0 +1,98 @@
+[
+ {
+  "cmd": "helm rollback api 1 --dry-run=none"
+ },
+ {
+  "cmd": "helm rollback api 1 --dry-run"
+ },
+ {
+  "cmd": "helm rollback api 1 --dry-run=client"
+ },
+ {
+  "cmd": "helm rollback api 1 --dry-run=false"
+ },
+ {
+  "cmd": "helm rollback api 1 --dry-run=true"
+ },
+ {
+  "cmd": "helm uninstall api --dry-run"
+ },
+ {
+  "cmd": "helm --color never -n prod uninstall api"
+ },
+ {
+  "cmd": "helm --content-cache d uninstall api"
+ },
+ {
+  "cmd": "kubectl --kuberc k delete pod x"
+ },
+ {
+  "cmd": "kubectl --proxy-url http://p:3128 delete pod x"
+ },
+ {
+  "cmd": "kubectl --as-user-extra a=b delete pod x"
+ },
+ {
+  "cmd": "pulumi stack remove dev"
+ },
+ {
+  "cmd": "pulumi stack delete dev"
+ },
+ {
+  "cmd": "pulumi stack list"
+ },
+ {
+  "cmd": "pulumi stack get"
+ },
+ {
+  "cmd": "pulumi state remove urn:x"
+ },
+ {
+  "cmd": "pulumi state rm urn:x"
+ },
+ {
+  "cmd": "pulumi state taint urn:x"
+ },
+ {
+  "cmd": "pulumi state get urn:x"
+ },
+ {
+  "cmd": "pulumi --version"
+ },
+ {
+  "cmd": "pulumi --otel-traces f destroy"
+ },
+ {
+  "cmd": "tofu -chdir infra destroy"
+ },
+ {
+  "cmd": "tofu -chdir=a -chdir infra apply"
+ },
+ {
+  "cmd": "terraform -chdir infra destroy"
+ },
+ {
+  "cmd": "terraform state identities -json"
+ },
+ {
+  "cmd": "cdk --yes destroy"
+ },
+ {
+  "cmd": "cdk -y destroy"
+ },
+ {
+  "cmd": "cdk --region eu-west-1 destroy"
+ },
+ {
+  "cmd": "cdk --color true destroy"
+ },
+ {
+  "cmd": "cdk --debug-app deploy"
+ },
+ {
+  "cmd": "cdk --telemetry-file t.json destroy"
+ },
+ {
+  "cmd": "cdk publish-assets"
+ }
+]
