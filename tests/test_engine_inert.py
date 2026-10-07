@@ -140,7 +140,7 @@ def test_the_prediction_is_recorded_and_the_chain_holds(tmp_path):
     assert last["decision"] == "REVERSIBLE"
     assert last["prediction"]["decision"] == "REVERSIBLE"
     assert sorted(last["prediction"]["destroys"]) == ["a.txt", "b.txt"]
-    assert last["receipt_version"] == RECEIPT_VERSION == "2.2"     # 2.2: C2a (remote kinds)
+    assert last["receipt_version"] == RECEIPT_VERSION == "2.3"     # 2.2: C2a (remote kinds); 2.3: `approvable` (msg 085)
     assert verify_chain(os.path.join(str(root), ".demo_cli", "receipts.jsonl")).ok
     assert r.prediction == last["prediction"]
 

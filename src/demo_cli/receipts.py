@@ -27,8 +27,9 @@ from .context import redact
 from .decide import INVARIANT
 from .version import release_tag
 
-RECEIPT_VERSION = "2.2"   # 2.1: optional `prediction` (Part B); 2.2: prediction.remote is
-#                           {label: kind}, + databases / no_capture (C2a)
+RECEIPT_VERSION = "2.3"   # 2.1: optional `prediction` (Part B); 2.2: prediction.remote is
+#                           {label: kind}, + databases / no_capture (C2a); 2.3: `approvable`
+#                           (the ask channel)
 GENESIS = "0" * 64
 
 # A sha256 hex digest as it appears in a torn line's surviving text. Used to
@@ -200,6 +201,10 @@ class Receipt:
     # read by nothing that decides (Part B). None from every other writer.
     prediction: Optional[Dict] = None
     group_id: Optional[str] = None
+    # The ask channel: a person may approve this ESCALATE on the spot
+    # (policy.ESCALATION_CHANNEL). It records that the question COULD be asked,
+    # never that anyone answered yes - no door sees the answer.
+    approvable: bool = False
     receipt_hash: str = ""
 
     def finalize(self) -> "Receipt":

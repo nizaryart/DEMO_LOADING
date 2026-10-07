@@ -62,6 +62,10 @@ class Decision:
     recoverable: bool = False
     surface: Optional[str] = None
     next_steps: List[str] = field(default_factory=list)
+    # The ask channel (policy.ESCALATION_CHANNEL): an ESCALATE a person may
+    # approve on the spot. Read only by the doors that can show a person a
+    # question; False on every other disposition.
+    approvable: bool = False
 
     @property
     def is_blocking(self) -> bool:
@@ -81,8 +85,17 @@ def decide(
     preview_count: Optional[int] = None,
     supervisable: bool = False,
     net: Optional[str] = None,
+    env_declared: bool = False,
 ) -> Decision:
+    """`env_declared`: `environment` came from a declaration (--actual-env or
+    a .demo_cli.toml target), not from a guess over the command's words."""
     mismatches = mismatches or []
+    # A target declared production is never approved on the spot: there the
+    # structural approval token, or a person outside the agent, decides.
+    confirm_env = env_declared and environment in policy.CONFIRM_ENVIRONMENTS
+
+    def asks(channel: bool) -> bool:
+        return channel and not confirm_env
 
     # 1. Opaque remote execution: the payload is unknown until it runs, so it
     #    can be neither previewed nor snapshotted.
@@ -95,6 +108,7 @@ def decide(
                 "Download the script to a file first, review it, then run it.",
                 "Or pin and verify a known checksum before executing.",
             ],
+            approvable=asks(policy.NO_SURFACE_CHANNEL["remote_exec"] == policy.ASK),
         )
 
     # 2. Nothing mutating - outside the invariant entirely.
@@ -123,6 +137,7 @@ def decide(
                 "Supply a structural approval token, or perform it outside the agent.",
                 f"If it already ran, restore from the provider: {policy.recovery_hint(c.nonrecoverable_surface)}.",
             ],
+            approvable=asks(policy.may_ask(c.nonrecoverable_surface)),
         )
 
     # 4. Valid-but-wrong-context: a reasonable mutation pointed at the wrong place.
@@ -147,6 +162,23 @@ def decide(
                 "Verify the target environment / branch / account is the intended one.",
                 "Provide a snapshot target (--target / --db / --db-url) or back up first.",
                 "To declare this target's environment: demo_cli target add <pattern> --env <env>",
+            ],
+            approvable=asks(policy.NO_SURFACE_CHANNEL["context_mismatch"] == policy.ASK),
+        )
+
+    # 4b. A target DECLARED production (never a guess from the command's
+    #     words): recoverable or not, a person sees it. CONTEXT_MISMATCH is the
+    #     disposition every door already shows a person (Claude Code: ask;
+    #     Codex, which has no ask: allowed with the warning in its context).
+    if confirm_env and recovery_captured:
+        return Decision(
+            CONTEXT_MISMATCH,
+            f"The target is declared '{environment}'. A recovery point was captured "
+            "first; the change is surfaced for a person to confirm.",
+            recoverable=True,
+            next_steps=[
+                "Confirm this change is meant for the declared environment.",
+                "Undo restores the recovery point if it was not.",
             ],
         )
 
@@ -193,4 +225,5 @@ def decide(
             "Or create an independent backup before proceeding.",
             "To declare target recovery policy: demo_cli target add <pattern> --recovery none|snapshot",
         ],
+        approvable=asks(policy.NO_SURFACE_CHANNEL["local_no_recovery"] == policy.ASK),
     )

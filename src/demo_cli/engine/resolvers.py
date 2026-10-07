@@ -719,6 +719,24 @@ def cloud2(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def container(w, inv, parsed, state, tool) -> None:
+    """docker, podman, docker-compose (M2.2b3), in container_ops.py, imported
+    the first time a line names one of them - outside the budget."""
+    def load():
+        from .container_ops import container as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
+def datastore(w, inv, parsed, state, tool) -> None:
+    """redis-cli, mongosh / mongo, dropdb / pg_restore / pg_dump, mysqladmin,
+    sqlcmd (M2.2b3), in datastore_ops.py - imported outside the budget."""
+    def load():
+        from .datastore_ops import datastore as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def sql_client(w, inv, parsed, state, tool) -> None:
     def load():
         from . import sql

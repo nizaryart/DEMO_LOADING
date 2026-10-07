@@ -79,9 +79,12 @@ def test_e2e_full_operator_lifecycle(tmp_path: Path):
     db_file.write_bytes(original_payload)
 
     # 4. Run pre-execution safety check on destructive command
-    check_res = run_cli(["check", "rm prod.sqlite", "--mode", "enforce"], cwd=tmp_path)
-    assert check_res.returncode == 0
-    assert "REVERSIBLE" in check_res.stdout or "SAFE" in check_res.stdout
+    # msg 085 (queue item 8): a target DECLARED production is captured first,
+    # then shown to a person - CONTEXT_MISMATCH, which `check` exits 1 on.
+    check_res = run_cli(["check", "rm prod.sqlite", "--mode", "enforce"], cwd=tmp_path,
+                        check=False)
+    assert check_res.returncode == 1
+    assert "CONTEXT_MISMATCH" in check_res.stdout
     assert "prod.sqlite" in check_res.stdout
 
     # 5. Inspect captured recovery points via log

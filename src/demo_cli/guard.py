@@ -918,6 +918,7 @@ class Guard:
             f.c, ctx.environment, recovery_captured,
             mismatches=mismatches, approval_ok=approval_ok, preview_count=preview_count,
             supervisable=f.supervisable, net=f.net_name,
+            env_declared=ctx.environment_source in ("declared", "config"),
         )
 
         # Say which kind of recovery this is. A whole-workspace checkpoint is
@@ -986,7 +987,7 @@ class Guard:
             context_mismatches=[list(m) for m in mismatches],
             pipeline_segments=c.segments if c.is_pipeline else [], remote_exec=c.remote_exec,
             dialect=dialect, agent_id=agent_id, session_id=session_id,
-            prediction=prediction, group_id=gid)
+            prediction=prediction, group_id=gid, approvable=decision.approvable)
         _record_receipt(self.config.receipts_path, receipt)
 
         return GuardResult(
@@ -1133,7 +1134,8 @@ class Guard:
         recovery_captured = entry is not None
 
         mismatches = compare_intent(intent, ctx)
-        decision = decide(c, ctx.environment, recovery_captured, mismatches=mismatches)
+        decision = decide(c, ctx.environment, recovery_captured, mismatches=mismatches,
+                          env_declared=ctx.environment_source in ("declared", "config"))
         if decision.decision == ESCALATE:
             if ap == root:
                 decision.reason = (
@@ -1181,6 +1183,7 @@ class Guard:
             declared_intent=intent.as_dict(),
             agent_id=agent_id,
             session_id=session_id,
+            approvable=decision.approvable,
         )
         _record_receipt(self.config.receipts_path, receipt)
 

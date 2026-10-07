@@ -17,6 +17,8 @@ Mapping:
                     then exit 0 so the normal permission flow is unchanged.
     enforce mode -> ESCALATE => deny, CONTEXT_MISMATCH => ask, otherwise allow
                     (recoverable mutations are snapshotted first, then allowed).
+                    An ESCALATE a person may approve (decision.approvable, the
+                    ask channel) => ask, but only in ASK_MODES.
 
 Posture: a *decision* is fail-closed (no recovery path on prod => escalate),
 but our *own* errors are fail-open - a bug in this tool must never brick the
@@ -83,6 +85,30 @@ def _loud_block(result) -> None:
             _stderr(f"         wrong call?  report it (prefilled): {url}")
     except Exception:
         pass
+    _stderr("")
+
+
+# The permission modes in which Claude Code SHOWS a hook's "ask" to a person.
+# Docs (2026-10-07): Manual (sent as "default"), acceptEdits and plan prompt;
+# auto mode does too - "the classifier can still deny the tool call, but it
+# can't approve the call silently" (v2.1.211). dontAsk auto-denies anything
+# that would prompt; bypassPermissions "disables permission prompts" and the
+# docs do not say a hook's ask survives it. Outside this set - and when the
+# mode is missing - an approvable escalation is DENIED: an "ask" that nobody
+# is shown must never turn into "it ran".
+ASK_MODES = frozenset({"default", "acceptEdits", "plan", "auto"})
+
+
+def escalation_permission(decision, permission_mode: Optional[str]) -> str:
+    """deny or ask, for an ESCALATE."""
+    return "ask" if decision.approvable and permission_mode in ASK_MODES else "deny"
+
+
+def _loud_ask(result) -> None:
+    """The ask channel's stderr: what the person is being asked to approve."""
+    _stderr("")
+    _stderr(f"demo_cli \u2753 needs your approval: {result.decision.reason}")
+    _stderr("         nothing was captured: if you approve, demo_cli cannot undo it.")
     _stderr("")
 
 
@@ -262,6 +288,18 @@ def run_pretooluse(stdin, stdout) -> int:
     # then refuses, so the save arm would announce a recovery point for a
     # command that never ran. The shadow block above already orders it this way.
     if result.decision.is_blocking:
+        if escalation_permission(result.decision, data.get("permission_mode")) == "ask":
+            _loud_ask(result)
+            reason += ("\n\nApprove only if this is intended: nothing was captured, "
+                       "so demo_cli cannot undo it.")
+            if result.decision.surface:
+                from .. import policy
+                reason += (f" If it has to come back: "
+                           f"{policy.recovery_hint(result.decision.surface)}.")
+            if fs_note:
+                reason += "\n\n" + fs_note
+            _emit(stdout, "ask", reason)
+            return 0
         _loud_block(result)         # <-- make the block legible, with report link
         if fs_note:
             reason += "\n\n" + fs_note

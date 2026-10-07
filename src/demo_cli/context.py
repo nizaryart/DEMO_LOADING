@@ -5,7 +5,12 @@ order:
 
     1. an explicit `--actual-env` / hook-provided value          (declared)
     2. a target matched in .demo_cli.toml                        (declared)
-    3. a heuristic over the connection string / command text     (guessed)
+    3. a heuristic over the target's own name (path / connection string)  (guessed)
+
+The heuristic never reads the rest of the command: a heredoc, a commit
+message or a comment that merely mentions "production" labelled the command
+production (queue item 8). A guess decides nothing either way - decide.py acts
+on an environment only when it was declared (1 or 2).
 
 The heuristic is a last resort, not the source of truth, because a real
 production database is reached through a connection string or secret, not a
@@ -74,8 +79,11 @@ def resolve_env(cmd: str, target_label: Optional[str] = None,
     if cfg != "unknown":
         return cfg, "config"
     guess = detect_env_from_text(os.path.basename(target_label or "") or (target_label or ""))
-    if guess == "unknown":
-        guess = detect_env_from_text(cmd)
+    if guess == "unknown" and target_label and "://" in target_label:
+        # a connection string's host / database names it (postgres://prod-db/app);
+        # a path's directories do not (C:\Users\pc\AppData\Local\... is not
+        # "development" - found on Windows)
+        guess = detect_env_from_text(target_label)
     if guess != "unknown":
         return guess, "heuristic"
     return "unknown", "unknown"

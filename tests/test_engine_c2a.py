@@ -463,7 +463,7 @@ def test_mysql_is_marked_unverified():
     from demo_cli.engine.rules_sql import MYSQL_OPTIONS
     from demo_cli.engine.rules import all_rules
     assert {r.id for r in all_rules() if not r.verified} - \
-        {"prettier", "eslint", "black", "isort", "rustfmt", "rsync"} == {"mysql"}
+        {"prettier", "eslint", "black", "isort", "rustfmt", "rsync"} == {"mysql", "mysqladmin"}  # M2.2b3 (msg 083): mysqladmin shares mysql's documentation-only grammar
     assert MYSQL_OPTIONS.attached == {"-p": "password"}, "-p takes a password glued on only"
 
 

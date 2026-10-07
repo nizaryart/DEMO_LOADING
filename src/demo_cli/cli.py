@@ -29,6 +29,9 @@ from .receipts import (
 from .version import __version__
 
 _EXIT = {ESCALATE: 2, CONTEXT_MISMATCH: 1}
+# guard-shell: blocked, but a person at a terminal may approve it (the ask
+# channel). Any shell that cannot ask treats it as blocked: it is non-zero.
+_EXIT_APPROVABLE = 3
 
 # Windows process-creation flags for long-lived background workers (filesystem
 # guard and egress proxy). CREATE_NO_WINDOW suppresses console window without
@@ -686,6 +689,30 @@ if [ -n "$BASH_VERSION" ]; then
           unset __demo_cli_rc
           return 0
         fi
+        if [ "$__demo_cli_rc" -eq 3 ]; then
+          # The ask channel: guard-shell refused, and a person may approve it.
+          # Asked HERE, never inside guard-shell (it runs under timeout, and a
+          # timeout is read as "allow" above). Only an interactive shell asks,
+          # and only from the terminal itself - never from stdin, which a
+          # script or an agent controls. Anything else falls through to the
+          # block below: 3 is non-zero.
+          case $- in
+            *i*)
+              # The probe runs in a subshell so its error stays quiet; the
+              # read itself must keep stderr - `read -p` prints its question
+              # there (silencing it hid the question: found by the pty test).
+              if ( : </dev/tty ) 2>/dev/null \
+                 && read -r -p "demo_cli: run it anyway? [y/N] " __demo_cli_a </dev/tty; then
+                case $__demo_cli_a in
+                  y|Y|yes|YES)
+                    __demo_cli_note "approved-at-terminal" "$BASH_COMMAND"
+                    unset __demo_cli_rc __demo_cli_a
+                    return 0 ;;
+                esac
+              fi
+              unset __demo_cli_a ;;
+          esac
+        fi
         if [ "$__demo_cli_rc" -ne 0 ]; then
           # Did the guard REFUSE, or is it broken? A package that cannot
           # import exits non-zero too, and reading that as a refusal locks the
@@ -777,6 +804,14 @@ def cmd_guard_shell(a) -> int:
             sys.stderr.write(f"demo_cli [shadow/shell] snapshot {rid}; undo: demo_cli undo {rid}\n")
         return 0
     if result.decision.is_blocking:
+        if result.decision.approvable:
+            # The ask channel. The QUESTION is asked by the shell trap, not
+            # here: this process runs under `timeout`, which the trap reads as
+            # "allow" - an unanswered prompt here would let the command run.
+            sys.stderr.write(f"demo_cli \u2753 needs your approval: {result.decision.reason}\n")
+            sys.stderr.write("         an interactive terminal asks you now; any other shell blocks it.\n"
+                             "         Nothing was captured: if you approve, demo_cli cannot undo it.\n")
+            return _EXIT_APPROVABLE
         sys.stderr.write(f"demo_cli ⛔ shell-guard blocked: {result.decision.reason}\n")
         return 1
     if result.recovery_entry:

@@ -685,6 +685,10 @@ LAZY_FAMILIES: Dict[str, str] = {
     "aws": "rules_cloud", "s3cmd": "rules_cloud", "rclone": "rules_cloud", "mc": "rules_cloud",
     "gcloud": "rules_cloud2", "gsutil": "rules_cloud2", "az": "rules_cloud2",
     "azcopy": "rules_cloud2", "railway": "rules_cloud2",
+    "docker": "rules_container", "podman": "rules_container", "docker-compose": "rules_container",
+    "redis-cli": "rules_datastore", "mongosh": "rules_datastore", "mongo": "rules_datastore",
+    "dropdb": "rules_datastore", "pg_restore": "rules_datastore", "pg_dump": "rules_datastore",
+    "mysqladmin": "rules_datastore", "sqlcmd": "rules_datastore",
 }
 _FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
 

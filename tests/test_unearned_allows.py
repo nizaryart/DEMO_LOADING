@@ -69,6 +69,11 @@ DESTRUCTIVE = [
     ("docker compose down -v", "container_runtime"),
     ("docker compose down --volumes", "container_runtime"),
     ("docker-compose down --volumes", "container_runtime"),
+    # M2.2b3 (msg 083): moved from ORDINARY with the rulings - R5: `compose
+    # down` removes the containers' writable layers, as docker rm does; R2: a
+    # push may replace a registry tag.
+    ("docker compose down", "container_runtime"),
+    ("docker push myrepo/app", "container_runtime"),
     ("podman rm c", "container_runtime"),
     ("podman volume rm v", "container_runtime"),
     ("sudo docker volume rm v", "container_runtime"),
@@ -83,10 +88,10 @@ DESTRUCTIVE = [
 # Not one of these may escalate. The prose entries are the anchor's whole job.
 ORDINARY = [
     "docker ps", "docker ps -a", "docker build -t app .", "docker run --rm app",
-    "docker compose up -d", "docker compose down", "docker logs -f app",
+    "docker compose up -d", "docker logs -f app",
     "docker exec -it app sh", "docker images", "docker inspect app",
     "docker pull node:20", "docker volume ls", "docker system df",
-    "docker stats", "docker tag a b", "docker push myrepo/app",
+    "docker stats", "docker tag a b",
     "redis-cli ping", "redis-cli GET mykey", "redis-cli INFO",
     "redis-cli --scan --pattern 'user:*'", "redis-cli CONFIG GET maxmemory",
     "redis-cli LLEN queue",

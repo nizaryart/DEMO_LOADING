@@ -37,7 +37,10 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("secret:", "secret_write"), ("queue:", "message_queue"),
                    ("cloud:", "cloud_resource_delete"),
                    # M2.2b2b: railway volumes keep the surface the old rule gave them
-                   ("volume:", "remote_volume"))
+                   ("volume:", "remote_volume"),
+                   # M2.2b3: containers keep the surface the old rules gave them;
+                   # a whole keyspace emptied keeps datastore_flush
+                   ("container:", "container_runtime"), ("flush:", "datastore_flush"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
@@ -88,3 +91,47 @@ GENERIC_HINT = "its version history / rollback"
 def recovery_hint(surface) -> str:
     return RECOVERY_HINTS.get(surface or "", GENERIC_HINT)
 
+
+
+# THE ASK CHANNEL (queue item 8; Nizar's table, 2026-10-07). An escalation
+# stays ESCALATE - the gate and every decision are unchanged. What this adds
+# is whether a PERSON may approve it on the spot: ASK where the change is real
+# but ordinary and the exact command tells the person what they are agreeing
+# to; DENY where the whole thing goes with no realistic way back, so only the
+# structural approval token or running it outside the agent gets it through.
+# A surface with no row here is DENY: a new surface never asks by accident.
+# Each door turns this into what it can actually show (hooks/claude_code.py:
+# a permission prompt in the modes that show one; Codex: deny, its runtime
+# has no ask; the shell guard: a terminal prompt in an interactive shell).
+ASK, DENY = "ask", "deny"
+ESCALATION_CHANNEL = {
+    # ordinary changes a person can judge from the command
+    "remote_database": ASK, "managed_database": ASK, "container_runtime": ASK,
+    "remote_vcs_history": ASK, "local_vcs_history": ASK, "vcs_remote_state": ASK,
+    "cluster_resource_delete": ASK, "cluster_availability": ASK,
+    "object_storage": ASK, "cloud_resource_delete": ASK, "remote_volume": ASK,
+    "secret_write": ASK, "credential_rotation": ASK, "http_api_write": ASK,
+    "package_registry": ASK, "schema_migration": ASK, "saas_deploy": ASK,
+    "saas_cms": ASK, "service_control": ASK, "remote_filesystem": ASK,
+    "external_message": ASK, "external_email": ASK, "remote_surface": ASK,
+    # the whole thing gone, no realistic undo
+    "datastore_flush": DENY, "disk_format": DENY, "infra_destroy": DENY,
+    "recursive_force_delete": DENY, "account_control": DENY, "message_queue": DENY,
+    "external_payment": DENY, "paas_destroy": DENY,
+}
+# Escalations that name no surface (decide.py's other branches).
+NO_SURFACE_CHANNEL = {
+    "local_no_recovery": ASK,    # a local change nothing could capture
+    "context_mismatch": ASK,     # the declared context disagrees, nothing captured
+    "remote_exec": DENY,         # fetch-and-run: nobody can see the payload first
+}
+# A target DECLARED in one of these environments (.demo_cli.toml or
+# --actual-env - never guessed from the command's words) is shown to a person
+# even when a recovery point was captured, and an escalation on it is never
+# approvable on the spot.
+CONFIRM_ENVIRONMENTS = frozenset({"production"})
+
+
+def may_ask(surface) -> bool:
+    """Whether a person may approve an escalation on `surface` on the spot."""
+    return ESCALATION_CHANNEL.get(surface or "", DENY) == ASK
