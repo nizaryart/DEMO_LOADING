@@ -1,0 +1,797 @@
+{
+ "docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker system prune -a": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose down -v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rm -f c": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman rmi img": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker push img:latest": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:registry/img:latest": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "docker --context prod volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker -H tcp://h:2375 system prune -a": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@tcp://h:2375": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker run --rm -v \"$PWD\":/w alpine rm -rf /w/src": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker run"
+  ]
+ },
+ "docker exec app rm -rf /data": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker exec"
+  ]
+ },
+ "docker cp evil.sh app:/etc/profile": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker cp"
+  ]
+ },
+ "( docker volume rm v )": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "command -V docker": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "command"
+  ]
+ },
+ "docker build -t app .": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker build"
+  ]
+ },
+ "docker builder prune -af": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose down": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose down --volumes": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose up -d": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "compose up"
+  ]
+ },
+ "docker container prune -f": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker create --name x alpine": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker create"
+  ]
+ },
+ "docker exec -it app sh": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker exec"
+  ]
+ },
+ "docker exec c sh -c 'rm -rf /data'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker exec"
+  ]
+ },
+ "docker exec c sh -c 'rm -rf later'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker exec"
+  ]
+ },
+ "docker image prune -a": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker images": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker inspect app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker logs -f app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker network prune -f": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker ps": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker ps -a": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker pull node:20": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker pull"
+  ]
+ },
+ "docker push myrepo/app": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:registry/myrepo/app": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "docker rm $(docker ps -aq)": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rm -f mycontainer": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rm -f x": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rm container": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rm mycontainer": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker rmi -f myimage": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker run --rm app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker run"
+  ]
+ },
+ "docker stats": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker system df": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker system prune": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker system prune -af": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker system prune -af --volumes": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker tag a b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker tag"
+  ]
+ },
+ "docker volume ls": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker volume prune -f": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker volume rm myvol": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker-compose down --volumes": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker-compose@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "echo hi > brand_new.txt && docker volume rm cache": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "env docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "for c in a b; do docker rm -f $c; done": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "if true; then docker volume rm v; fi": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "nohup docker system prune -af": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman rm c": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sudo -u root docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sudo docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "time docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "timeout 60 docker volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "{ docker volume rm v; }": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker container ls": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker container remove c": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker image rm img": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker network rm n": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker --foo rm c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker (option)"
+  ]
+ },
+ "docker volume rm $V": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker $CMD rm c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker image push myrepo/app:1": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:registry/myrepo/app:1": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "docker compose down --rmi all": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose --dry-run down": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker compose -f prod.yml down": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose rm -f": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker compose push": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:registry/docker@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "docker compose exec db psql -c \"DROP TABLE users\"": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "compose exec"
+  ]
+ },
+ "docker compose run --rm app rm -rf /data": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "compose run"
+  ]
+ },
+ "docker stop app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker stop"
+  ]
+ },
+ "docker kill app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker kill"
+  ]
+ },
+ "docker restart app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker restart"
+  ]
+ },
+ "docker pause app": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker pause"
+  ]
+ },
+ "docker cp a.txt app:/tmp/a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker cp"
+  ]
+ },
+ "docker context rm prod": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker context rm"
+  ]
+ },
+ "docker login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker login"
+  ]
+ },
+ "docker stack rm s": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker volume --foo rm v": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "docker volume (option)"
+  ]
+ },
+ "podman system reset": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman pod rm p": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman --connection prod volume rm v": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "podman machine rm m": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:podman@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker-compose down": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "captured": false,
+  "remote": {
+   "container:docker-compose@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "docker-compose ps": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ }
+}

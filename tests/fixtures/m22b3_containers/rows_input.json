@@ -1,0 +1,366 @@
+[
+ {
+  "cmd": "docker volume rm v",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker system prune -a",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker compose down -v",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker rm -f c",
+  "source": "inventory"
+ },
+ {
+  "cmd": "podman rmi img",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker push img:latest",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker --context prod volume rm v",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker -H tcp://h:2375 system prune -a",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker run --rm -v \"$PWD\":/w alpine rm -rf /w/src",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker exec app rm -rf /data",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker cp evil.sh app:/etc/profile",
+  "source": "inventory"
+ },
+ {
+  "cmd": "( docker volume rm v )",
+  "source": "gate"
+ },
+ {
+  "cmd": "command -V docker",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker build -t app .",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker builder prune -af",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker compose down",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker compose down --volumes",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker compose up -d",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker container prune -f",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker create --name x alpine",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker exec -it app sh",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker exec c sh -c 'rm -rf /data'",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker exec c sh -c 'rm -rf later'",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker image prune -a",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker images",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker inspect app",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker logs -f app",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker network prune -f",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker ps",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker ps -a",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker pull node:20",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker push myrepo/app",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rm $(docker ps -aq)",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rm -f mycontainer",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rm -f x",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rm container",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rm mycontainer",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker rmi -f myimage",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker run --rm app",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker stats",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker system df",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker system prune",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker system prune -af",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker system prune -af --volumes",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker tag a b",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker volume ls",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker volume prune -f",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker volume rm myvol",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker-compose down --volumes",
+  "source": "gate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && docker volume rm cache",
+  "source": "gate"
+ },
+ {
+  "cmd": "env docker volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "for c in a b; do docker rm -f $c; done",
+  "source": "gate"
+ },
+ {
+  "cmd": "if true; then docker volume rm v; fi",
+  "source": "gate"
+ },
+ {
+  "cmd": "nohup docker system prune -af",
+  "source": "gate"
+ },
+ {
+  "cmd": "podman rm c",
+  "source": "gate"
+ },
+ {
+  "cmd": "podman volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "sudo -u root docker volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "sudo docker volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "time docker volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "timeout 60 docker volume rm v",
+  "source": "gate"
+ },
+ {
+  "cmd": "{ docker volume rm v; }",
+  "source": "gate"
+ },
+ {
+  "cmd": "docker container ls",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker container remove c",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker image rm img",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker network rm n",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker --foo rm c",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker volume rm $V",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker $CMD rm c",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker image push myrepo/app:1",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose down --rmi all",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose --dry-run down",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose -f prod.yml down",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose rm -f",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose push",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose exec db psql -c \"DROP TABLE users\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker compose run --rm app rm -rf /data",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker stop app",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker kill app",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker restart app",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker pause app",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker cp a.txt app:/tmp/a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker context rm prod",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker login",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker stack rm s",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker volume --foo rm v",
+  "source": "orch"
+ },
+ {
+  "cmd": "podman system reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "podman pod rm p",
+  "source": "orch"
+ },
+ {
+  "cmd": "podman --connection prod volume rm v",
+  "source": "orch"
+ },
+ {
+  "cmd": "podman machine rm m",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker-compose down",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker-compose ps",
+  "source": "orch"
+ }
+]

@@ -1,0 +1,230 @@
+[
+ {
+  "cmd": "redis-cli flushall",
+  "source": "inventory"
+ },
+ {
+  "cmd": "mongosh --eval 'db.dropDatabase()'",
+  "source": "inventory"
+ },
+ {
+  "cmd": "redis-cli -h prod -p 6379 flushall",
+  "source": "inventory"
+ },
+ {
+  "cmd": "dropdb mydb",
+  "source": "inventory"
+ },
+ {
+  "cmd": "mysqladmin -u root drop mydb",
+  "source": "inventory"
+ },
+ {
+  "cmd": "pg_restore --clean -d mydb dump.sql",
+  "source": "inventory"
+ },
+ {
+  "cmd": "redis-cli del key",
+  "source": "inventory"
+ },
+ {
+  "cmd": "mongo mydb --eval 'db.users.drop()'",
+  "source": "inventory"
+ },
+ {
+  "cmd": "sqlcmd -Q \"DROP TABLE t\"",
+  "source": "inventory"
+ },
+ {
+  "cmd": "nice -n 10 redis-cli FLUSHALL",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli --cluster call x FLUSHALL",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli --scan --pattern 'user:*'",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli -h 10.0.0.5 -p 6379 FLUSHALL",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli CONFIG GET maxmemory",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli FLUSHALL",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli FLUSHDB",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli GET mykey",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli INFO",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli LLEN queue",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli ping",
+  "source": "gate"
+ },
+ {
+  "cmd": "redis-cli GET k",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli SET k v",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli UNLINK k",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli EVAL 'redis.call(\"flushall\")' 0",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli SHUTDOWN NOSAVE",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli CONFIG SET maxmemory 1mb",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli ACL DELUSER bob",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli --rdb a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli --pipe",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli -u redis://h:6379 FLUSHDB",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli -n 2 KEYS '*'",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli --eval script.lua",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli GET \"rm -rf /\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "redis-cli --foo GET k",
+  "source": "orch"
+ },
+ {
+  "cmd": "mongosh --eval 'db.users.find()'",
+  "source": "orch"
+ },
+ {
+  "cmd": "mongosh mydb script.js",
+  "source": "orch"
+ },
+ {
+  "cmd": "mongosh",
+  "source": "orch"
+ },
+ {
+  "cmd": "mongo --eval 'db.dropDatabase()'",
+  "source": "orch"
+ },
+ {
+  "cmd": "dropdb --if-exists mydb",
+  "source": "orch"
+ },
+ {
+  "cmd": "dropdb --help",
+  "source": "orch"
+ },
+ {
+  "cmd": "pg_restore -d mydb --clean -j 4 dump.dir",
+  "source": "orch"
+ },
+ {
+  "cmd": "pg_restore -f out.sql dump.dump",
+  "source": "orch"
+ },
+ {
+  "cmd": "pg_dump -Fd -f sub mydb",
+  "source": "orch"
+ },
+ {
+  "cmd": "pg_dump mydb",
+  "source": "orch"
+ },
+ {
+  "cmd": "mysqladmin -h db.example.com -u root -psecret drop mydb",
+  "source": "orch"
+ },
+ {
+  "cmd": "mysqladmin -u root status",
+  "source": "orch"
+ },
+ {
+  "cmd": "mysqladmin kill 42",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -d app -Q \"DELETE FROM t WHERE id=1\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -Q \"SELECT * FROM t\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -Q \"EXEC sp_who\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -Q \"TRUNCATE TABLE t\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -i script.sql",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd -S db -Q \"!!rm -rf /\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd query \"DROP DATABASE app\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd stop",
+  "source": "orch"
+ },
+ {
+  "cmd": "sqlcmd create mssql --accept-eula",
+  "source": "orch"
+ }
+]

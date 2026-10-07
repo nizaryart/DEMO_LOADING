@@ -1,0 +1,475 @@
+{
+ "redis-cli flushall": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mongosh --eval 'db.dropDatabase()'": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mongodb://localhost": "RUN"
+  },
+  "uncovered": []
+ },
+ "redis-cli -h prod -p 6379 flushall": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "dropdb mydb": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:postgres://localhost/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mysqladmin -u root drop mydb": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mysql://localhost/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pg_restore --clean -d mydb dump.sql": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:postgres://localhost/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli del key": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mongo mydb --eval 'db.users.drop()'": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mongodb://mydb": "RUN"
+  },
+  "uncovered": []
+ },
+ "sqlcmd -Q \"DROP TABLE t\"": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "nice -n 10 redis-cli FLUSHALL": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli --cluster call x FLUSHALL": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://x": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli --scan --pattern 'user:*'": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli -h 10.0.0.5 -p 6379 FLUSHALL": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://10.0.0.5": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli CONFIG GET maxmemory": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli FLUSHALL": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli FLUSHDB": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli GET mykey": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli INFO": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli LLEN queue": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli ping": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli GET k": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli SET k v": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "redis-cli UNLINK k": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli EVAL 'redis.call(\"flushall\")' 0": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "RUN"
+  },
+  "uncovered": []
+ },
+ "redis-cli SHUTDOWN NOSAVE": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "redis-cli CONFIG SET maxmemory 1mb": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "redis-cli ACL DELUSER bob": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:redis://localhost": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli --rdb a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli --pipe": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli -u redis://h:6379 FLUSHDB": {
+  "decision": "ESCALATE",
+  "surface": "datastore_flush",
+  "captured": false,
+  "remote": {
+   "flush:redis://redis://h:6379": "DELETE"
+  },
+  "uncovered": []
+ },
+ "redis-cli -n 2 KEYS '*'": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli --eval script.lua": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:redis://localhost": "RUN"
+  },
+  "uncovered": []
+ },
+ "redis-cli GET \"rm -rf /\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "redis-cli --foo GET k": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "redis-cli (option)"
+  ]
+ },
+ "mongosh --eval 'db.users.find()'": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mongodb://localhost": "RUN"
+  },
+  "uncovered": []
+ },
+ "mongosh mydb script.js": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mongodb://mydb": "RUN"
+  },
+  "uncovered": []
+ },
+ "mongosh": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mongo --eval 'db.dropDatabase()'": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mongodb://localhost": "RUN"
+  },
+  "uncovered": []
+ },
+ "dropdb --if-exists mydb": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:postgres://localhost/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "dropdb --help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pg_restore -d mydb --clean -j 4 dump.dir": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:postgres://localhost/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pg_restore -f out.sql dump.dump": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pg_dump -Fd -f sub mydb": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "pg_dump mydb": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mysqladmin -h db.example.com -u root -psecret drop mydb": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mysql://db.example.com/mydb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mysqladmin -u root status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "mysqladmin status"
+  ]
+ },
+ "mysqladmin kill 42": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mysql://localhost": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "sqlcmd -S db -d app -Q \"DELETE FROM t WHERE id=1\"": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://db": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sqlcmd -S db -Q \"SELECT * FROM t\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sqlcmd -S db -Q \"EXEC sp_who\"": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://db": "RUN"
+  },
+  "uncovered": []
+ },
+ "sqlcmd -S db -Q \"TRUNCATE TABLE t\"": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://db": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sqlcmd -S db -i script.sql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sqlcmd -S db -Q \"!!rm -rf /\"": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sqlcmd query \"DROP DATABASE app\"": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://current": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sqlcmd stop": {
+  "decision": "ESCALATE",
+  "surface": "remote_database",
+  "captured": false,
+  "remote": {
+   "db:mssql://local-container": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "sqlcmd create mssql --accept-eula": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "sqlcmd create"
+  ]
+ }
+}
