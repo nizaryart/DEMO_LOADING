@@ -1,0 +1,801 @@
+{
+ "heroku apps:destroy app": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku pg:reset DATABASE": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly apps destroy app": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vercel --prod": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "vercel rm app": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "netlify deploy --prod": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wrangler delete": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:wrangler": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase firestore:delete --all-collections": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase deploy": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "firebase firestore:delete": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase hosting:disable": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "fly destroy x": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "flyctl apps destroy x": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku apps:destroy myapp": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku logs": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "heroku ps": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "heroku ps"
+  ]
+ },
+ "netlify sites:delete": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:netlify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "netlify status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "vercel": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "vercel deploy (a preview)"
+  ]
+ },
+ "vercel dev": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "vercel dev"
+  ]
+ },
+ "vercel remove myapp": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vercel rm dep": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wrangler kv:key delete K": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler kv:key"
+  ]
+ },
+ "wrangler tail": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "heroku apps:destroy myapp --confirm myapp": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku pg:reset DATABASE --confirm myapp": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku config:set A=1 -a myapp": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:heroku": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "heroku config:unset A -a myapp": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:heroku": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "heroku releases:rollback v12 -a myapp": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:heroku": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "heroku domains:remove www.x.com -a myapp": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:heroku": "DELETE"
+  },
+  "uncovered": []
+ },
+ "heroku apps:info -a myapp": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "heroku apps:create x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "heroku apps create"
+  ]
+ },
+ "heroku run bash -a myapp": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "heroku run"
+  ]
+ },
+ "heroku ps:restart -a myapp": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "heroku ps restart"
+  ]
+ },
+ "heroku myplugin:do-thing": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "heroku myplugin:do-thing"
+  ]
+ },
+ "fly apps destroy x": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly apps rm x": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly volumes destroy vol_1": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly machine destroy 123 --force": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly m rm 123": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:fly": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fly deploy": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:fly": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "fly deploy --build-only": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "fly secrets set A=1": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:fly": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "fly secrets unset A": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:fly": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "fly status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "fly ssh console": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "fly ssh console"
+  ]
+ },
+ "fly scale count 0": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "fly scale count"
+  ]
+ },
+ "fly launch": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "fly launch"
+  ]
+ },
+ "fly postgres list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "fly unknown-thing": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "fly unknown-thing"
+  ]
+ },
+ "vercel deploy --prod": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "vercel deploy --target production": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "vercel deploy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "vercel deploy (a preview)"
+  ]
+ },
+ "vercel ./site": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "vercel deploy (a preview)"
+  ]
+ },
+ "vercel rm my-deployment --yes": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vercel remove my-project": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vercel rollback": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "vercel rollback status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "vercel promote dpl_1": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "vercel env rm KEY production": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "vercel env"
+  ]
+ },
+ "vercel --scope team rm dep": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:vercel": "DELETE"
+  },
+  "uncovered": []
+ },
+ "netlify deploy -p": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netlify deploy --prod --draft": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "netlify deploy (a draft)"
+  ]
+ },
+ "netlify deploy --prod-if-unlocked": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netlify sites:delete abc": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:netlify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "netlify env:unset KEY": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netlify env:delete KEY": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netlify env:set KEY v": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netlify database reset": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "netlify database"
+  ]
+ },
+ "netlify blobs:delete store key": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:netlify": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wrangler deploy": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:wrangler": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wrangler deploy --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wrangler rollback": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:wrangler": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wrangler secret put KEY": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler secret put"
+  ]
+ },
+ "wrangler secret delete KEY": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:wrangler": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wrangler kv key delete K": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler kv key delete (local)"
+  ]
+ },
+ "wrangler kv key delete K --remote": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:wrangler": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wrangler kv key put K v --local": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler kv key put (local)"
+  ]
+ },
+ "wrangler d1 execute db --command \"DROP TABLE t\"": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler d1 execute (local)"
+  ]
+ },
+ "wrangler d1 execute db --remote --command \"DROP TABLE t\"": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "wrangler d1 execute"
+  ]
+ },
+ "wrangler r2 bucket delete b": {
+  "decision": "ESCALATE",
+  "surface": "paas_destroy",
+  "captured": false,
+  "remote": {
+   "paas:wrangler": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wrangler queues purge q": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:wrangler": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase deploy --only hosting": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "firebase FIRESTORE:DELETE /users -r": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase functions:delete fn": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "DELETE"
+  },
+  "uncovered": []
+ },
+ "firebase functions:secrets:set KEY": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "firebase functions:config:unset a": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "firebase projects:list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "firebase -P prod deploy": {
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
+  "captured": false,
+  "remote": {
+   "deploy:firebase": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "firebase serve": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "firebase serve"
+  ]
+ },
+ "firebase emulators:start": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "firebase emulators start"
+  ]
+ }
+}

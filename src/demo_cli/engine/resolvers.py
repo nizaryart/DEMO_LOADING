@@ -731,6 +731,15 @@ def send(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def paas(w, inv, parsed, state, tool) -> None:
+    """heroku, fly, vercel, netlify, wrangler, firebase (M2.2b4b1), in
+    paas_ops.py - imported the first time a line names one of them."""
+    def load():
+        from .paas_ops import paas as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def _send_ops():
     from . import send_ops
     return send_ops

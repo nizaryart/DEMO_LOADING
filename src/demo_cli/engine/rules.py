@@ -689,6 +689,8 @@ LAZY_FAMILIES: Dict[str, str] = {
     "redis-cli": "rules_datastore", "mongosh": "rules_datastore", "mongo": "rules_datastore",
     "dropdb": "rules_datastore", "pg_restore": "rules_datastore", "pg_dump": "rules_datastore",
     "mysqladmin": "rules_datastore", "sqlcmd": "rules_datastore",
+    # M2.2b4b1: PaaS CLIs
+    "heroku": "rules_paas", "fly": "rules_paas", "flyctl": "rules_paas", "vercel": "rules_paas", "vc": "rules_paas", "netlify": "rules_paas", "wrangler": "rules_paas", "firebase": "rules_paas",
     # M2.2b4a: what leaves the machine
     "http": "rules_send", "https": "rules_send", "xh": "rules_send", "xhs": "rules_send", "gh": "rules_send", "mail": "rules_send",
     "mailx": "rules_send", "sendmail": "rules_send", "swaks": "rules_send", "ssh": "rules_send", "scp": "rules_send", "sftp": "rules_send",

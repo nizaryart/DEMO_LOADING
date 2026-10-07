@@ -1,0 +1,366 @@
+[
+ {
+  "cmd": "heroku apps:destroy app",
+  "source": "inventory"
+ },
+ {
+  "cmd": "heroku pg:reset DATABASE",
+  "source": "inventory"
+ },
+ {
+  "cmd": "fly apps destroy app",
+  "source": "inventory"
+ },
+ {
+  "cmd": "vercel --prod",
+  "source": "inventory"
+ },
+ {
+  "cmd": "vercel rm app",
+  "source": "inventory"
+ },
+ {
+  "cmd": "netlify deploy --prod",
+  "source": "inventory"
+ },
+ {
+  "cmd": "wrangler delete",
+  "source": "inventory"
+ },
+ {
+  "cmd": "firebase firestore:delete --all-collections",
+  "source": "inventory"
+ },
+ {
+  "cmd": "firebase deploy",
+  "source": "gate"
+ },
+ {
+  "cmd": "firebase firestore:delete",
+  "source": "gate"
+ },
+ {
+  "cmd": "firebase hosting:disable",
+  "source": "gate"
+ },
+ {
+  "cmd": "fly destroy x",
+  "source": "gate"
+ },
+ {
+  "cmd": "flyctl apps destroy x",
+  "source": "gate"
+ },
+ {
+  "cmd": "heroku apps:destroy myapp",
+  "source": "gate"
+ },
+ {
+  "cmd": "heroku logs",
+  "source": "gate"
+ },
+ {
+  "cmd": "heroku ps",
+  "source": "gate"
+ },
+ {
+  "cmd": "netlify sites:delete",
+  "source": "gate"
+ },
+ {
+  "cmd": "netlify status",
+  "source": "gate"
+ },
+ {
+  "cmd": "vercel",
+  "source": "gate"
+ },
+ {
+  "cmd": "vercel dev",
+  "source": "gate"
+ },
+ {
+  "cmd": "vercel remove myapp",
+  "source": "gate"
+ },
+ {
+  "cmd": "vercel rm dep",
+  "source": "gate"
+ },
+ {
+  "cmd": "wrangler kv:key delete K",
+  "source": "gate"
+ },
+ {
+  "cmd": "wrangler tail",
+  "source": "gate"
+ },
+ {
+  "cmd": "heroku apps:destroy myapp --confirm myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku pg:reset DATABASE --confirm myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku config:set A=1 -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku config:unset A -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku releases:rollback v12 -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku domains:remove www.x.com -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku apps:info -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku apps:create x",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku run bash -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku ps:restart -a myapp",
+  "source": "orch"
+ },
+ {
+  "cmd": "heroku myplugin:do-thing",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly apps destroy x",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly apps rm x",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly volumes destroy vol_1",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly machine destroy 123 --force",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly m rm 123",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly deploy --build-only",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly secrets set A=1",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly secrets unset A",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly status",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly ssh console",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly scale count 0",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly launch",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly postgres list",
+  "source": "orch"
+ },
+ {
+  "cmd": "fly unknown-thing",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel deploy --prod",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel deploy --target production",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel ./site",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel rm my-deployment --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel remove my-project",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel rollback",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel rollback status",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel promote dpl_1",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel env rm KEY production",
+  "source": "orch"
+ },
+ {
+  "cmd": "vercel --scope team rm dep",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify deploy -p",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify deploy --prod --draft",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify deploy --prod-if-unlocked",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify sites:delete abc",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify env:unset KEY",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify env:delete KEY",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify env:set KEY v",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify database reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "netlify blobs:delete store key",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler deploy --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler rollback",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler secret put KEY",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler secret delete KEY",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler kv key delete K",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler kv key delete K --remote",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler kv key put K v --local",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler d1 execute db --command \"DROP TABLE t\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler d1 execute db --remote --command \"DROP TABLE t\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler r2 bucket delete b",
+  "source": "orch"
+ },
+ {
+  "cmd": "wrangler queues purge q",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase deploy --only hosting",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase FIRESTORE:DELETE /users -r",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase functions:delete fn",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase functions:secrets:set KEY",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase functions:config:unset a",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase projects:list",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase -P prod deploy",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase serve",
+  "source": "orch"
+ },
+ {
+  "cmd": "firebase emulators:start",
+  "source": "orch"
+ }
+]
