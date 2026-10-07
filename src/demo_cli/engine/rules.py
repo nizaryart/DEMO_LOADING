@@ -682,6 +682,7 @@ LAZY_FAMILIES: Dict[str, str] = {
     "git": "rules_git",
     "terraform": "rules_infra", "tofu": "rules_infra", "kubectl": "rules_infra",
     "helm": "rules_infra", "pulumi": "rules_infra", "cdk": "rules_infra",
+    "aws": "rules_cloud", "s3cmd": "rules_cloud", "rclone": "rules_cloud", "mc": "rules_cloud",
 }
 _FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
 

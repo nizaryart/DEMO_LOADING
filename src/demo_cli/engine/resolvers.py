@@ -701,6 +701,15 @@ def infra(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def cloud(w, inv, parsed, state, tool) -> None:
+    """aws, s3cmd, rclone, mc (M2.2b2a). The implementation is in cloud_ops.py,
+    imported the first time a line names one of them - outside the budget."""
+    def load():
+        from .cloud_ops import cloud as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def sql_client(w, inv, parsed, state, tool) -> None:
     def load():
         from . import sql

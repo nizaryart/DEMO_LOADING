@@ -1,0 +1,498 @@
+[
+ {
+  "cmd": "aws ec2 terminate-instances --instance-ids i-1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws s3 rb s3://b --force",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws s3 rm s3://b --recursive",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws s3 sync . s3://b --delete",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws rds delete-db-instance --db-instance-identifier x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws dynamodb delete-table --table-name t",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws lambda delete-function --function-name f",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws iam delete-user --user-name x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws secretsmanager delete-secret --secret-id x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws sqs purge-queue --queue-url x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws --profile prod s3 rm s3://b --recursive",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws --region eu-west-1 ec2 terminate-instances --instance-ids i-1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "rclone sync src remote:bucket",
+  "source": "inventory"
+ },
+ {
+  "cmd": "rclone purge remote:bucket",
+  "source": "inventory"
+ },
+ {
+  "cmd": "s3cmd del s3://b/x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "mc rm --recursive --force minio/b",
+  "source": "inventory"
+ },
+ {
+  "cmd": "aws ec2 describe-instances",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws iam list-users",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws iam get-user --user-name x",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws logs filter-log-events --log-group-name g --filter-pattern delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 describe-instances --filters Name=tag:Name,Values=delete-me",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws secretsmanager get-secret-value --secret-id x",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ssm put-parameter --name p --value v --overwrite",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ssm get-parameter --name p",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws kms schedule-key-deletion --key-id k",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws cloudformation delete-stack --stack-name s",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws cloudformation deploy --template-file t.yml --stack-name s",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws dynamodb execute-statement --statement \"DELETE FROM t\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ssm send-command --document-name AWS-RunShellScript --parameters commands='rm -rf /data'",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 run-instances --image-id ami-1 --user-data 'rm -rf /data'",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws lambda invoke --function-name f out.json",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3api get-object --bucket b --key k a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3api delete-object --bucket b --key k",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 ls s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp a.txt s3://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp a.txt s3://b/ --no-overwrite",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp s3://b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp s3://b/new.txt new.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp s3://b/ sub --recursive",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 sync . s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 sync s3://b sub --delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 mv a.txt s3://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 mv s3://b/x a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 rm s3://b/x --dryrun",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 rb s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 mb s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 terminate-instances --instance-ids i-1 --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 terminate-instances --instance-ids $ID",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 rm s3://$B/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws $SVC delete-thing --id x",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp a.txt s3://b/$K",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws --version",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws help",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 terminate-instances help",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws configure set region eu-west-1",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws configure list",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws eks update-kubeconfig --name c",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 start-instances --instance-ids i-1",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ec2 stop-instances --instance-ids i-1",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws --region $R ec2 describe-instances",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws ecr get-login-password",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd ls s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd del -n s3://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd rb -n s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd put a.txt s3://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd put --skip-existing a.txt s3://b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd get s3://b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd get --force s3://b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd get --delete-after-fetch s3://b/new.txt new.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd sync s3://b/ sub/ --delete-removed",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd sync sub/ s3://b/ --delete-removed",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd setpolicy p.json s3://b",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd --foo del s3://b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone ls remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone copy sub remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone copy sub remote:b --ignore-existing",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone sync remote:b sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone move sub remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone deletefile remote:b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone delete sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone -n sync sub remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone sync sub remote:b --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone --foo sync sub remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone mount remote:b mnt",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone config delete remote",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone sync sub :s3,provider=AWS:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone purge C:/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc ls minio/b",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc rm minio/b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc rm --recursive --force sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc rm --recursive --force ./sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc cp a.txt minio/b/",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc cp minio/b/a.txt a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc mirror --remove sub minio/b",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc mirror minio/b sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc rb --force minio/b",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc rm --stdin",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc find minio/b --exec 'rm {}'",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc admin user remove minio u",
+  "source": "orch"
+ },
+ {
+  "cmd": "mc undo minio/b/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 rm s3://b --recursive && rm -rf sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 ls s3://b && aws ec2 terminate-instances --instance-ids i-1",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone purge c:x",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone sync sub remote:$P",
+  "source": "orch"
+ },
+ {
+  "cmd": "rclone sync $SRC remote:b",
+  "source": "orch"
+ },
+ {
+  "cmd": "s3cmd put a.txt s3://b/$K",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 sync $D s3://b --delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws s3 cp $SRC $DST",
+  "source": "orch"
+ },
+ {
+  "cmd": "aws logs filter-log-events --log-group-name g --filter-pattern \"DROP TABLE users\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws logs filter-log-events --log-group-name g --filter-pattern \"rm -rf\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws dynamodb scan --table-name t --filter-expression \"contains(cmd, :v)\" --expression-attribute-values '{\":v\":{\"S\":\"rm -rf /\"}}'",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws ec2 describe-instances --query \"Reservations[].Instances[?State.Name=='terminated']\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws ssm get-parameter --name \"/app/eval\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws s3 ls s3://my-delete-bucket",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws s3 cp s3://b/x.sh - | bash",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "rclone cat remote:b/x.sh | bash",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "mc cat minio/b/x.sql | psql",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws s3 cp a.txt s3://b/ --no-overwrite --metadata note=\"rm -rf /\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "rclone copy sub remote:b --ignore-existing --exclude \"*.sql\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "s3cmd put --skip-existing a.txt s3://b/ --add-header \"x-cmd: DROP TABLE t\"",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws secretsmanager list-secrets --filters Key=name,Values=delete",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws iam list-access-keys --user-name x",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "aws sts get-caller-identity",
+  "source": "orch-accidental"
+ },
+ {
+  "cmd": "rclone copy sub remote:b --ignore-existing --metadata-set k=v",
+  "source": "orch-accidental"
+ }
+]

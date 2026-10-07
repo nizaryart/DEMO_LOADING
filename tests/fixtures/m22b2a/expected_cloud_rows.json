@@ -1,0 +1,1016 @@
+{
+ "aws ec2 terminate-instances --instance-ids i-1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ec2": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 rb s3://b --force": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 rm s3://b --recursive": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 sync . s3://b --delete": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws rds delete-db-instance --db-instance-identifier x": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:rds": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws dynamodb delete-table --table-name t": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:dynamodb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws lambda delete-function --function-name f": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:lambda": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws iam delete-user --user-name x": {
+  "decision": "ESCALATE",
+  "surface": "credential_rotation",
+  "captured": false,
+  "remote": {
+   "cred:aws:iam": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws secretsmanager delete-secret --secret-id x": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:aws:secretsmanager": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws sqs purge-queue --queue-url x": {
+  "decision": "ESCALATE",
+  "surface": "message_queue",
+  "captured": false,
+  "remote": {
+   "queue:aws:sqs": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws --profile prod s3 rm s3://b --recursive": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b@prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws --region eu-west-1 ec2 terminate-instances --instance-ids i-1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ec2": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone sync src remote:bucket": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone purge remote:bucket": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "s3cmd del s3://b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mc rm --recursive --force minio/b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws ec2 describe-instances": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws iam list-users": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws iam get-user --user-name x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws logs filter-log-events --log-group-name g --filter-pattern delete": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ec2 describe-instances --filters Name=tag:Name,Values=delete-me": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws secretsmanager get-secret-value --secret-id x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ssm put-parameter --name p --value v --overwrite": {
+  "decision": "ESCALATE",
+  "surface": "secret_write",
+  "captured": false,
+  "remote": {
+   "secret:aws:ssm": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws ssm get-parameter --name p": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws kms schedule-key-deletion --key-id k": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:kms": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws cloudformation delete-stack --stack-name s": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:cloudformation": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws cloudformation deploy --template-file t.yml --stack-name s": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:cloudformation": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws dynamodb execute-statement --statement \"DELETE FROM t\"": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:dynamodb": "RUN"
+  },
+  "uncovered": []
+ },
+ "aws ssm send-command --document-name AWS-RunShellScript --parameters commands='rm -rf /data'": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ssm": "SEND"
+  },
+  "uncovered": []
+ },
+ "aws ec2 run-instances --image-id ami-1 --user-data 'rm -rf /data'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws ec2 run-instances"
+  ]
+ },
+ "aws lambda invoke --function-name f out.json": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:lambda": "RUN"
+  },
+  "uncovered": []
+ },
+ "aws s3api get-object --bucket b --key k a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3api delete-object --bucket b --key k": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3api": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 ls s3://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp a.txt s3://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws s3 cp a.txt s3://b/ --no-overwrite": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "CREATE"
+  },
+  "uncovered": []
+ },
+ "aws s3 cp s3://b/a.txt a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp s3://b/new.txt new.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp s3://b/ sub --recursive": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 sync . s3://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws s3 sync s3://b sub --delete": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 mv a.txt s3://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws s3 mv s3://b/x a.txt": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 rm s3://b/x --dryrun": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 rb s3://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 mb s3://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws s3 mb"
+  ]
+ },
+ "aws ec2 terminate-instances --instance-ids i-1 --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ec2 terminate-instances --instance-ids $ID": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ec2": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 rm s3://$B/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://$B": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws $SVC delete-thing --id x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp a.txt s3://b/$K": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws --version": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ec2 terminate-instances help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws configure set region eu-west-1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws configure set"
+  ]
+ },
+ "aws configure list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws eks update-kubeconfig --name c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws eks update-kubeconfig"
+  ]
+ },
+ "aws ec2 start-instances --instance-ids i-1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws ec2 start-instances"
+  ]
+ },
+ "aws ec2 stop-instances --instance-ids i-1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ec2": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "aws --region $R ec2 describe-instances": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ecr get-login-password": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd ls s3://b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd del -n s3://b/x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd rb -n s3://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "s3cmd put a.txt s3://b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "s3cmd put --skip-existing a.txt s3://b/": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "CREATE"
+  },
+  "uncovered": []
+ },
+ "s3cmd get s3://b/a.txt a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd get --force s3://b/a.txt a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd get --delete-after-fetch s3://b/new.txt new.txt": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "s3cmd sync s3://b/ sub/ --delete-removed": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "s3cmd sync sub/ s3://b/ --delete-removed": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "s3cmd setpolicy p.json s3://b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "s3cmd --foo del s3://b/x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "s3cmd (option)"
+  ]
+ },
+ "rclone ls remote:b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone copy sub remote:b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "rclone copy sub remote:b --ignore-existing": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "CREATE"
+  },
+  "uncovered": []
+ },
+ "rclone sync remote:b sub": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone move sub remote:b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "rclone deletefile remote:b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone delete sub": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone -n sync sub remote:b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone sync sub remote:b --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone --foo sync sub remote:b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rclone (option)"
+  ]
+ },
+ "rclone mount remote:b mnt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rclone mount"
+  ]
+ },
+ "rclone config delete remote": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rclone config"
+  ]
+ },
+ "rclone sync sub :s3,provider=AWS:b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:s3,provider=AWS": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone purge C:/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:C:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mc ls minio/b": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc rm minio/b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mc rm --recursive --force sub": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc rm --recursive --force ./sub": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc cp a.txt minio/b/": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "mc cp minio/b/a.txt a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc mirror --remove sub minio/b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mc mirror minio/b sub": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc rb --force minio/b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mc rm --stdin": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc find minio/b --exec 'rm {}'": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "mc find --exec"
+  ]
+ },
+ "mc admin user remove minio u": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "mc admin"
+  ]
+ },
+ "mc undo minio/b/x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:mc:minio": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws s3 rm s3://b --recursive && rm -rf sub": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 ls s3://b && aws ec2 terminate-instances --instance-ids i-1": {
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
+  "captured": false,
+  "remote": {
+   "cloud:aws:ec2": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone purge c:x": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:c:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone sync sub remote:$P": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "rclone sync $SRC remote:b": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "s3cmd put a.txt s3://b/$K": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:s3cmd:s3://b": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "aws s3 sync $D s3://b --delete": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {
+   "storage:aws:s3://b": "DELETE"
+  },
+  "uncovered": []
+ },
+ "aws s3 cp $SRC $DST": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws logs filter-log-events --log-group-name g --filter-pattern \"DROP TABLE users\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws logs filter-log-events --log-group-name g --filter-pattern \"rm -rf\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws dynamodb scan --table-name t --filter-expression \"contains(cmd, :v)\" --expression-attribute-values '{\":v\":{\"S\":\"rm -rf /\"}}'": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ec2 describe-instances --query \"Reservations[].Instances[?State.Name=='terminated']\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws ssm get-parameter --name \"/app/eval\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 ls s3://my-delete-bucket": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp s3://b/x.sh - | bash": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone cat remote:b/x.sh | bash": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mc cat minio/b/x.sql | psql": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws s3 cp a.txt s3://b/ --no-overwrite --metadata note=\"rm -rf /\"": {
+  "decision": "ESCALATE",
+  "surface": "object_storage",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "aws s3 cp (data on the line)"
+  ]
+ },
+ "rclone copy sub remote:b --ignore-existing --exclude \"*.sql\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "storage:rclone:remote:": "CREATE"
+  },
+  "uncovered": []
+ },
+ "s3cmd put --skip-existing a.txt s3://b/ --add-header \"x-cmd: DROP TABLE t\"": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "s3cmd put (data on the line)"
+  ]
+ },
+ "aws secretsmanager list-secrets --filters Key=name,Values=delete": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws iam list-access-keys --user-name x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "aws sts get-caller-identity": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "rclone copy sub remote:b --ignore-existing --metadata-set k=v": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "rclone copy (data on the line)"
+  ]
+ }
+}

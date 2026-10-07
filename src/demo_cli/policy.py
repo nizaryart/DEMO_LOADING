@@ -31,7 +31,11 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("vcs-local:", "local_vcs_history"),
                    # M2.2b1: infrastructure CLIs
                    ("iac:", "infra_destroy"), ("cluster:", "cluster_resource_delete"),
-                   ("cluster-workload:", "cluster_availability"))
+                   ("cluster-workload:", "cluster_availability"),
+                   # M2.2b2a: cloud CLIs and object stores
+                   ("storage:", "object_storage"), ("cred:", "credential_rotation"),
+                   ("secret:", "secret_write"), ("queue:", "message_queue"),
+                   ("cloud:", "cloud_resource_delete"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
