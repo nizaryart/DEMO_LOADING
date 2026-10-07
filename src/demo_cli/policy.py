@@ -28,7 +28,10 @@ def remote_decision(kind: str) -> str:
 # read these names; they are unchanged from guard._engine_facts.
 _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("vcs-remote:", "remote_vcs_history"),
-                   ("vcs-local:", "local_vcs_history"))
+                   ("vcs-local:", "local_vcs_history"),
+                   # M2.2b1: infrastructure CLIs
+                   ("iac:", "infra_destroy"), ("cluster:", "cluster_resource_delete"),
+                   ("cluster-workload:", "cluster_availability"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
@@ -54,7 +57,8 @@ RECOVERY_HINTS = {
     "disk_format": "block-device restore / disk image backup",
     "remote_surface": "its version history / rollback",
     # added in T5 (A2.2): every surface a producer can emit has a hint
-    "infra_destroy": "the Terraform state backend's version history, then re-apply",
+    "infra_destroy": ("the Terraform state backend's version history, then re-apply"
+                      " (Pulumi: the stack's checkpoints; cdk: the CloudFormation stack)"),
     "cluster_resource_delete": "the manifests in version control, or a cluster backup (Velero / etcd snapshot)",
     "cloud_resource_delete": "the provider's snapshots or backups of that resource, if any were taken",
     "remote_volume": "the platform's volume backups, if enabled",
@@ -69,6 +73,9 @@ RECOVERY_HINTS = {
     # M2.2a: .git is never snapshotted, so the repository's own history is
     # where these come back from - when anything still holds them.
     "local_vcs_history": "git reflog, or the dangling objects git fsck lists - neither survives a prune",
+    # M2.2b1: scale, drain, cordon, rollout restart - nothing is deleted;
+    # what changes is how much of the workload is running
+    "cluster_availability": "scale the workload to its previous replica count, uncordon the node, or roll the deployment back",
 }
 GENERIC_HINT = "its version history / rollback"
 

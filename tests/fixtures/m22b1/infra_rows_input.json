@@ -1,0 +1,486 @@
+[
+ {
+  "cmd": "terraform destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform destroy -auto-approve",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform -chdir=infra destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform apply -destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform state rm aws_instance.x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform workspace delete prod",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform apply",
+  "source": "inventory"
+ },
+ {
+  "cmd": "pulumi destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "cdk destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl delete pod x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl -n prod delete deploy api",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl --context prod delete ns x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl scale deploy api --replicas=0",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl drain node1",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl apply --prune -f k8s/",
+  "source": "inventory"
+ },
+ {
+  "cmd": "helm uninstall api",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kubectl --kubeconfig k delete ns x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform -chdir=infra apply -auto-approve -destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "helm -n prod uninstall api",
+  "source": "inventory"
+ },
+ {
+  "cmd": "command terraform destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "env TF_LOG=1 terraform destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "/usr/local/bin/terraform destroy",
+  "source": "inventory"
+ },
+ {
+  "cmd": "sudo -u deploy kubectl delete ns x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "timeout 60 kubectl delete ns x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "xargs -a ids.txt kubectl delete pod",
+  "source": "inventory"
+ },
+ {
+  "cmd": "terraform plan",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform plan -out=tfplan",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform plan -out=a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform init",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform init -upgrade",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform init -migrate-state",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform fmt",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform fmt -check",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform fmt -recursive",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform validate",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform -chdir=infra apply -destroy=false",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform apply -var \"region=$R\"",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform output",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform import aws_instance.x i-1",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform state list",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform state mv a b",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform workspace select dev",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform workspace new dev",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform -v destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform -chdir infra destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform destroy -- -h",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform test",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform login",
+  "source": "orch"
+ },
+ {
+  "cmd": "tofu destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "tofu -chdir=infra apply",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform init && terraform apply -auto-approve",
+  "source": "orch"
+ },
+ {
+  "cmd": "terraform destroy && rm a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl get pods -A",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl delete pod $POD",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl -n $NS delete pod x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl scale deploy api --replicas=$N",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl scale deploy api --replicas=3",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl cordon node1",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl uncordon node1",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl rollout restart deploy/api",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl rollout undo deploy/api",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl rollout -n x restart deploy/a",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl rollout --foo status undo deploy/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl apply -f view-last-applied",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl apply view-last-applied deploy/x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl apply -f k8s/ --dry-run=server",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl delete pod x --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl delete pod x --dry-run=none",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl create ns x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl create --raw /api/v1/x -f a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl replace --force -f k8s/dep.yaml",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl label pod x a=b",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl label pod x --list",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl edit deploy api",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl exec app -- ls",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl run x --image=busybox",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl cp a.txt pod:/tmp/a",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl config use-context prod",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl config view",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl -n -h delete pod x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl --foo delete pod x",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl frob",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl delete -h pod",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl taint nodes n1 k=v:NoExecute",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl port-forward svc/x 8080:80",
+  "source": "orch"
+ },
+ {
+  "cmd": "kubectl kustomize k8s/",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm list -A",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm install api ./chart",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm install api ./chart --replace",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm upgrade --install api ./chart",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm rollback api 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm uninstall api --dry-run",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm template api ./chart",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm install api ./c --post-renderer ./x.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm repo add x https://x",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm dep update",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm test api",
+  "source": "orch"
+ },
+ {
+  "cmd": "helm --foo uninstall api",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi up --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi preview",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi refresh",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi refresh --preview-only",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi stack ls",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi stack init dev",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi stack rm dev --yes",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi state delete urn:x",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi config set k v",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi -C infra destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "pulumi --foo destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk deploy --all",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk synth",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk ls",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk bootstrap",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk gc",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk --app 'npx ts-node app.ts' destroy -f",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk --version",
+  "source": "orch"
+ },
+ {
+  "cmd": "cdk -h destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "env TF_LOG=1 terraform -chdir=infra destroy",
+  "source": "orch"
+ },
+ {
+  "cmd": "timeout 60 helm -n prod uninstall api",
+  "source": "orch"
+ },
+ {
+  "cmd": "xargs -a ids.txt kubectl -n prod delete pod",
+  "source": "orch"
+ },
+ {
+  "cmd": "nohup terraform apply -auto-approve &",
+  "source": "orch"
+ }
+]

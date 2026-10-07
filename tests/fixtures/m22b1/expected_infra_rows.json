@@ -1,0 +1,1031 @@
+{
+ "terraform destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform destroy -auto-approve": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform -chdir=infra destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform:infra": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform apply -destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform state rm aws_instance.x": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform workspace delete prod": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform apply": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "pulumi destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl -n prod delete deploy api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --context prod delete ns x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:prod/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl scale deploy api --replicas=0": {
+  "decision": "ESCALATE",
+  "surface": "cluster_availability",
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kubectl drain node1": {
+  "decision": "ESCALATE",
+  "surface": "cluster_availability",
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kubectl apply --prune -f k8s/": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "helm uninstall api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --kubeconfig k delete ns x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform -chdir=infra apply -auto-approve -destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform:infra": "DELETE"
+  },
+  "uncovered": []
+ },
+ "helm -n prod uninstall api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "command terraform destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "env TF_LOG=1 terraform destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "/usr/local/bin/terraform destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sudo -u deploy kubectl delete ns x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "timeout 60 kubectl delete ns x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "xargs -a ids.txt kubectl delete pod": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform plan": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform plan -out=tfplan": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform plan -out=a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform init": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform init -upgrade": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform init -migrate-state": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform fmt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform fmt -check": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform fmt -recursive": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform validate": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform -chdir=infra apply -destroy=false": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform:infra": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform apply -var \"region=$R\"": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform output": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform import aws_instance.x i-1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "iac:terraform": "CREATE"
+  },
+  "uncovered": []
+ },
+ "terraform state list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform state mv a b": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform workspace select dev": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform workspace new dev": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "iac:terraform": "CREATE"
+  },
+  "uncovered": []
+ },
+ "terraform -v destroy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "terraform -chdir infra destroy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "terraform (option)"
+  ]
+ },
+ "terraform destroy -- -h": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "terraform test": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "terraform test"
+  ]
+ },
+ "terraform login": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "terraform login"
+  ]
+ },
+ "tofu destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:tofu": "DELETE"
+  },
+  "uncovered": []
+ },
+ "tofu -chdir=infra apply": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:tofu:infra": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform init && terraform apply -auto-approve": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "terraform destroy && rm a.txt": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl get pods -A": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl delete pod $POD": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl -n $NS delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/$NS": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl scale deploy api --replicas=$N": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl scale deploy api --replicas=3": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "kubectl cordon node1": {
+  "decision": "ESCALATE",
+  "surface": "cluster_availability",
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kubectl uncordon node1": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "kubectl rollout restart deploy/api": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "kubectl rollout undo deploy/api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "kubectl rollout -n x restart deploy/a": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/x": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "kubectl rollout --foo status undo deploy/x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl (option)"
+  ]
+ },
+ "kubectl apply -f view-last-applied": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "kubectl apply view-last-applied deploy/x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl apply -f k8s/ --dry-run=server": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl delete pod x --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl delete pod x --dry-run=none": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl create ns x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ },
+ "kubectl create --raw /api/v1/x -f a.txt": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "kubectl replace --force -f k8s/dep.yaml": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl label pod x a=b": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "kubectl label pod x --list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl edit deploy api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "kubectl exec app -- ls": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl exec"
+  ]
+ },
+ "kubectl run x --image=busybox": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl run"
+  ]
+ },
+ "kubectl cp a.txt pod:/tmp/a": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl cp"
+  ]
+ },
+ "kubectl config use-context prod": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl config"
+  ]
+ },
+ "kubectl config view": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl -n -h delete pod x": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/-h": "DELETE"
+  },
+  "uncovered": []
+ },
+ "kubectl --foo delete pod x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl (option)"
+  ]
+ },
+ "kubectl frob": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl frob"
+  ]
+ },
+ "kubectl delete -h pod": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl taint nodes n1 k=v:NoExecute": {
+  "decision": "ESCALATE",
+  "surface": "cluster_availability",
+  "captured": false,
+  "remote": {
+   "cluster-workload:current/default": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kubectl port-forward svc/x 8080:80": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kubectl kustomize k8s/": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm list -A": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm install api ./chart": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ },
+ "helm install api ./chart --replace": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "helm upgrade --install api ./chart": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "helm rollback api 1": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "helm uninstall api --dry-run": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm template api ./chart": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "helm install api ./c --post-renderer ./x.sh": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm install --post-renderer"
+  ]
+ },
+ "helm repo add x https://x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm repo"
+  ]
+ },
+ "helm dep update": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm dep"
+  ]
+ },
+ "helm test api": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm test"
+  ]
+ },
+ "helm --foo uninstall api": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm (option)"
+  ]
+ },
+ "pulumi up --yes": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "pulumi preview": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "pulumi preview"
+  ]
+ },
+ "pulumi refresh": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "pulumi refresh --preview-only": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi stack ls": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "pulumi stack init dev": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "CREATE"
+  },
+  "uncovered": []
+ },
+ "pulumi stack rm dev --yes": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi state delete urn:x": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi config set k v": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "pulumi config"
+  ]
+ },
+ "pulumi -C infra destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:pulumi": "DELETE"
+  },
+  "uncovered": []
+ },
+ "pulumi --foo destroy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "pulumi (option)"
+  ]
+ },
+ "cdk deploy --all": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "cdk synth": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "cdk synth"
+  ]
+ },
+ "cdk ls": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "cdk ls"
+  ]
+ },
+ "cdk bootstrap": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "cdk gc": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk --app 'npx ts-node app.ts' destroy -f": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:cdk": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cdk --version": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "cdk -h destroy": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "env TF_LOG=1 terraform -chdir=infra destroy": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform:infra": "DELETE"
+  },
+  "uncovered": []
+ },
+ "timeout 60 helm -n prod uninstall api": {
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
+  "captured": false,
+  "remote": {
+   "cluster:current/prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "xargs -a ids.txt kubectl -n prod delete pod": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/prod": "DELETE"
+  },
+  "uncovered": []
+ },
+ "nohup terraform apply -auto-approve &": {
+  "decision": "ESCALATE",
+  "surface": "infra_destroy",
+  "captured": false,
+  "remote": {
+   "iac:terraform": "OVERWRITE"
+  },
+  "uncovered": []
+ }
+}

@@ -23,6 +23,10 @@ def test_every_surface_has_a_non_empty_hint_and_no_hint_is_dead():
             # M2.2a: git's own labels
             policy.surface_of("vcs-remote:origin"),
             policy.surface_of("vcs-local:reflog"),
+            # M2.2b1 (msg 069): the infrastructure labels
+            policy.surface_of("iac:terraform"),
+            policy.surface_of("cluster:current/default"),
+            policy.surface_of("cluster-workload:current/default"),
             policy.surface_of("x:y"),
         }
     )

@@ -680,6 +680,8 @@ RULES = RULES + C1_RULES
 LAZY_FAMILIES: Dict[str, str] = {
     "sqlite3": "rules_sql", "psql": "rules_sql", "mysql": "rules_sql", "mariadb": "rules_sql",
     "git": "rules_git",
+    "terraform": "rules_infra", "tofu": "rules_infra", "kubectl": "rules_infra",
+    "helm": "rules_infra", "pulumi": "rules_infra", "cdk": "rules_infra",
 }
 _FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
 

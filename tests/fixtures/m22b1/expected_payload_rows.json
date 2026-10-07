@@ -1,0 +1,101 @@
+{
+ "kubectl create job x --image=busybox -- rm -rf /data": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl create (a command or data on the line)"
+  ]
+ },
+ "kubectl create cronjob c --image=busybox --schedule='* * * * *' -- rm -rf /data": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl create (a command or data on the line)"
+  ]
+ },
+ "kubectl create deployment d --image=busybox -- sh -c 'rm -rf /data'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl create (a command or data on the line)"
+  ]
+ },
+ "helm install api ./chart --set init.sql='DROP TABLE users'": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm install (values on the line)"
+  ]
+ },
+ "helm install api ./chart --set job.cmd='rm -rf /data'": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "helm install (values on the line)"
+  ]
+ },
+ "kubectl create configmap c --from-literal=sql='DROP TABLE users'": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl create (a command or data on the line)"
+  ]
+ },
+ "cat k8s/dep.yaml | kubectl create -f -": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "kubectl create (a command or data on the line)"
+  ]
+ },
+ "kubectl create deployment api --image=x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ },
+ "helm install api ./chart": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ },
+ "helm install api ./chart -f values.yaml": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ },
+ "kubectl create secret generic s --from-file=k=a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "cluster:current/default": "CREATE"
+  },
+  "uncovered": []
+ }
+}

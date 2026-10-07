@@ -631,7 +631,13 @@ class Guard:
             target = None
             entry = None
 
-        if target_path:
+        # A target the user names is captured only where a local copy can
+        # stand for the change - never beside an escalating remote surface or
+        # unread execution. _legacy_facts has always refused those two
+        # (is_snapshot_eligible); the engine path took the snapshot anyway
+        # (M2.2b1). A database nothing captures does not cancel it: the user
+        # asked for this target (test_cross_rule_multiplicity).
+        if target_path and not (a.remote_escalated or c.remote_exec):
             ap_tp = os.path.abspath(target_path)
             tgt_kind = "dir" if os.path.isdir(ap_tp) else "file"
             user_tgt = recovery.Target(tgt_kind, ap_tp, ap_tp)

@@ -691,6 +691,16 @@ def git(w, inv, parsed, state, tool) -> None:
     w.untimed(load)(w, inv, parsed, state, tool)
 
 
+def infra(w, inv, parsed, state, tool) -> None:
+    """terraform / tofu, kubectl, helm, pulumi, cdk (M2.2b1). The
+    implementation is in infra_ops.py, imported the first time a line names
+    one of them - outside the budget, like git."""
+    def load():
+        from .infra_ops import infra as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
 def sql_client(w, inv, parsed, state, tool) -> None:
     def load():
         from . import sql

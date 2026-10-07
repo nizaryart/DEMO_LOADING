@@ -1,0 +1,46 @@
+[
+ {
+  "cmd": "kubectl create job x --image=busybox -- rm -rf /data",
+  "kind": "payload"
+ },
+ {
+  "cmd": "kubectl create cronjob c --image=busybox --schedule='* * * * *' -- rm -rf /data",
+  "kind": "payload"
+ },
+ {
+  "cmd": "kubectl create deployment d --image=busybox -- sh -c 'rm -rf /data'",
+  "kind": "payload"
+ },
+ {
+  "cmd": "helm install api ./chart --set init.sql='DROP TABLE users'",
+  "kind": "payload"
+ },
+ {
+  "cmd": "helm install api ./chart --set job.cmd='rm -rf /data'",
+  "kind": "payload"
+ },
+ {
+  "cmd": "kubectl create configmap c --from-literal=sql='DROP TABLE users'",
+  "kind": "payload"
+ },
+ {
+  "cmd": "cat k8s/dep.yaml | kubectl create -f -",
+  "kind": "payload"
+ },
+ {
+  "cmd": "kubectl create deployment api --image=x",
+  "kind": "control"
+ },
+ {
+  "cmd": "helm install api ./chart",
+  "kind": "control"
+ },
+ {
+  "cmd": "helm install api ./chart -f values.yaml",
+  "kind": "control"
+ },
+ {
+  "cmd": "kubectl create secret generic s --from-file=k=a.txt",
+  "kind": "control"
+ }
+]
