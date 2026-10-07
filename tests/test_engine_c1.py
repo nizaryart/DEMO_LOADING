@@ -154,12 +154,15 @@ def test_a_disk_is_a_remote_surface_and_the_sinks_are_not(proj):
         assert p.decision == "ESCALATE" and p.impact.remote, disk
 
 
-def test_the_network_side_stays_out_of_scope(proj):
+def test_the_network_side_is_modelled(proj):
+    # M2.2b4a (msg 087): the request itself is modelled now (send_ops); a GET
+    # reads, so nothing is left uncovered and nothing is reached.
     p = _predict(proj, "curl -o a.txt https://example.invalid/x")
     assert "a.txt" in {os.path.basename(k) for k in p.impact.destroys}, \
         "control: the file side is modelled"
-    assert "curl (network)" in p.impact.uncovered
-    assert "wget (network)" in _predict(proj, "wget https://example.invalid/a").impact.uncovered
+    assert (list(p.impact.uncovered), dict(p.impact.remote)) == ([], {})
+    w = _predict(proj, "wget https://example.invalid/a").impact
+    assert (list(w.uncovered), dict(w.remote)) == ([], {})
 
 
 def test_perl_without_in_place_is_uncovered_not_deferred(proj):

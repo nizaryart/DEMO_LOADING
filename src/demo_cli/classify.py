@@ -1057,6 +1057,11 @@ class Classification:
     segments: List[str] = field(default_factory=list)
     # Count of segments performing destructive operations (multi-destructive pipelines escalate).
     destructive_segments: int = 0
+    # The surfaces unread code runs on (the engine's RUN labels: ssh host cmd,
+    # gh workflow run, redis EVAL ...). Empty for fetch-and-run, whose payload
+    # names no surface. Ruling (b), 2026-10-07: such a run follows its
+    # surface's ask channel row instead of fetch-and-run's deny.
+    run_surfaces: List[str] = field(default_factory=list)
 
     @property
     def needs_recovery(self) -> bool:

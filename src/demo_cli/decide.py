@@ -99,6 +99,24 @@ def decide(
 
     # 1. Opaque remote execution: the payload is unknown until it runs, so it
     #    can be neither previewed nor snapshotted.
+    #    1a. Code the engine cannot read, run on a NAMED surface (ssh host cmd,
+    #        gh workflow run, redis EVAL ...): the person sees the command, so
+    #        it follows that surface's ask channel row (ruling (b), 2026-10-07).
+    if c.remote_exec and c.run_surfaces:
+        names = ", ".join(c.run_surfaces)
+        return Decision(
+            ESCALATE,
+            f"Runs code demo_cli cannot read, on {names}; nothing it does there can "
+            "be captured.",
+            recoverable=False,
+            surface=c.run_surfaces[0],
+            next_steps=[
+                "Read what the command runs before approving it.",
+                f"If it already ran, restore from the provider: {policy.recovery_hint(c.run_surfaces[0])}.",
+            ],
+            approvable=asks(all(policy.may_ask(s) for s in c.run_surfaces)),
+        )
+    #    1b. Fetch-and-run: nobody can see the payload before it runs.
     if c.remote_exec:
         return Decision(
             ESCALATE,

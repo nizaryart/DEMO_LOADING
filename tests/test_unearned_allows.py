@@ -82,6 +82,10 @@ DESTRUCTIVE = [
     ("pnpm unpublish mypkg", "package_registry"),
     ("yarn unpublish mypkg", "package_registry"),
     ("cargo yank --version 1.0.0", "package_registry"),
+    # M2.2b4a (msg 087): moved from ORDINARY with ruling R7 - a published or
+    # deprecated version cannot be taken back the way it was.
+    ("npm publish", "package_registry"),
+    ("npm deprecate mypkg@1.0.0 'use v2'", "package_registry"),
     ("gem yank mygem -v 1.0.0", "package_registry"),
 ]
 
@@ -95,8 +99,7 @@ ORDINARY = [
     "redis-cli ping", "redis-cli GET mykey", "redis-cli INFO",
     "redis-cli --scan --pattern 'user:*'", "redis-cli CONFIG GET maxmemory",
     "redis-cli LLEN queue",
-    "npm publish", "npm run build", "npm test", "npm ci", "npm view mypkg",
-    "npm deprecate mypkg@1.0.0 'use v2'",
+    "npm run build", "npm test", "npm ci", "npm view mypkg",
     "cargo build", "cargo test", "gem install rails",
     # Prose. Each of these escalates against an unanchored version of the rule.
     "grep -rn 'FLUSHALL' src/",

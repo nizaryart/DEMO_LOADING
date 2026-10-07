@@ -556,7 +556,7 @@ class Guard:
 
         c.is_destructive = c.is_mutating = c.is_sql_mutating = False
         c.is_file_writer = c.remote_exec = False
-        c.nonrecoverable_surface = None; c.destructive_segments = 0
+        c.nonrecoverable_surface = None; c.destructive_segments = 0; c.run_surfaces = []
         # keep c.matched_rule / c.action_type / c.segments: they are receipt labels only
 
         # 1. Escalating remote surfaces
@@ -568,6 +568,8 @@ class Guard:
         # 2. Unread execution (RUN)
         if any(knd == RUN for knd in impact.remote.values()):
             c.remote_exec = True
+            c.run_surfaces = sorted({policy.surface_of(lbl) for lbl, knd in impact.remote.items()
+                                     if knd == RUN})
 
         # 3. Databases with no capture path
         if a.no_capture:

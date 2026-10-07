@@ -239,7 +239,7 @@ def dd(w, inv, parsed, state, tool) -> None:
             w.write(state, p, False)
 
 
-# ---- downloads (partial: the network side is C2) ------------------------------
+# ---- downloads (the request itself: send_ops, M2.2b4a) -------------------------
 
 def _url_name(word: Word) -> Optional[str]:
     if word.expands:
@@ -278,12 +278,14 @@ def curl(w, inv, parsed, state, tool) -> None:
                 "hsts", "alt_svc"):
         for p in w.paths([x for x in o.get(key, []) if x.value not in ("-", "%")], state, inv):
             w.write(state, p, False)
+    w.untimed(_send_ops).curl_network(w, inv, parsed, state, tool)    # M2.2b4a: the request
 
 
 def wget(w, inv, parsed, state, tool) -> None:
     """VERIFIED (man page): a plain `wget URL` never clobbers - the second copy
     is name.1; -O truncates like a redirect; -N may overwrite; -r/-p overwrite."""
     f, o = parsed.flags, parsed.options
+    w.untimed(_send_ops).wget_network(w, inv, parsed, state, tool)    # M2.2b4a: the request
     for p in w.paths(o.get("output_file", []), state, inv):
         w.write(state, p, False)
     for p in w.paths(o.get("append_output", []), state, inv):
@@ -717,6 +719,21 @@ def cloud2(w, inv, parsed, state, tool) -> None:
         from .cloud2_ops import cloud2 as run
         return run
     w.untimed(load)(w, inv, parsed, state, tool)
+
+
+def send(w, inv, parsed, state, tool) -> None:
+    """HTTP clients, gh, mail, ssh / scp / sftp, package publishing (M2.2b4a),
+    in send_ops.py - imported the first time a line names one of them,
+    outside the budget."""
+    def load():
+        from .send_ops import send as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
+def _send_ops():
+    from . import send_ops
+    return send_ops
 
 
 def container(w, inv, parsed, state, tool) -> None:

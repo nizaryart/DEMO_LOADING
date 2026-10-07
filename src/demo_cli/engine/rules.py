@@ -569,7 +569,7 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("dd if=a.txt of=/dev/null", note="a sink"),
              ex("dd if=/dev/zero of=/dev/sda bs=1M", remote=True, note="a disk: ESCALATE", posix_only=True),
          )),
-    Rule(id="curl", tools=("curl",), resolver="curl", partial="network",
+    Rule(id="curl", tools=("curl",), resolver="curl",
          options=OptionSpec(values=_g.CURL_VALUES, flags=_g.CURL_FLAGS),
          examples=(
              ex("curl -o a.txt https://h/x", destroys={"a.txt"}),
@@ -583,7 +583,7 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("curl -c jar.txt https://h/x", creates={"jar.txt"}),
              ex("curl --output-dir sub -O https://h/a.txt", creates={"sub/a.txt"}),
          )),
-    Rule(id="wget", tools=("wget",), resolver="wget", partial="network",
+    Rule(id="wget", tools=("wget",), resolver="wget",
          options=OptionSpec(values=_g.WGET_VALUES, flags=_g.WGET_FLAGS),
          examples=(
              ex("wget https://h/a.txt", creates={"a.txt.1"},
@@ -689,6 +689,11 @@ LAZY_FAMILIES: Dict[str, str] = {
     "redis-cli": "rules_datastore", "mongosh": "rules_datastore", "mongo": "rules_datastore",
     "dropdb": "rules_datastore", "pg_restore": "rules_datastore", "pg_dump": "rules_datastore",
     "mysqladmin": "rules_datastore", "sqlcmd": "rules_datastore",
+    # M2.2b4a: what leaves the machine
+    "http": "rules_send", "https": "rules_send", "xh": "rules_send", "xhs": "rules_send", "gh": "rules_send", "mail": "rules_send",
+    "mailx": "rules_send", "sendmail": "rules_send", "swaks": "rules_send", "ssh": "rules_send", "scp": "rules_send", "sftp": "rules_send",
+    "npm": "rules_send", "pnpm": "rules_send", "yarn": "rules_send", "cargo": "rules_send", "twine": "rules_send", "gem": "rules_send",
+    "poetry": "rules_send",
 }
 _FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
 
