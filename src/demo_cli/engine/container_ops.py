@@ -12,8 +12,15 @@ and today's text path decides the line unchanged. Not claimed ON PURPOSE:
 code that runs in a container (run, exec, create, start, build, compose up /
 run / exec / watch), lifecycle commands that lose nothing persistent (stop,
 kill, pause, restart, unpause: ruling R5 leaves them to today's path, which
-allows them), copies into or out of a container (cp: M2.2d), and the tools'
-own configuration (login, logout, context changes).
+allows them), and the tools' own configuration (login, logout, context
+changes).
+
+`cp` (M2.2d, ruling D5): into a container = OVERWRITE on the container
+(`container:<engine>`, ask); out of a container = a local write, captured
+like any other. VERIFIED with the docker CLI 29.8.2 and no engine reachable:
+a word that starts with `.` or `/` is a local path, `NAME:PATH` names a
+container, `-` is a tar stream on stdin / stdout, and a copy between two
+containers is refused.
 
 RULING R5 (2026-10-07): `compose down` removes the service containers - their
 writable layers - exactly as `docker rm` does, so it escalates like it, with
@@ -125,6 +132,47 @@ def _compose(w, inv, args: List[Word], tool: str, where: str) -> None:
     w.impact.not_covered(f"compose {s}")
 
 
+_CP_FLAGS = frozenset({"-a", "--archive", "-L", "--follow-link", "-q", "--quiet"})
+
+
+def _cp_side(v: str) -> bool:
+    """Does this `docker cp` operand name a container (NAME:PATH)?"""
+    if v.startswith((".", "/")) or ":" not in v:
+        return False
+    return not (len(v) > 1 and v[1] == ":" and v[0].isalpha())   # C:\x on Windows
+
+
+def _cp(w, inv, state, rest: List[Word], tool: str, where: str) -> None:
+    ops = []
+    for a in rest:
+        if a.expands:
+            w.impact.not_understood(inv.text, f"a {tool} cp operand named by an expansion")
+            return
+        if a.value.startswith("-") and a.value != "-":
+            if a.value not in _CP_FLAGS:
+                return w.impact.not_covered(f"{tool} cp (option)")
+            continue
+        ops.append(a)
+    if len(ops) != 2:
+        return
+    src, dst = ops
+    if _cp_side(dst.value) and not _cp_side(src.value):
+        return _reach(w, inv, f"container:{where}", OVERWRITE, [], tool)
+    if _cp_side(src.value) and not _cp_side(dst.value):
+        if dst.value == "-":
+            return                                            # a tar stream to stdout
+        for p in w.paths([dst], state, inv):
+            n = w.node(state, p)
+            if n.exists and n.is_dir:
+                w.within(state, p, OVERWRITE)                 # copied INTO it: captured whole
+            elif n.exists:
+                w.replace(state, p, OVERWRITE)
+            else:
+                w.create(state, p)
+        return
+    # both local, or both containers: docker refuses
+
+
 def container(w, inv, parsed, state, tool) -> None:
     args = list(inv.argv[1:])
     if tool == "docker-compose":
@@ -152,6 +200,8 @@ def container(w, inv, parsed, state, tool) -> None:
         return
     if c in ("rm", "rmi"):
         return _reach(w, inv, f"container:{where}", DELETE, rest, tool)
+    if c == "cp" or (c == "container" and rest and rest[0].value == "cp"):
+        return _cp(w, inv, state, rest[1:] if c == "container" else rest, tool, where)
     if c == "push":
         img = next((a.raw for a in rest if not a.value.startswith("-")), "?")
         return _reach(w, inv, f"container:registry/{img}", OVERWRITE, rest, tool)

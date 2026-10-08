@@ -151,13 +151,13 @@
   "uncovered": []
  },
  "systemctl enable evil": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "systemctl enable"
-  ]
+  "remote": {
+   "later:systemd@local": "LATER"
+  },
+  "uncovered": []
  },
  "reg delete HKCU\\\\Software\\\\X /f": {
   "decision": "ESCALATE",
@@ -888,13 +888,13 @@
   "uncovered": []
  },
  "systemctl enable nginx": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "systemctl enable"
-  ]
+  "remote": {
+   "later:systemd@local": "LATER"
+  },
+  "uncovered": []
  },
  "systemctl --no-such-option stop x": {
   "decision": "ESCALATE",
@@ -941,12 +941,12 @@
  },
  "sc create evil binPath= x.exe": {
   "decision": "ESCALATE",
-  "surface": "service_control",
+  "surface": "deferred_execution",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "sc create"
-  ]
+  "remote": {
+   "later:sc@local": "LATER"
+  },
+  "uncovered": []
  },
  "net stop w32time": {
   "decision": "ESCALATE",

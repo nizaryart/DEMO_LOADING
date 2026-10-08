@@ -3,7 +3,7 @@ which surface an engine label names, and where a person can restore it from.
 
 decide.py, engine/verdict.py, guard.py and protection.py read this module and
 nothing else for these answers. Change a decision or a hint HERE, once."""
-from .engine.effects import (CREATE, DELETE, OVERWRITE, REF, RUN, SEND,
+from .engine.effects import (CREATE, DELETE, LATER, OVERWRITE, REF, RUN, SEND,
                              SERVICE_KEEP, SERVICE_LOSS)
 
 ALLOW, ESCALATE = "ALLOW", "ESCALATE"
@@ -18,6 +18,9 @@ REMOTE_POLICY = {
     # and listed in the receipt. The commands that destroy the reflog itself
     # carry DELETE or OVERWRITE instead, and escalate with the rest.
     REF: ALLOW,
+    # M2.2d, ruling D1: code planted where it runs later, unseen - a person
+    # sees the exact file or command (ask channel: deferred_execution)
+    LATER: ESCALATE,
 }
 
 def remote_decision(kind: str) -> str:
@@ -56,7 +59,9 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("service:", "service_control"), ("power:", "host_power"),
                    ("process:", "process_control"), ("account:", "account_control"),
                    ("sysrec:", "system_recovery"), ("net:", "host_network"),
-                   ("owner:", "file_ownership"), ("winreg:", "system_config"))
+                   ("owner:", "file_ownership"), ("winreg:", "system_config"),
+                   # M2.2d: code that runs later
+                   ("later:", "deferred_execution"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
@@ -108,6 +113,8 @@ RECOVERY_HINTS = {
     "host_network": "the rules or settings saved before the change (iptables-save, nft list ruleset, netsh advfirewall export), if any were saved",
     "file_ownership": "set the owner and ACL back by hand (chown, or icacls /restore from a saved ACL file)",
     "system_config": "a `reg export` of the key taken before the change, if one exists",
+    # M2.2d
+    "deferred_execution": "remove what was planted (the startup-file lines, the hook, the cron or scheduled job, the unit) before it runs",
 }
 GENERIC_HINT = "its version history / rollback"
 
@@ -140,6 +147,8 @@ ESCALATION_CHANNEL = {
     # M2.2c (rulings C2, C3, C7, C8, C9)
     "host_power": ASK, "process_control": ASK, "host_network": ASK,
     "file_ownership": ASK, "system_config": ASK,
+    # M2.2d (ruling D1)
+    "deferred_execution": ASK,
     # the whole thing gone, no realistic undo
     "datastore_flush": DENY, "disk_format": DENY, "infra_destroy": DENY,
     "recursive_force_delete": DENY, "account_control": DENY, "message_queue": DENY,

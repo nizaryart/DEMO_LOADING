@@ -38,8 +38,12 @@ RULINGS C1-C10 (Nizar, 2026-10-07):
      restore by an ordinary user cannot give ownership back.
   C9 a registry write on system_config; `reg export` / `reg save` write a
      local file.
-  C10 scheduling (crontab, at, schtasks, systemctl enable / link / preset,
-     sc create, launchctl load) is M2.2d's: uncovered here.
+  C10 scheduling is M2.2d's (rulings D1-D4, 2026-10-08): planting code that
+     runs later - crontab, at, schtasks /create, systemctl enable / link /
+     preset / add-wants, systemd-run --on-*, launchctl load, sc create or a new
+     binPath, a registry Run key - is LATER on `later:` (deferred_execution,
+     ask); taking a schedule away (crontab -r, atrm, schtasks /delete) is
+     DELETE there; listing one reads.
 
 WHAT IT CLAIMS, AND WHAT IT DOES NOT. A command word, verb or object this
 module does not list is `uncovered`, and today's path decides the line. A verb
@@ -85,7 +89,7 @@ from typing import List, Optional, Tuple
 
 from ..model import Word
 from .cloud_ops import READ
-from .effects import CREATE, DELETE, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
+from .effects import CREATE, DELETE, LATER, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
 
 
 # ---------------------------------------------------------------- shared
@@ -143,6 +147,9 @@ _SC_OVERWRITE = frozenset({"set-property", "bind", "mount-image", "edit", "set-d
                            "set-environment", "unset-environment", "import-environment",
                            "service-watchdogs"})
 _SC_DELETE = frozenset({"clean", "revert"})
+# Unit files wired to start on their own (ruling D2): code that runs later.
+_SC_LATER = frozenset({"enable", "reenable", "link", "preset", "preset-all", "add-wants",
+                       "add-requires"})
 # Read with no argument, a setting with one.
 _SC_SETTING = frozenset({"log-level", "log-target", "service-log-level", "service-log-target"})
 _SC_POWER = frozenset({"default", "rescue", "emergency", "halt", "poweroff", "reboot", "kexec",
@@ -249,7 +256,9 @@ def systemctl(w, inv, parsed, state, tool) -> None:
         return _reach(w, label, OVERWRITE)
     if verb in _SC_DELETE:
         return _reach(w, label, DELETE)
-    w.impact.not_covered(f"systemctl {verb}")             # enable / link / preset ...: M2.2d
+    if verb in _SC_LATER:
+        return _reach(w, f"later:{manager}@{where}", LATER)
+    w.impact.not_covered(f"systemctl {verb}")
 
 
 def service(w, inv, parsed, state, tool) -> None:
@@ -289,6 +298,8 @@ def launchctl(w, inv, parsed, state, tool) -> None:
         return _reach(w, "service:launchd@local", SERVICE_LOSS)
     if sub == "reboot":
         return _reach(w, "power:local", SERVICE_LOSS)
+    if sub in ("load", "bootstrap", "enable", "submit"):
+        return _reach(w, "later:launchd@local", LATER)
     w.impact.not_covered(f"launchctl {sub}")
 
 
@@ -496,11 +507,14 @@ def sc(w, inv, parsed, state, tool) -> None:
         return _reach(w, label, SERVICE_KEEP)
     if cmd in _SCEXE_LOSS:
         return _reach(w, label, SERVICE_LOSS)
+    if cmd == "create" or (cmd == "config" and any(
+            not a.expands and _win(a.value).startswith("binpath=") for a in args[1:])):
+        return _reach(w, f"later:sc@{where}", LATER)      # the program the service runs
     if cmd in _SCEXE_OVERWRITE:
         return _reach(w, label, OVERWRITE)
     if cmd == "delete":
         return _reach(w, label, DELETE)
-    w.impact.not_covered(f"sc {cmd}")                    # create: M2.2d; anything else
+    w.impact.not_covered(f"sc {cmd}")
 
 
 # ---------------------------------------------------------------- C5: disks
@@ -1071,6 +1085,22 @@ def _reg_root(word: Optional[Word]) -> str:
     return "?"
 
 
+# Keys whose values Windows runs on its own (logon, any program start).
+# Git Bash removes unquoted backslashes, so the key is compared with every
+# separator dropped.
+_AUTORUN_KEYS = ("currentversionrun", "currentversionrunonce", "currentversionrunservices",
+                 "currentversionrunservicesonce", "currentversionpoliciesexplorerrun",
+                 "currentversionwinlogon", "imagefileexecutionoptions",
+                 "currentversionexplorershellfolders", "currentversionexplorerusershellfolders")
+
+
+def _autorun_key(word: Optional[Word]) -> bool:
+    if word is None or word.expands:
+        return word is not None                           # an expansion may name one
+    flat = word.value.lower().replace("\\", "").replace("/", "").replace(" ", "")
+    return any(k in flat for k in _AUTORUN_KEYS)
+
+
 def reg(w, inv, parsed, state, tool) -> None:
     args = _args(inv)
     if not args:
@@ -1095,9 +1125,85 @@ def reg(w, inv, parsed, state, tool) -> None:
         return _reach(w, "winreg:import", OVERWRITE)
     if op == "delete":
         return _reach(w, f"winreg:{_reg_root(key)}", DELETE)
+    if op in ("add", "copy", "restore") and _autorun_key(key):
+        return _reach(w, f"later:winreg:{_reg_root(key)}", LATER)
     if op in ("add", "copy", "restore", "load", "unload", "flags"):
         return _reach(w, f"winreg:{_reg_root(key)}", OVERWRITE)
     w.impact.not_covered(f"reg {op}")
+
+
+# ---------------------------------------------------------------- C10 / M2.2d: schedulers
+
+def crontab(w, inv, parsed, state, tool) -> None:
+    """VERIFIED (cronie / Debian cron `crontab` usage): `-l` lists, `-r`
+    removes, `-e` edits, `-n` only checks the syntax; a FILE, `-` or no
+    operand at all replaces the table (no operand: from stdin)."""
+    args = _args(inv)
+    user = "local"
+    flags, files = set(), []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        v = a.value
+        if not a.expands and v == "-u" and i + 1 < len(args):
+            user = args[i + 1].raw if args[i + 1].expands else args[i + 1].value
+            i += 2
+            continue
+        if not a.expands and v.startswith("-") and v != "-":
+            flags.update(v[1:])
+        else:
+            files.append(a)
+        i += 1
+    label = f"later:crontab@{user}"
+    if "h" in flags or "l" in flags or "n" in flags:
+        return                                            # list, help, a syntax check
+    if "r" in flags:
+        return _reach(w, label, DELETE)
+    _reach(w, label, LATER)                               # -e, a FILE, `-`, or stdin
+
+
+def at(w, inv, parsed, state, tool) -> None:
+    """VERIFIED (at 3.2.5, at(1)): -l = atq, -r / -d = atrm, -c prints jobs,
+    -b = batch; -V alone prints the version (`at -V 10:00` still queues)."""
+    args = [a for a in _args(inv)]
+    vals = [a.value for a in args if not a.expands]
+    if tool == "atq" or any(v in ("-l", "-c") for v in vals) or vals == ["-V"]:
+        return                                            # list a queue, print a job, version
+    if tool == "atrm" or any(v in ("-r", "-d") for v in vals):
+        return _reach(w, "later:at@local", DELETE)
+    _reach(w, "later:at@local", LATER)                    # at TIME / batch: a job from stdin or -f
+
+
+def schtasks(w, inv, parsed, state, tool) -> None:
+    args = _args(inv)
+    sws = [_switch(a.value) for a in args if not a.expands]
+    if "?" in sws:
+        return
+    where = "local"
+    for k, a in enumerate(args):
+        if not a.expands and _switch(a.value) == "s" and k + 1 < len(args):
+            where = args[k + 1].value
+    label = f"later:schtasks@{where}"
+    if "create" in sws or "change" in sws:
+        return _reach(w, label, LATER)
+    if "delete" in sws:
+        return _reach(w, label, DELETE)
+    if "query" in sws or "showsid" in sws:
+        return
+    w.impact.not_covered("schtasks")                      # /run, /end: today's path
+
+
+_SYSTEMD_RUN_LATER = ("--on-active", "--on-boot", "--on-startup", "--on-unit-active",
+                      "--on-unit-inactive", "--on-calendar", "--on-clock-change",
+                      "--on-timezone-change", "--path-property", "--socket-property",
+                      "--timer-property")
+
+
+def systemd_run(w, inv, parsed, state, tool) -> None:
+    vals = [a.value for a in _args(inv) if not a.expands]
+    if any(v.split("=", 1)[0] in _SYSTEMD_RUN_LATER for v in vals):
+        return _reach(w, "later:systemd-run@local", LATER)
+    w.impact.not_covered("systemd-run")                   # runs a command now: today's path
 
 
 # ---------------------------------------------------------------- entry
@@ -1119,6 +1225,8 @@ _TOOLS = {
     "ufw": ufw, "nft": nft, "ip": ip, "nmcli": nmcli, "ifconfig": ifconfig, "netsh": netsh,
     "chmod": chmod, "chown": chown, "chgrp": chown, "icacls": icacls, "takeown": takeown,
     "reg": reg,
+    "crontab": crontab, "at": at, "batch": at, "atq": at, "atrm": at, "schtasks": schtasks,
+    "systemd-run": systemd_run,
 }
 for _t in _ACCOUNT_DELETE | _ACCOUNT_WRITE:
     _TOOLS[_t] = account

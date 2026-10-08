@@ -10,10 +10,19 @@ WHAT IT CLAIMS, AND WHAT IT DOES NOT. A subcommand this module does not
 list is reported as `uncovered`, exactly as an unknown tool is, so
 Guard._engine_applies is False and today's text path decides that line
 unchanged. The table can only ever ADD understanding; it cannot turn a
-command the old rules catch into a silent ALLOW. `git config` is left
-uncovered ON PURPOSE: it can plant code that runs later (hooksPath, an
-alias starting with `!`), which is M2.2d's effect kind, and claiming to
-understand it here would lose what the old path catches today.
+command the old rules catch into a silent ALLOW.
+
+`git config` (M2.2d, rulings D1-D2): a key whose value git RUNS - hooksPath,
+an alias, a pager or editor, a filter, a credential helper, an include - is
+code that runs later, unnamed: LATER on `later:git-config@<scope>`
+(deferred_execution, ask). Any other key changes nothing a person would undo
+(the old path allowed every `git config` too); reads read. The same keys
+given for ONE command (`git -c core.pager=... log`, `--config-env`) run now,
+unread: not understood, and today's path decides. VERIFIED against
+git-config(1) and gitattributes(5) of git 2.51: the subcommand form (list /
+get / set / unset / rename-section / remove-section / edit), the option form,
+the file options, and every key below is documented there as a command,
+program, helper, hook path or include.
 
 HISTORY INSIDE .git (ruling (c), 2026-10-06). .git is in IGNORED_DIRS, so a
 recovery point cannot hold it, and demo_cli never claims a recovery it does
@@ -28,7 +37,7 @@ import os
 from typing import List, Optional, Tuple
 
 from ..model import Word
-from .effects import CREATE, DELETE, OVERWRITE, REF
+from .effects import CREATE, DELETE, LATER, OVERWRITE, REF
 from .simulate import _host_path
 
 # git's own options, which sit between `git` and the subcommand.
@@ -110,8 +119,14 @@ def _globals(w, inv, args: List[Word], state) -> Tuple[Optional[int], Optional[s
         if not v.startswith("-"):
             return i, cwd
         name, eq, glued = v.partition("=")
+        if name == "--exec-path" and eq:
+            w.impact.not_understood(inv.text, "git --exec-path runs the programs it finds there")
+            return None, cwd
         if name in _GLOBAL_VALUE:
             value = glued if eq else (args[i + 1].value if i + 1 < len(args) else "")
+            if name in ("-c", "--config-env") and runs_code(value.split("=", 1)[0]):
+                w.impact.not_understood(inv.text, f"git {name} sets a command that runs now, unread")
+                return None, cwd
             if name == "-C":
                 if not value:
                     w.impact.not_understood(inv.text, "git -C without a directory")
@@ -135,6 +150,137 @@ def _globals(w, inv, args: List[Word], state) -> Tuple[Optional[int], Optional[s
         return None, cwd
     w.impact.not_covered("git")                   # `git` with no subcommand
     return None, cwd
+
+
+# git-config(1) / gitattributes(5): keys whose value is a command, a program,
+# a helper, a hook path, a template directory or an included config file.
+# (section, subsection or None for "none", variable); "*" matches anything;
+# compared lower-case (sections and variables are case-insensitive).
+_CODE_KEYS = (
+    ("alias", "*", "*"), ("alias", None, "*"),
+    ("core", None, "hookspath"), ("core", None, "editor"), ("core", None, "pager"),
+    ("core", None, "sshcommand"), ("core", None, "fsmonitor"), ("core", None, "askpass"),
+    ("core", None, "gitproxy"), ("sequence", None, "editor"), ("diff", None, "external"),
+    ("diff", "*", "command"), ("diff", "*", "textconv"), ("merge", "*", "driver"),
+    ("filter", "*", "clean"), ("filter", "*", "smudge"), ("filter", "*", "process"),
+    ("credential", None, "helper"), ("credential", "*", "helper"),
+    ("pager", None, "*"), ("gpg", None, "program"), ("gpg", "*", "program"),
+    ("gpg", "ssh", "defaultkeycommand"), ("browser", "*", "cmd"), ("difftool", "*", "cmd"),
+    ("mergetool", "*", "cmd"), ("man", "*", "cmd"), ("guitool", "*", "cmd"),
+    ("trailer", "*", "cmd"), ("trailer", "*", "command"),
+    ("uploadpack", None, "packobjectshook"), ("interactive", None, "difffilter"),
+    ("init", None, "templatedir"), ("include", None, "path"), ("includeif", "*", "path"),
+    ("remote", "*", "receivepack"), ("remote", "*", "uploadpack"), ("remote", "*", "vcs"),
+    ("web", None, "browser"), ("submodule", "*", "update"),
+)
+_CODE_SECTIONS = frozenset(k[0] for k in _CODE_KEYS)
+
+
+def runs_code(key: str) -> bool:
+    """Does git run the value of `key` as a program (or read it as one)?"""
+    parts = key.split(".")
+    if len(parts) < 2:
+        return False
+    section, var = parts[0].lower(), parts[-1].lower()
+    sub = ".".join(parts[1:-1]) or None
+    for s_, sub_, v_ in _CODE_KEYS:
+        if s_ != section:
+            continue
+        if sub_ is None and sub is not None:
+            continue
+        if sub_ == "*" and sub is None:
+            continue
+        if sub_ not in (None, "*") and (sub or "").lower() != sub_:
+            continue
+        if v_ in ("*", var):
+            return True
+    return False
+
+
+_CONFIG_SUBCOMMANDS = frozenset({"list", "get", "set", "unset", "rename-section",
+                                 "remove-section", "edit"})
+_CONFIG_VALUES = ("--file", "--blob", "--type", "--comment", "--value", "--default", "--url")
+_CONFIG_FLAGS = ("--global", "--system", "--local", "--worktree", "--all", "--regexp",
+                 "--fixed-value", "--no-value", "--null", "--name-only", "--show-origin",
+                 "--show-scope", "--includes", "--no-includes", "--no-type", "--bool",
+                 "--int", "--bool-or-int", "--path", "--expiry-date", "--append",
+                 "--replace-all", "--add", "--unset", "--unset-all", "--get", "--get-all",
+                 "--get-regexp", "--get-urlmatch", "--get-color", "--get-colorbool", "--list",
+                 "--rename-section", "--remove-section", "--edit", "--help")
+_CONFIG_READ_MODES = frozenset({"--get", "--get-all", "--get-regexp", "--get-urlmatch",
+                                "--get-color", "--get-colorbool", "--list", "--help"})
+
+
+def _config(w, inv, args: List[Word]) -> None:
+    """`git config`: what it plants. parse-options: a unique prefix of a long
+    option is that option."""
+    longs = _CONFIG_VALUES + _CONFIG_FLAGS
+    sub = None
+    if args and args[0].value in _CONFIG_SUBCOMMANDS:
+        sub, args = args[0].value, args[1:]
+    scope, modes, operands = "local", set(), []
+    i = 0
+    while i < len(args):
+        v = args[i].value
+        if v == "--":
+            operands.extend(a.value for a in args[i + 1:])
+            break
+        if v.startswith("--"):
+            name = v.split("=", 1)[0]
+            hits = [o for o in longs if o == name] or [o for o in longs if o.startswith(name)]
+            if len(hits) != 1:
+                w.impact.not_covered("git config " + name)
+                return
+            name = hits[0]
+            if name in ("--global", "--system", "--worktree", "--local"):
+                scope = name[2:]
+            if name in _CONFIG_VALUES:
+                if name == "--file":
+                    scope = "file"
+                if name == "--blob":
+                    modes.add("--blob")
+                i += 1 if "=" in v else 2
+                continue
+            modes.add(name)
+            i += 1
+            continue
+        if v.startswith("-") and len(v) > 1:
+            for ch in v[1:]:
+                if ch == "f":
+                    scope = "file"
+                    i += 1                                # its value is the next word
+                    break
+                if ch == "l":
+                    modes.add("--list")
+                elif ch == "e":
+                    modes.add("--edit")
+                elif ch in "zh":
+                    pass
+                else:
+                    w.impact.not_covered("git config -" + ch)
+                    return
+            i += 1
+            continue
+        operands.append(v)
+        i += 1
+    label = f"later:git-config@{scope}"
+    if sub in ("list", "get") or modes & _CONFIG_READ_MODES or "--blob" in modes:
+        return
+    if sub == "edit" or "--edit" in modes:
+        return w.impact.reach(label, LATER)               # an editor: anything can be set
+    if sub in ("unset", "remove-section") or modes & {"--unset", "--unset-all",
+                                                       "--remove-section"}:
+        return                                            # takes a setting away
+    if sub == "rename-section" or "--rename-section" in modes:
+        new = operands[1] if len(operands) > 1 else ""
+        if new.split(".", 1)[0].lower() in _CODE_SECTIONS:
+            w.impact.reach(label, LATER)
+        return
+    # set / --add / --replace-all / `git config NAME VALUE`; `git config NAME` reads
+    if sub is None and not modes & {"--add", "--replace-all", "--append"} and len(operands) < 2:
+        return
+    if operands and runs_code(operands[0]):
+        w.impact.reach(label, LATER)
 
 
 def _operands(args: List[Word]) -> List[Word]:
@@ -235,6 +381,8 @@ def git(w, inv, parsed, state, tool) -> None:
 
     if sub in _READ_ONLY:
         return
+    if sub == "config":
+        return _config(w, inv, rest)
     if sub == "push":
         return _push(w, inv, rest, state)
     if sub == "reset":

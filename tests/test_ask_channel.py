@@ -40,7 +40,9 @@ ASK_SURFACES = {
     "schema_migration", "saas_deploy", "saas_cms", "service_control", "remote_filesystem",
     "external_message", "external_email", "remote_surface",
     # M2.2c (Nizar's rulings C2, C3, C7, C8, C9)
-    "host_power", "process_control", "host_network", "file_ownership", "system_config"}
+    "host_power", "process_control", "host_network", "file_ownership", "system_config",
+    # M2.2d (ruling D1)
+    "deferred_execution"}
 DENY_SURFACES = {
     "datastore_flush", "disk_format", "infra_destroy", "recursive_force_delete",
     "account_control", "message_queue", "external_payment", "paas_destroy",

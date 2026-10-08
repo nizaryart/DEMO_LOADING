@@ -22,6 +22,9 @@ what happens.
   SERVICE_LOSS  availability lost (stop, disable, scale to 0, reboot)
   SERVICE_KEEP  availability kept or restored (start, restart, enable)
   RUN           code runs there, unread
+  LATER         code is planted where it runs later, without anyone naming it
+                (a shell startup file, a git hook, a cron job, an enabled unit:
+                M2.2d); removing such a schedule is DELETE on the same surface
 """
 from __future__ import annotations
 
@@ -41,10 +44,14 @@ MKDIR = "MKDIR"          # a template kind: create a directory (-p: and its pare
 SEND = "SEND"
 SERVICE_LOSS = "SERVICE_LOSS"
 SERVICE_KEEP = "SERVICE_KEEP"
+LATER = "LATER"
 
 # May-semantics (ruling Q1): the same surface reached twice keeps the kind
 # that loses the most.
-_LOSS_ORDER = (DELETE, OVERWRITE, SEND, RUN, SERVICE_LOSS, SERVICE_KEEP, CREATE)
+# REF was missing: a label reached as REF and then as anything else raised
+# ValueError (`git stash pop && git stash drop`), and the engine fell back to
+# today's path (M2.2d).
+_LOSS_ORDER = (DELETE, OVERWRITE, SEND, RUN, LATER, SERVICE_LOSS, REF, SERVICE_KEEP, CREATE)
 
 
 class Impact:

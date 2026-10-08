@@ -1,0 +1,674 @@
+{
+ "git config --global alias.st '!rm -rf ~'": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@global": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config core.hooksPath /tmp/h": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "crontab x.cron": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:crontab@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo '* * * * * rm -rf ~' | crontab -": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:crontab@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo 'rm -rf ~' > .git/hooks/pre-commit": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.git/hooks/pre-commit": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo 'rm -rf ~' >> ~/.bashrc": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.bashrc": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo 'rm -rf ~' >> .bashrc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sed -i 's/\"test\": \"x\"/\"test\": \"rm -rf ~\"/' package.json": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "approvable": false,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "echo 'all: ; rm -rf ~' > Makefile": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "approvable": false,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "echo 'rm -rf ~' > .envrc": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.envrc": "LATER"
+  },
+  "uncovered": []
+ },
+ "systemctl enable evil": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:systemd@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo 'x' | tee -a ~/.zshrc": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.zshrc": "LATER"
+  },
+  "uncovered": []
+ },
+ "ln -sf ../../evil.sh .git/hooks/pre-push": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.git/hooks/pre-push": "LATER"
+  },
+  "uncovered": []
+ },
+ "docker cp evil.sh app:/etc/profile": {
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "container:docker@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "crontab -r": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:crontab@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "echo 'rm -rf ~' >> ~/.profile": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.profile": "LATER"
+  },
+  "uncovered": []
+ },
+ "printf 'x' > ~/.zprofile": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.zprofile": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo x >> ~/.bash_history": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "cp evil.sh .git/hooks/post-checkout": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.git/hooks/post-checkout": "LATER"
+  },
+  "uncovered": []
+ },
+ "rm .git/hooks/pre-commit.sample": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "approvable": false,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "rm .git/hooks/post-merge": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.git/hooks/post-merge": "DELETE"
+  },
+  "uncovered": []
+ },
+ "echo x > .git/hooks/not-a-hook": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "mkdir -p ~/.config/autostart && echo x > ~/.config/autostart/x.desktop": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.config/autostart/x.desktop": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo x >> ~/.config/fish/config.fish": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "cat evil.sh >> ~/.ssh/rc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "cp evil.sh .git/config": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:.git/config": "LATER"
+  },
+  "uncovered": []
+ },
+ "echo '[core] hooksPath=/tmp/h' >> ~/.gitconfig": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:~/.gitconfig": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config set --global core.pager 'sh evil.sh'": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@global": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config --glob filter.x.smudge 'sh x'": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@global": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config --add include.path /tmp/evil.cfg": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config includeIf.gitdir:~/w/.path /tmp/x.cfg": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config --get core.pager": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git config core.pager": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git config --unset core.hooksPath": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git config user.email a@b.c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git config --list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git config -e": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "git config --rename-section foo alias": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "git -c core.pager='rm -rf ~' log": {
+  "decision": "SUPERVISED",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git -c user.name=x commit -m hi": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {
+   "vcs-local:commit": "REF"
+  },
+  "uncovered": []
+ },
+ "git --exec-path=/tmp/evil status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "git stash pop && git stash drop": {
+  "decision": "ESCALATE",
+  "surface": "local_vcs_history",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "vcs-local:stash": "DELETE"
+  },
+  "uncovered": []
+ },
+ "crontab -l": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "crontab -u bob -r": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:crontab@bob": "DELETE"
+  },
+  "uncovered": []
+ },
+ "crontab -": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:crontab@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "at 10:00 -f job.sh": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:at@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "at -V 10:00 -f job.sh": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:at@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "at -l": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "atq": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "atrm 3": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:at@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "batch < job.sh": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:at@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "schtasks //create //tn x //tr c.exe //sc onlogon": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:schtasks@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "schtasks /delete /tn x /f": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:schtasks@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "schtasks /query": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "schtasks /run /tn x": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "schtasks"
+  ]
+ },
+ "systemctl enable --now nginx": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:systemd@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "systemctl --user enable app": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:systemd-user@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "systemctl link /opt/x.service": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:systemd@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "systemd-run --on-calendar=daily ./job.sh": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:systemd-run@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "systemd-run ./job.sh": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "systemd-run"
+  ]
+ },
+ "launchctl load ~/Library/LaunchAgents/x.plist": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:launchd@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "sc create evil binPath= x.exe": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:sc@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "sc config svc binPath= x.exe": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:sc@local": "LATER"
+  },
+  "uncovered": []
+ },
+ "sc config svc start= disabled": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "service:sc@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' //v x //d c.exe": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:winreg:HKCU": "LATER"
+  },
+  "uncovered": []
+ },
+ "reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run //v x //d c.exe": {
+  "decision": "ESCALATE",
+  "surface": "deferred_execution",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "later:winreg:HKCU": "LATER"
+  },
+  "uncovered": []
+ },
+ "reg add 'HKCU\\Software\\X' //v y //d 1": {
+  "decision": "ESCALATE",
+  "surface": "system_config",
+  "approvable": true,
+  "captured": false,
+  "remote": {
+   "winreg:HKCU": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "docker cp app:/etc/hosts a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "approvable": false,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker container cp app:/x new.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "docker cp ./app:x y": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "echo 'test: ; rm -rf ~' >> Makefile": {
+  "decision": "ALLOW",
+  "surface": null,
+  "approvable": false,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sed -i 's/x/rm -rf ~/' package.json": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "approvable": false,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ }
+}

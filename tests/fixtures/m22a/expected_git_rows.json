@@ -470,29 +470,29 @@
   "destroys": []
  },
  "git config --global alias.st '!rm -rf ~'": {
-  "decision": "SUPERVISED",
+  "decision": "ESCALATE",
   "rule": "rm_rf",
-  "surface": null,
+  "surface": "deferred_execution",
   "captured": false,
-  "engine": "ALLOW",
-  "uncovered": [
-   "git config"
-  ],
+  "engine": "ESCALATE",
+  "uncovered": [],
   "unknown": [],
-  "remote": {},
+  "remote": {
+   "later:git-config@global": "LATER"
+  },
   "destroys": []
  },
  "git config core.hooksPath /tmp/h": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "rule": null,
-  "surface": null,
+  "surface": "deferred_execution",
   "captured": false,
-  "engine": "ALLOW",
-  "uncovered": [
-   "git config"
-  ],
+  "engine": "ESCALATE",
+  "uncovered": [],
   "unknown": [],
-  "remote": {},
+  "remote": {
+   "later:git-config@local": "LATER"
+  },
   "destroys": []
  },
  "git status": {

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from .effects import DELETE, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
+from .effects import DELETE, LATER, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
 from .rules import OptionSpec, Rule, ex
 from .system_ops import TOOLS
 
@@ -34,8 +34,8 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("systemctl clean nginx", reaches={_SD: DELETE},
                 note="removes the unit's state, cache and log directories"),
              ex("systemctl log-level", note="no argument: a read"),
-             ex("systemctl enable nginx", uncovered={"systemctl enable"},
-                note="code that runs later: M2.2d (ruling C10)"),
+             ex("systemctl enable nginx", reaches={"later:systemd@local": LATER},
+                note="M2.2d: the unit now starts on its own"),
              ex("systemctl --no-such-option stop x", uncovered={"systemctl --no-such-option"}),
              ex("systemctl --no-p stop nginx", reaches={_SD: SERVICE_LOSS},
                 note="getopt_long: a unique prefix is the option (--no-pager)"),
@@ -44,7 +44,9 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("sc query", note="a read"),
              ex("sc stop spooler", reaches={"service:sc@local": SERVICE_LOSS}),
              ex("sc \\\\\\\\BOX delete svc", reaches={"service:sc@\\\\BOX": DELETE}),
-             ex("sc create evil binPath= x.exe", uncovered={"sc create"}, note="M2.2d"),
+             ex("sc create evil binPath= x.exe", reaches={"later:sc@local": LATER}, note="M2.2d"),
+             ex("sc config svc binPath= x.exe", reaches={"later:sc@local": LATER},
+                note="M2.2d: the program the service runs"),
              ex("net stop w32time", reaches={"service:net@local": SERVICE_LOSS}),
              ex("net start", note="lists the started services"),
              # C2 power
@@ -143,5 +145,27 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("reg query 'HKCU\\Software\\X'", note="a read"),
              ex("reg export 'HKCU\\Software\\X' a.txt //y", destroys={"a.txt"},
                 note="writes a local file: captured"),
+             # M2.2d: code that runs later (rulings D1-D4)
+             ex("reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' //v x //d c.exe",
+                reaches={"later:winreg:HKCU": LATER}),
+             ex("reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run //v x //d c.exe",
+                reaches={"later:winreg:HKCU": LATER},
+                note="unquoted: bash drops the backslashes; the key is still found"),
+             ex("crontab x.cron", reaches={"later:crontab@local": LATER}),
+             ex("echo '* * * * * rm -rf ~' | crontab -", reaches={"later:crontab@local": LATER}),
+             ex("crontab -l", note="a read"),
+             ex("crontab -r", reaches={"later:crontab@local": DELETE}, note="ruling D4"),
+             ex("crontab -u bob -r", reaches={"later:crontab@bob": DELETE}),
+             ex("at 10:00 -f job.sh", reaches={"later:at@local": LATER}),
+             ex("atq", note="a read"),
+             ex("atrm 3", reaches={"later:at@local": DELETE}),
+             ex("schtasks //create //tn x //tr c.exe //sc onlogon", reaches={"later:schtasks@local": LATER}),
+             ex("schtasks /delete /tn x /f", reaches={"later:schtasks@local": DELETE}),
+             ex("schtasks /query", note="a read"),
+             ex("systemd-run --on-calendar=daily ./job.sh", reaches={"later:systemd-run@local": LATER}),
+             ex("systemd-run ./job.sh", uncovered={"systemd-run"}, note="runs now: today's path"),
+             ex("launchctl load ~/Library/LaunchAgents/x.plist", reaches={"later:launchd@local": LATER}),
+             ex("echo 'rm -rf ~' > .envrc", reaches={"later:.envrc": LATER}, creates={".envrc"},
+                note="direnv runs it on cd (ruling D2)"),
          )),
 )

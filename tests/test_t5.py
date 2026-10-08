@@ -34,6 +34,8 @@ def test_every_surface_has_a_non_empty_hint_and_no_hint_is_dead():
             policy.surface_of("net:firewall@local"),
             policy.surface_of("owner:local"),
             policy.surface_of("winreg:HKCU"),
+            # M2.2d: code that runs later
+            policy.surface_of("later:crontab@local"),
             policy.surface_of("x:y"),
         }
     )

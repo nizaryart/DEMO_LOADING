@@ -77,13 +77,16 @@ def test_2_safety_property(tmp_path: Path):
     assert r.prediction.get("uncovered") == ["git frobnicate"]
     assert r.decision.decision == "ALLOW"
 
-    # 2. git config with a write reports uncovered
+    # 2. M2.2d (ruling D1): git config is understood now - a key whose value
+    #    git runs plants code that runs later, and that escalates
     imp_cfg = simulate("git config core.hooksPath /tmp/h", cwd=str(proj))
-    assert imp_cfg.uncovered == ["git config"]
+    assert imp_cfg.uncovered == []
+    assert imp_cfg.remote == {"later:git-config@local": "LATER"}
     with agent_directory(str(proj)):
         r_cfg = g.evaluate("git config core.hooksPath /tmp/h", door="agent", can_supervise=True)
-    assert r_cfg.prediction.get("uncovered") == ["git config"]
-    assert r_cfg.decision.decision == "ALLOW"
+    assert r_cfg.prediction.get("uncovered") == []
+    assert r_cfg.decision.decision == "ESCALATE"
+    assert r_cfg.classification.nonrecoverable_surface == "deferred_execution"
 
 
 # ------------------------------------------------------------------------------
@@ -130,7 +133,9 @@ def test_4_captures(tmp_path: Path):
 # Test 5: The one net-dependent row
 # ------------------------------------------------------------------------------
 
-@pytest.mark.skipif(not syscall_guard.available(), reason="requires syscall guard")
+# M2.2d (ruling D1): the alias row was judged as `rm -rf` running NOW, and the
+# runtime net decided it. The engine reads it now for what it is - code that
+# runs later - and decides it the same way with or without the net.
 def test_5a_net_row_with_the_net(tmp_path: Path):
     proj = tmp_path / "net_row"
     _make_fixture(proj)
@@ -138,7 +143,9 @@ def test_5a_net_row_with_the_net(tmp_path: Path):
     g = Guard(cfg)
     with agent_directory(str(proj)):
         r = g.evaluate("git config --global alias.st '!rm -rf ~'", door="agent", can_supervise=True)
-    assert r.decision.decision == "SUPERVISED"
+    assert r.decision.decision == "ESCALATE"
+    assert r.classification.nonrecoverable_surface == "deferred_execution"
+    assert r.decision.approvable is True
 
 
 @pytest.mark.skipif(syscall_guard.available(), reason="requires environment without syscall guard")

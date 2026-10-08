@@ -41,7 +41,7 @@ _CPU_CLOCK = "perf_counter" if os.name == "nt" else "process_time"
 WALL_CEILING_MS = 250.0
 
 from ..model import Script, parse
-from .effects import CREATE, DELETE, MKDIR, OVERWRITE, TRUNCATE, Impact
+from .effects import CREATE, DELETE, LATER, MKDIR, OVERWRITE, TRUNCATE, Impact
 from .invocation import Invocation, build, parse_options, reads_stdin_script
 from .rules import (LAZY_FAMILIES, READ_ONLY, RULES, SHELLS, Rule, applies, family_rules,
                     rules_by_tool)
@@ -70,6 +70,11 @@ def _host_path(f: str, windows: bool = os.name == "nt") -> Optional[str]:
     if f.startswith("/"):
         return None
     return f
+
+
+def _inside_root(path: str, root: str) -> bool:
+    a, b = os.path.normcase(path), os.path.normcase(root.rstrip("\\/"))
+    return a.startswith(b + os.sep)
 
 
 class BudgetExceeded(Exception):
@@ -847,6 +852,25 @@ class World:
         # content, or a backup holding old content under a new name.
         imp.creates = {p for p in imp.created
                        if self.node(final, p).exists and not self.real_node(p).exists}
+        # M2.2d: a touched path where code runs later, unnamed (a shell
+        # startup file, a git hook, .envrc, a unit or cron folder). Removing
+        # one takes a schedule away (ruling D4).
+        if imp.touched:
+            from .deferred import place, schedule
+            for p in sorted(imp.touched):
+                where = place(p)
+                if where is None:
+                    continue
+                if self.root and _inside_root(p, self.root):
+                    where = os.path.relpath(p, self.root)     # stable: no machine path
+                # Removed (rm, unlink) and not written again: a schedule taken
+                # away (D4) - or, for any other place, nothing planted.
+                # Anything else put content there.
+                removed = imp.destroys.get(p) == DELETE and p not in imp.created and not (
+                    self.node(final, p).exists and not self.real_node(p).exists)
+                if removed and not schedule(p):
+                    continue
+                imp.reach("later:" + where.replace(os.sep, "/"), DELETE if removed else LATER)
         return imp
 
 

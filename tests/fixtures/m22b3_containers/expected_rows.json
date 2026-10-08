@@ -90,13 +90,13 @@
   ]
  },
  "docker cp evil.sh app:/etc/profile": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker cp"
-  ]
+  "remote": {
+   "container:docker@local": "OVERWRITE"
+  },
+  "uncovered": []
  },
  "( docker volume rm v )": {
   "decision": "ESCALATE",
@@ -698,13 +698,13 @@
   ]
  },
  "docker cp a.txt app:/tmp/a.txt": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker cp"
-  ]
+  "remote": {
+   "container:docker@local": "OVERWRITE"
+  },
+  "uncovered": []
  },
  "docker context rm prod": {
   "decision": "ALLOW",

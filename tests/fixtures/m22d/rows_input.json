@@ -1,0 +1,290 @@
+[
+ {
+  "cmd": "git config --global alias.st '!rm -rf ~'",
+  "source": "inventory"
+ },
+ {
+  "cmd": "git config core.hooksPath /tmp/h",
+  "source": "inventory"
+ },
+ {
+  "cmd": "crontab x.cron",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo '* * * * * rm -rf ~' | crontab -",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'rm -rf ~' > .git/hooks/pre-commit",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'rm -rf ~' >> ~/.bashrc",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'rm -rf ~' >> .bashrc",
+  "source": "inventory"
+ },
+ {
+  "cmd": "sed -i 's/\"test\": \"x\"/\"test\": \"rm -rf ~\"/' package.json",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'all: ; rm -rf ~' > Makefile",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'rm -rf ~' > .envrc",
+  "source": "inventory"
+ },
+ {
+  "cmd": "systemctl enable evil",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'x' | tee -a ~/.zshrc",
+  "source": "inventory"
+ },
+ {
+  "cmd": "ln -sf ../../evil.sh .git/hooks/pre-push",
+  "source": "inventory"
+ },
+ {
+  "cmd": "docker cp evil.sh app:/etc/profile",
+  "source": "inventory"
+ },
+ {
+  "cmd": "crontab -r",
+  "source": "inventory"
+ },
+ {
+  "cmd": "echo 'rm -rf ~' >> ~/.profile",
+  "source": "orch"
+ },
+ {
+  "cmd": "printf 'x' > ~/.zprofile",
+  "source": "orch"
+ },
+ {
+  "cmd": "echo x >> ~/.bash_history",
+  "source": "orch"
+ },
+ {
+  "cmd": "cp evil.sh .git/hooks/post-checkout",
+  "source": "orch"
+ },
+ {
+  "cmd": "rm .git/hooks/pre-commit.sample",
+  "source": "orch"
+ },
+ {
+  "cmd": "rm .git/hooks/post-merge",
+  "source": "orch"
+ },
+ {
+  "cmd": "echo x > .git/hooks/not-a-hook",
+  "source": "orch"
+ },
+ {
+  "cmd": "mkdir -p ~/.config/autostart && echo x > ~/.config/autostart/x.desktop",
+  "source": "orch"
+ },
+ {
+  "cmd": "echo x >> ~/.config/fish/config.fish",
+  "source": "orch"
+ },
+ {
+  "cmd": "cat evil.sh >> ~/.ssh/rc",
+  "source": "orch"
+ },
+ {
+  "cmd": "cp evil.sh .git/config",
+  "source": "orch"
+ },
+ {
+  "cmd": "echo '[core] hooksPath=/tmp/h' >> ~/.gitconfig",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config set --global core.pager 'sh evil.sh'",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --glob filter.x.smudge 'sh x'",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --add include.path /tmp/evil.cfg",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config includeIf.gitdir:~/w/.path /tmp/x.cfg",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --get core.pager",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config core.pager",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --unset core.hooksPath",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config user.email a@b.c",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --list",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config -e",
+  "source": "orch"
+ },
+ {
+  "cmd": "git config --rename-section foo alias",
+  "source": "orch"
+ },
+ {
+  "cmd": "git -c core.pager='rm -rf ~' log",
+  "source": "orch"
+ },
+ {
+  "cmd": "git -c user.name=x commit -m hi",
+  "source": "orch"
+ },
+ {
+  "cmd": "git --exec-path=/tmp/evil status",
+  "source": "orch"
+ },
+ {
+  "cmd": "git stash pop && git stash drop",
+  "source": "orch"
+ },
+ {
+  "cmd": "crontab -l",
+  "source": "orch"
+ },
+ {
+  "cmd": "crontab -u bob -r",
+  "source": "orch"
+ },
+ {
+  "cmd": "crontab -",
+  "source": "orch"
+ },
+ {
+  "cmd": "at 10:00 -f job.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "at -V 10:00 -f job.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "at -l",
+  "source": "orch"
+ },
+ {
+  "cmd": "atq",
+  "source": "orch"
+ },
+ {
+  "cmd": "atrm 3",
+  "source": "orch"
+ },
+ {
+  "cmd": "batch < job.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "schtasks //create //tn x //tr c.exe //sc onlogon",
+  "source": "orch"
+ },
+ {
+  "cmd": "schtasks /delete /tn x /f",
+  "source": "orch"
+ },
+ {
+  "cmd": "schtasks /query",
+  "source": "orch"
+ },
+ {
+  "cmd": "schtasks /run /tn x",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl enable --now nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --user enable app",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl link /opt/x.service",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemd-run --on-calendar=daily ./job.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemd-run ./job.sh",
+  "source": "orch"
+ },
+ {
+  "cmd": "launchctl load ~/Library/LaunchAgents/x.plist",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc create evil binPath= x.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc config svc binPath= x.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc config svc start= disabled",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' //v x //d c.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run //v x //d c.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg add 'HKCU\\Software\\X' //v y //d 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker cp app:/etc/hosts a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker container cp app:/x new.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "docker cp ./app:x y",
+  "source": "orch"
+ },
+ {
+  "cmd": "echo 'test: ; rm -rf ~' >> Makefile",
+  "source": "orch"
+ },
+ {
+  "cmd": "sed -i 's/x/rm -rf ~/' package.json",
+  "source": "orch"
+ }
+]

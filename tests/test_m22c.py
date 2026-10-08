@@ -126,9 +126,9 @@ def test_4_reads_and_keeps_change_nothing_they_should_not(tmp_path: Path):
     assert "Recorded and allowed: service:systemd@local" in r.decision.reason
     # systemctl(1): --dry-run is honoured by the power verbs only
     assert _decision(p, "systemctl --dry-run stop nginx")[0] == "ESCALATE"
-    # C10: what schedules code is M2.2d's - uncovered here
-    assert (_evaluate(p, "systemctl enable nginx").prediction or {}).get("uncovered") == [
-        "systemctl enable"]
+    # C10: what schedules code is M2.2d's - code that runs later (ruling D1)
+    assert (_evaluate(p, "systemctl enable nginx").prediction or {}).get("remote") == {
+        "later:systemd@local": "LATER"}
 
 
 def test_5_chmod_is_captured_in_the_project_and_escalates_outside(tmp_path: Path):

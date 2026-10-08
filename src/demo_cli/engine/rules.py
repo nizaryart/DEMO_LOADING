@@ -700,6 +700,9 @@ LAZY_FAMILIES: Dict[str, str] = {
     "mailx": "rules_send", "sendmail": "rules_send", "swaks": "rules_send", "ssh": "rules_send", "scp": "rules_send", "sftp": "rules_send",
     "npm": "rules_send", "pnpm": "rules_send", "yarn": "rules_send", "cargo": "rules_send", "twine": "rules_send", "gem": "rules_send",
     "poetry": "rules_send",
+    # M2.2d: schedulers - code that runs later
+    "crontab": "rules_system", "at": "rules_system", "batch": "rules_system", "atq": "rules_system",
+    "atrm": "rules_system", "schtasks": "rules_system", "systemd-run": "rules_system",
     # M2.2c: services, power, processes, accounts, disks, recovery data,
     # network and firewall, modes and owners, the Windows registry
     "addgroup": "rules_system", "adduser": "rules_system", "bcdedit": "rules_system",

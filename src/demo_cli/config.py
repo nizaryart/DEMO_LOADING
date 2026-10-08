@@ -376,6 +376,16 @@ HOOK_CONFIG_FILES = (
 SHELL_GUARD_SCRIPT = os.path.join("~", ".demo_cli_shellguard.sh")
 
 
+def _carries_shell_guard(rc: str) -> bool:
+    """Does this startup file hold the line install-shell-guard wrote? Read
+    only the first 1 MiB; an unreadable file is not one."""
+    try:
+        with open(rc, "rb") as f:
+            return os.path.basename(SHELL_GUARD_SCRIPT).encode() in f.read(1 << 20)
+    except OSError:
+        return False
+
+
 def control_plane_paths(cfg) -> List[str]:
     """Absolute paths of demo_cli's own files for this project: the config,
     the workspace (ledger, recovery store, mount state, markers), the hook
@@ -388,6 +398,12 @@ def control_plane_paths(cfg) -> List[str]:
     for where in (root, home):
         paths += [os.path.join(where, rel) for rel in HOOK_CONFIG_FILES]
     paths.append(os.path.expanduser(SHELL_GUARD_SCRIPT))
+    # M2.2d, ruling D3: the startup file that turns the shell guard on
+    # (`export BASH_ENV=...`, written by install-shell-guard). An agent that
+    # edits it can switch the guard off for every later shell.
+    rc = os.path.join(home, ".bashrc")
+    if _carries_shell_guard(rc):
+        paths.append(rc)
     launcher = shutil.which("demo_cli")
     if launcher:
         paths.append(launcher)

@@ -29,6 +29,13 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("docker run --rm alpine rm -rf /data", uncovered={"docker run"},
                 note="code runs in the container: today's path decides"),
              ex("podman volume rm v", reaches={"container:podman@local": DELETE}),
+             # M2.2d, ruling D5
+             ex("docker cp evil.sh app:/etc/profile", reaches={_LOCAL: OVERWRITE},
+                note="VERIFIED: NAME:PATH is a container"),
+             ex("docker cp app:/etc/hosts a.txt", destroys={"a.txt"},
+                note="out of a container: a local write, captured"),
+             ex("docker container cp app:/x new.txt", creates={"new.txt"}),
+             ex("docker cp ./app:x y", note="VERIFIED: a ./ path is local - docker refuses"),
          )),
     Rule(id="docker-compose", tools=("docker-compose",), resolver="container", options=OptionSpec(),
          examples=(
