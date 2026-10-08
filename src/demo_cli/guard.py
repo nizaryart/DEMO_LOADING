@@ -1057,8 +1057,12 @@ class Guard:
         checkpoint_skipped, checkpoint_taken = None, False
         if supervisable:
             pass  # Syscall guard or WinFsp mount replaces checkpoint
-        elif checkpoint.should_checkpoint(c, target, self.config,
-                                          recovery_captured=entry is not None):
+        # V17 (2026-10-08): a checkpoint copies THIS project. When an operand
+        # lies outside it, the copy cannot bring that file back, and calling
+        # the line REVERSIBLE on its strength was an unearned claim
+        # (`rm -f /elsewhere/f $(date +%s)` with checkpoints on). It escalates.
+        elif not targets_out_of_project and checkpoint.should_checkpoint(
+                c, target, self.config, recovery_captured=entry is not None):
             ck = checkpoint.capture(self.config, action=command)
             entry, checkpoint_skipped, checkpoint_taken = ck.entry, ck.skipped, ck.ok
 
