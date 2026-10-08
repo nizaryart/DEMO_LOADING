@@ -99,6 +99,8 @@ _LAZY = {name: module for module, names in _LAZY_EXPORTS.items() for name in nam
 
 
 def __getattr__(name: str):
+    if name == "_SHELL_GUARD_SNIPPET":
+        return _shell_guard_snippet()
     module = _LAZY.get(name)
     if module is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -587,7 +589,7 @@ def cmd_hook_codex(a) -> int:
     return run_pretooluse(sys.stdin, sys.stdout)
 
 
-_SHELL_GUARD_SNIPPET = r'''# >>> demo_cli shell guard >>>
+_SHELL_GUARD_TEMPLATE = r'''# >>> demo_cli shell guard >>>
 # Gate commands that bypass the PreToolUse hook: Claude Code `!` mode, or any
 # command typed directly into the shell. Bash only. The DEBUG trap fires BEFORE
 # each command; on a blocking decision it stops the command from running.
@@ -626,6 +628,21 @@ if [ -n "$BASH_VERSION" ]; then
 
   case $- in *i*) shopt -s extdebug 2>/dev/null ;; esac
 
+  # M2.2e: every command word a rule covers, generated from the rule tables
+  # (engine/rules.shell_prefilter_words). A table lookup on the first word,
+  # not one glob per tool: 189 globs cost ~3 ms per command, the lookup
+  # ~30 us (measured). bash 4+: an associative array; bash 3 (macOS): a
+  # string the word is searched in.
+  if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+    __demo_cli_assoc=1
+    declare -gA __demo_cli_words=(
+__DEMO_CLI_WORDS_ASSOC__
+    )
+  else
+    __demo_cli_assoc=0
+    __demo_cli_wordlist=' __DEMO_CLI_WORDS_LIST__ '
+  fi
+
   # demo_cli cannot write a receipt when demo_cli is what failed, so the
   # shell leaves a plain breadcrumb marking the hole in the ledger.
   __demo_cli_note() {
@@ -658,6 +675,7 @@ if [ -n "$BASH_VERSION" ]; then
         done
         __demo_cli_c=${__demo_cli_c% } ;;
     esac
+    __demo_cli_go=0
     case "$__demo_cli_c" in
       # Skip the `eval '<cmd>' < /dev/null` wrapper Claude Code !-mode uses:
       # eval re-fires the DEBUG trap on its EXPANSION (the real command), which
@@ -674,6 +692,38 @@ if [ -n "$BASH_VERSION" ]; then
       |*DELETE\ FROM*|*shutil.rmtree*\
       |*\ rm|*sed\ *-i*|*sed\ *-[a-zA-Z]i*|*sed\ *-[a-zA-Z][a-zA-Z]i*\
       |*sed\ *--in-place*|*perl\ *-*i*__DEMO_CLI_GIT_GLOBS__)
+        __demo_cli_go=1 ;;
+    esac
+    if [ "$__demo_cli_go" = 0 ]; then
+      # The first command word, past NAME=value prefixes, without its path
+      # or a .exe (Git Bash). A wrapper (sudo, env ...) is in the table too:
+      # what it runs is guard-shell's to read.
+      __demo_cli_w=${__demo_cli_c%%[[:space:]]*}
+      case $__demo_cli_w in
+        *=*)                                   # NAME=value prefixes: skip them
+          __demo_cli_w=$__demo_cli_c
+          while :; do
+            case ${__demo_cli_w%%[[:space:]]*} in
+              *=*) case $__demo_cli_w in *[[:space:]]*) ;; *) __demo_cli_w= ; break ;; esac
+                   __demo_cli_w=${__demo_cli_w#*[[:space:]]}
+                   __demo_cli_w=${__demo_cli_w#"${__demo_cli_w%%[![:space:]]*}"} ;;
+              *) break ;;
+            esac
+          done
+          __demo_cli_w=${__demo_cli_w%%[[:space:]]*} ;;
+      esac
+      __demo_cli_w=${__demo_cli_w##*/}
+      __demo_cli_w=${__demo_cli_w%.exe}
+      if [ -n "$__demo_cli_w" ]; then
+        if [ "$__demo_cli_assoc" = 1 ]; then
+          [ -n "${__demo_cli_words[$__demo_cli_w]+x}" ] && __demo_cli_go=1
+        else
+          case $__demo_cli_wordlist in *" $__demo_cli_w "*) __demo_cli_go=1 ;; esac
+        fi
+      fi
+    fi
+    case $__demo_cli_go in
+      1)
         # Bounded: the ledger lock waits 10s, and this call had no bound, so
         # a stuck lock cost 10s per command. A timeout is our failure, so it
         # fails open like the broken-guard hatch below.
@@ -739,9 +789,31 @@ if [ -n "$BASH_VERSION" ]; then
   trap '__demo_cli_shell_guard' DEBUG
 fi
 # <<< demo_cli shell guard <<<
-'''.replace("__DEMO_CLI_GIT_GLOBS__", "".join(
-    "\\\n      |" + g for g in __import__("demo_cli.classify", fromlist=["_"])
-    .git_prefilter_globs()))
+'''
+
+
+def _shell_guard_snippet() -> str:
+    """The snippet, generated from the rule tables (M2.2e). Built on first
+    use, not at import: every demo_cli call imports this module."""
+    g = globals()
+    if "_SHELL_GUARD_SNIPPET" not in g:
+        from .classify import git_prefilter_globs
+        from .engine.rules import shell_prefilter_words
+        words = shell_prefilter_words()
+        rows, line = [], "  "
+        for word in words:
+            item = f"[{word}]=1 "
+            if len(line) + len(item) > 96:
+                rows.append(line.rstrip())
+                line = "  "
+            line += item
+        rows.append(line.rstrip())
+        g["_SHELL_GUARD_SNIPPET"] = (
+            _SHELL_GUARD_TEMPLATE
+            .replace("__DEMO_CLI_GIT_GLOBS__", "".join("\\\n      |" + x for x in git_prefilter_globs()))
+            .replace("__DEMO_CLI_WORDS_ASSOC__", "\n".join(rows))
+            .replace("__DEMO_CLI_WORDS_LIST__", " ".join(words)))
+    return g["_SHELL_GUARD_SNIPPET"]
 
 
 _SELF_ASSIGN = re.compile(r"^[A-Za-z_]\w*=")
@@ -822,11 +894,11 @@ def cmd_guard_shell(a) -> int:
 
 def cmd_install_shell_guard(a) -> int:
     if getattr(a, "print", False):
-        print(_SHELL_GUARD_SNIPPET)
+        print(_shell_guard_snippet())
         return 0
     script = os.path.expanduser("~/.demo_cli_shellguard.sh")
     with open(script, "w", encoding="utf-8") as f:
-        f.write(_SHELL_GUARD_SNIPPET)
+        f.write(_shell_guard_snippet())
     rc = os.path.expanduser("~/.bashrc")
     marker = "demo_cli_shellguard.sh"
     already = os.path.exists(rc) and marker in open(rc, encoding="utf-8").read()

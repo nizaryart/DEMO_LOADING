@@ -757,3 +757,16 @@ def all_rules() -> Tuple[Rule, ...]:
 
 # Kept for the Part B semantics tests, which used to add touch and mv here.
 TEST_ONLY_RULES: Tuple[Rule, ...] = RULES
+
+
+def shell_prefilter_words() -> Tuple[str, ...]:
+    """The command words the shell guard's prefilter sends to guard-shell
+    (M2.2e): every tool a rule covers, lazy families included, and the
+    wrappers that can put one behind them (sudo, env, timeout ...) - minus
+    the reads and the shells, which have no effect of their own, and git,
+    whose prefilter is generated from classify.py's git rules so a read like
+    `git status` costs nothing. Generated from the tables, never typed: a
+    family added later reaches the shell door by being added here."""
+    from ..classify import _WRAPPERS
+    words = set(LAZY_FAMILIES) | {t for r in RULES for t in r.tools} | set(_WRAPPERS)
+    return tuple(sorted(words - READ_ONLY - SHELLS - {"git"}))
