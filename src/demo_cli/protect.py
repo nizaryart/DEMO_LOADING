@@ -449,6 +449,50 @@ def lock_directory(path: str) -> ResetOutcome:
     return _reset_children(path)
 
 
+USERS_SID = "S-1-5-32-545"
+
+# W-SEC (2026-10-08): the logon task's home. Like _LOCK_ACL, but the user may
+# READ and RUN what is there (the runtime the task runs, its log) - never
+# write it. No OWNER RIGHTS entry is needed: the owner becomes Administrators.
+_READABLE_LOCK_ACL = [(SYSTEM_SID, "(OI)(CI)F"),
+                      (ADMINS_SID, "(OI)(CI)F"),
+                      (USERS_SID, "(OI)(CI)RX")]
+
+
+def lock_readable(path: str) -> ResetOutcome:
+    """Administrators own `path`; SYSTEM and Administrators have full
+    control; Users read and execute; children inherit. Elevated only.
+
+    Ownership first: a folder the user created before setup ran is theirs,
+    and an owner can always rewrite a DACL - so locking it without taking it
+    would lock nothing. `/setowner` takes the whole tree (no /L: links are
+    refused by the caller before this runs)."""
+    if os.name != "nt" or not _icacls_present():
+        return ResetOutcome(False)
+    if not _run([_ICACLS, path, "/setowner", f"*{ADMINS_SID}", "/T", "/C", "/Q"]):
+        return ResetOutcome(False, failed=[path])
+    args = [_ICACLS, path, "/inheritance:r"]
+    for sid, rights in _READABLE_LOCK_ACL:
+        args += ["/grant:r", f"*{sid}:{rights}"]
+    if not _run(args):
+        return ResetOutcome(False, failed=[path])
+    return _reset_children(path)
+
+
+_WRITE_BITS = 0x2 | 0x4 | 0x10000 | 0x40000 | 0x80000 | 0x40000000 | 0x10000000
+
+
+def nobody_else_writes(aces: Optional[List[Ace]]) -> Optional[bool]:
+    """True when no ALLOW entry grants a write-type right to anyone but
+    SYSTEM and Administrators; None when the DACL could not be read."""
+    if aces is None:
+        return None
+    for a in aces:
+        if a.allow and a.sid not in (SYSTEM_SID, ADMINS_SID) and a.mask & _WRITE_BITS:
+            return False
+    return True
+
+
 def unlock_directory(path: str) -> ResetOutcome:
     """Give the directory back to its owner and restore inheritance.
 

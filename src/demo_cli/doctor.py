@@ -457,6 +457,8 @@ def cmd_doctor(a) -> int:
     hook = _any_hook_installed(cfg)   # Claude Code specifically - gates the self-test below
 
     checks.extend(_mount_checks(cfg))
+    from . import schedule
+    checks.extend(schedule.audit(cfg.project_root))       # W-SEC, ruling R4
     checks.extend(_egress_checks(cfg))
 
     # Check if demo_cli binary is on PATH for hook invocations.

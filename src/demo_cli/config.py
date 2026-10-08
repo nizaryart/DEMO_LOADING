@@ -407,6 +407,11 @@ def control_plane_paths(cfg) -> List[str]:
     launcher = shutil.which("demo_cli")
     if launcher:
         paths.append(launcher)
+    # W-SEC (ruling R4): the logon task's home, and the old one whose script
+    # an old task may still run.
+    if os.name == "nt":
+        from .schedule import control_plane_paths as task_paths
+        paths += task_paths()
     return [os.path.normpath(os.path.abspath(p)) for p in paths]
 
 

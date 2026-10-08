@@ -525,7 +525,8 @@ def cmd_setup(a) -> int:
                 print("      " + render.c("protected", "green"))
 
         # 4. Come back after a reboot --------------------------------------
-        if schedule.status(project).exists:
+        st = schedule.status(project)
+        if st.exists and not st.legacy:
             _step(4, "logon task already registered")
         elif protect_mod.is_elevated():
             ok = schedule.register(project, protect_mod.backing_for(project))
