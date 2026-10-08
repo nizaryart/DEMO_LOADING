@@ -779,3 +779,13 @@ def sql_client(w, inv, parsed, state, tool) -> None:
         sql.warm({"sqlite3": "sqlite", "psql": "postgres"}.get(tool, "mysql"))
         return run
     w.untimed(load)(w, inv, parsed, state, tool)      # imports stay outside the budget
+
+
+def system(w, inv, parsed, state, tool) -> None:
+    """services, power, processes, accounts, disks, the machine's recovery
+    data, network and firewall, modes and owners, the registry (M2.2c), in
+    system_ops.py - imported the first time a line names one of them."""
+    def load():
+        from .system_ops import system as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)

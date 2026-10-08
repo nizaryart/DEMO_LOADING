@@ -230,6 +230,8 @@ READ_ONLY = frozenset({
     "realpath", "readlink", "id", "whoami", "uname", "hostname", "sleep", "seq",
     "less", "more", "diff", "cmp", "md5sum", "sha1sum", "sha256sum", "set", "shopt",
     "alias", "history", "jobs", "wait", "exit", "return", "shift", "trap", "umask",
+    # M2.2c: what a kill line reads its PIDs from (`kill $(lsof -ti:3000)`)
+    "ps", "pgrep", "pidof", "lsof",
 })
 
 SHELLS = frozenset({"bash", "sh", "dash", "zsh", "ksh"})
@@ -698,6 +700,38 @@ LAZY_FAMILIES: Dict[str, str] = {
     "mailx": "rules_send", "sendmail": "rules_send", "swaks": "rules_send", "ssh": "rules_send", "scp": "rules_send", "sftp": "rules_send",
     "npm": "rules_send", "pnpm": "rules_send", "yarn": "rules_send", "cargo": "rules_send", "twine": "rules_send", "gem": "rules_send",
     "poetry": "rules_send",
+    # M2.2c: services, power, processes, accounts, disks, recovery data,
+    # network and firewall, modes and owners, the Windows registry
+    "addgroup": "rules_system", "adduser": "rules_system", "bcdedit": "rules_system",
+    "blkdiscard": "rules_system", "chage": "rules_system", "chfn": "rules_system",
+    "chgpasswd": "rules_system", "chgrp": "rules_system", "chmod": "rules_system",
+    "chown": "rules_system", "chpasswd": "rules_system", "chsh": "rules_system",
+    "cipher": "rules_system", "delgroup": "rules_system", "deluser": "rules_system",
+    "diskpart": "rules_system", "fdisk": "rules_system", "format": "rules_system",
+    "format.com": "rules_system", "gpasswd": "rules_system", "groupadd": "rules_system",
+    "groupdel": "rules_system", "groupmod": "rules_system", "halt": "rules_system",
+    "icacls": "rules_system", "ifconfig": "rules_system", "ip": "rules_system",
+    "ip6tables": "rules_system", "ip6tables-legacy": "rules_system",
+    "ip6tables-nft": "rules_system", "ip6tables-restore": "rules_system",
+    "ip6tables-save": "rules_system", "iptables": "rules_system",
+    "iptables-legacy": "rules_system", "iptables-nft": "rules_system",
+    "iptables-restore": "rules_system", "iptables-save": "rules_system", "kill": "rules_system",
+    "killall": "rules_system", "killall5": "rules_system", "launchctl": "rules_system",
+    "mkdosfs": "rules_system", "mke2fs": "rules_system", "mkfs": "rules_system",
+    "mkfs.btrfs": "rules_system", "mkfs.exfat": "rules_system", "mkfs.ext2": "rules_system",
+    "mkfs.ext3": "rules_system", "mkfs.ext4": "rules_system", "mkfs.f2fs": "rules_system",
+    "mkfs.fat": "rules_system", "mkfs.msdos": "rules_system", "mkfs.ntfs": "rules_system",
+    "mkfs.vfat": "rules_system", "mkfs.xfs": "rules_system", "mkntfs": "rules_system",
+    "mkswap": "rules_system", "net": "rules_system", "net1": "rules_system",
+    "netsh": "rules_system", "newusers": "rules_system", "nft": "rules_system",
+    "nmcli": "rules_system", "parted": "rules_system", "passwd": "rules_system",
+    "pkill": "rules_system", "poweroff": "rules_system", "reboot": "rules_system",
+    "reg": "rules_system", "sc": "rules_system", "service": "rules_system",
+    "sfdisk": "rules_system", "shutdown": "rules_system", "systemctl": "rules_system",
+    "takeown": "rules_system", "taskkill": "rules_system", "ufw": "rules_system",
+    "useradd": "rules_system", "userdel": "rules_system", "usermod": "rules_system",
+    "vssadmin": "rules_system", "wbadmin": "rules_system", "wevtutil": "rules_system",
+    "wipefs": "rules_system", "wmic": "rules_system",
 }
 _FAMILY_RULES: Dict[str, Tuple[Rule, ...]] = {}
 

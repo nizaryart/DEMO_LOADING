@@ -1,0 +1,1549 @@
+{
+ "systemctl stop nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl disable nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl mask nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "sudo systemctl stop nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "service nginx stop": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:sysv@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "launchctl unload x.plist": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:launchd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kill -9 1234": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "pkill -f api": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "killall node": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "reboot": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "shutdown -h now": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "userdel bob": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "deluser bob": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "passwd -d bob": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "usermod -L bob": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "chmod -R 000 src": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chown -R nobody src": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "systemctl enable evil": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "systemctl enable"
+  ]
+ },
+ "reg delete HKCU\\\\Software\\\\X /f": {
+  "decision": "ESCALATE",
+  "surface": "system_config",
+  "captured": false,
+  "remote": {
+   "winreg:HKCU": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vssadmin delete shadows /all /quiet": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:vss": "DELETE"
+  },
+  "uncovered": []
+ },
+ "format d: /q": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:d:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "diskpart /s wipe.txt": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:diskpart": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "cipher /w:c:": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:freespace": "DELETE"
+  },
+  "uncovered": []
+ },
+ "bcdedit /deletevalue x": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:bcd": "DELETE"
+  },
+  "uncovered": []
+ },
+ "taskkill /f /im node.exe": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "wmic process call terminate": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "wipefs -a /dev/sdb": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sdb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "fdisk /dev/sdb": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sdb": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "iptables -F": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "ufw disable": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ip link set eth0 down": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "cmd /c \"sc delete svc\"": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:sc@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mkfs /dev/sdb": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sdb": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mkfs.ext4 /dev/sdX": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sdX": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mkfs.ext4 /dev/sda1": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sda1": "DELETE"
+  },
+  "uncovered": []
+ },
+ "mkfs.ext4 /dev/sdb1": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sdb1": "DELETE"
+  },
+  "uncovered": []
+ },
+ "net share": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "net start w32time": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "service:net@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "net user": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc EnumDepend svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc GetKeyName svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc delete svc": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:sc@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sc f.txt \"x\"": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "sc f.txt"
+  ]
+ },
+ "sc qc svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc query": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc query ri= 14": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc sdshow svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc showsid svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc.exe qprotection svc": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc.exe query": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc.exe queryex spooler": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl daemon-reload": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "systemctl start nginx": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "systemctl status nginx": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill $(lsof -ti:3000)": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kill -9 $(pgrep -f \"npm run dev\")": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "ps aux | grep node": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill -s TERM 42": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kill -SIGKILL 42": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "X=-l; kill $X": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl list-units --type=service": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl $ACTION nginx": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl -t service stop x": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl --user restart pipewire": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "service:systemd-user@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "systemctl start poweroff.target": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl suspend": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "sudo -u root systemctl stop nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "net share c$ /delete": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "chmod +x a.txt && ./a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "a.txt"
+  ]
+ },
+ "chmod 755 dir": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod -R u+w .": {
+  "decision": "ESCALATE",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod 600 ~/.ssh/id_rsa": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chown $(whoami) a.txt": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ip -4 addr show": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip -br link": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip route": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip r del default": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "ip link": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip -n ns1 link set lo down": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "nmcli c up home": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "nmcli d wifi list": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "nmcli g hostname newname": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ufw allow 22/tcp": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ufw route delete 1": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "iptables -L -n --line-numbers": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "iptables -D INPUT 3": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "reg export HKCU\\Software\\X out.reg": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "reboot --help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "shutdown -r +5": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "shutdown now": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "shutdown": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "halt -p": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "poweroff --help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "passwd": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "deluser bob sudo": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "net user bob": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sudo systemctl --now disable nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl restart nginx": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "systemctl -H web1 stop nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@web1": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl --user stop app": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd-user@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl edit nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "systemctl clean nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "systemctl log-level": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl enable nginx": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "systemctl enable"
+  ]
+ },
+ "systemctl --no-such-option stop x": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "systemctl --no-such-option"
+  ]
+ },
+ "systemctl --no-p stop nginx": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:systemd@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "service --status-all": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sc stop spooler": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:sc@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "sc \\\\\\\\BOX delete svc": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:sc@\\\\BOX": "DELETE"
+  },
+  "uncovered": []
+ },
+ "sc create evil binPath= x.exe": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "sc create"
+  ]
+ },
+ "net stop w32time": {
+  "decision": "ESCALATE",
+  "surface": "service_control",
+  "captured": false,
+  "remote": {
+   "service:net@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "net start": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sudo shutdown -h now": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "shutdown -c": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "shutdown //r //t 0": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "shutdown /a": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl reboot": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "systemctl --dry-run reboot": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "systemctl start reboot.target": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "reboot -w": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill %1": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kill -l": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill -0 1234": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "kill -9 -1": {
+  "decision": "ESCALATE",
+  "surface": "host_power",
+  "captured": false,
+  "remote": {
+   "power:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "kill $(pgrep node)": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "killall -l": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "taskkill //f //im node.exe": {
+  "decision": "ESCALATE",
+  "surface": "process_control",
+  "captured": false,
+  "remote": {
+   "process:local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "taskkill /?": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sudo useradd -m eve": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "usermod -aG sudo eve": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "passwd -S bob": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "net user hacker /add": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "net user victim /delete": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "net localgroup administrators hacker /add": {
+  "decision": "ESCALATE",
+  "surface": "account_control",
+  "captured": false,
+  "remote": {
+   "account:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "wipefs /dev/sdb": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wipefs -n -a /dev/sdb": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "fdisk -l": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "parted /dev/sda print": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "parted -s /dev/sda mklabel gpt": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:/dev/sda": "DELETE"
+  },
+  "uncovered": []
+ },
+ "format d: //q": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:d:": "DELETE"
+  },
+  "uncovered": []
+ },
+ "cipher //w:c:": {
+  "decision": "ESCALATE",
+  "surface": "disk_format",
+  "captured": false,
+  "remote": {
+   "device:freespace": "DELETE"
+  },
+  "uncovered": []
+ },
+ "vssadmin list shadows": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wbadmin delete catalog": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:wbadmin": "DELETE"
+  },
+  "uncovered": []
+ },
+ "bcdedit /set {default} recoveryenabled no": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:bcd": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "bcdedit /enum": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "wevtutil cl Security": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:eventlog": "DELETE"
+  },
+  "uncovered": []
+ },
+ "wmic shadowcopy delete": {
+  "decision": "ESCALATE",
+  "surface": "system_recovery",
+  "captured": false,
+  "remote": {
+   "sysrec:vss": "DELETE"
+  },
+  "uncovered": []
+ },
+ "iptables -nvL": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "sudo iptables -P INPUT DROP": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "iptables --fl": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "iptables-save": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "iptables-restore < rules.v4": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ufw --dry-run reset": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ufw status verbose": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "nft flush ruleset": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "nft list ruleset": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip a": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ip l s eth0 down": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "ip link set eth0 up": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_KEEP"
+  },
+  "uncovered": []
+ },
+ "ip a f dev eth0": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "ip route add default via 10.0.0.1": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "ip netns exec ns1 rm a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": [
+   "ip netns exec"
+  ]
+ },
+ "nmcli connection delete home": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "DELETE"
+  },
+  "uncovered": []
+ },
+ "nmcli networking off": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "nmcli device status": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "ifconfig eth0 down": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:link@local": "SERVICE_LOSS"
+  },
+  "uncovered": []
+ },
+ "ifconfig": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "netsh advfirewall set allprofiles state off": {
+  "decision": "ESCALATE",
+  "surface": "host_network",
+  "captured": false,
+  "remote": {
+   "net:firewall@local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "netsh advfirewall show allprofiles": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod 600 a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod -R 000 dir": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod -x a.txt": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod --reference a.txt b.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod 644 missing.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chmod --help": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "chown -R nobody sub": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "chgrp staff a.txt": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "icacls a.txt //grant Everyone:F": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "icacls a.txt": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "takeown //f a.txt": {
+  "decision": "ESCALATE",
+  "surface": "file_ownership",
+  "captured": false,
+  "remote": {
+   "owner:local": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "reg delete 'HKCU\\Software\\X' //f": {
+  "decision": "ESCALATE",
+  "surface": "system_config",
+  "captured": false,
+  "remote": {
+   "winreg:HKCU": "DELETE"
+  },
+  "uncovered": []
+ },
+ "reg add 'HKLM\\Software\\X' //v y //d 1": {
+  "decision": "ESCALATE",
+  "surface": "system_config",
+  "captured": false,
+  "remote": {
+   "winreg:HKLM": "OVERWRITE"
+  },
+  "uncovered": []
+ },
+ "reg query 'HKCU\\Software\\X'": {
+  "decision": "ALLOW",
+  "surface": null,
+  "captured": false,
+  "remote": {},
+  "uncovered": []
+ },
+ "reg export 'HKCU\\Software\\X' a.txt //y": {
+  "decision": "REVERSIBLE",
+  "surface": null,
+  "captured": true,
+  "remote": {},
+  "uncovered": []
+ }
+}

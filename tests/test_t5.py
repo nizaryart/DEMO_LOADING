@@ -27,6 +27,13 @@ def test_every_surface_has_a_non_empty_hint_and_no_hint_is_dead():
             policy.surface_of("iac:terraform"),
             policy.surface_of("cluster:current/default"),
             policy.surface_of("cluster-workload:current/default"),
+            # M2.2c: this machine's labels
+            policy.surface_of("power:local"),
+            policy.surface_of("process:local"),
+            policy.surface_of("sysrec:vss"),
+            policy.surface_of("net:firewall@local"),
+            policy.surface_of("owner:local"),
+            policy.surface_of("winreg:HKCU"),
             policy.surface_of("x:y"),
         }
     )

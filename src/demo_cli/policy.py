@@ -50,7 +50,13 @@ _LABEL_SURFACES = (("db:", "remote_database"), ("device:", "disk_format"),
                    ("paas:", "paas_destroy"), ("deploy:", "saas_deploy"),
                    # M2.2b4b2: stores, CMS, payments, migrations
                    ("cms:", "saas_cms"), ("payment:", "external_payment"),
-                   ("migration:", "schema_migration"))
+                   ("migration:", "schema_migration"),
+                   # M2.2c: this machine - services, power, processes, accounts,
+                   # its recovery data, network, owners, the registry
+                   ("service:", "service_control"), ("power:", "host_power"),
+                   ("process:", "process_control"), ("account:", "account_control"),
+                   ("sysrec:", "system_recovery"), ("net:", "host_network"),
+                   ("owner:", "file_ownership"), ("winreg:", "system_config"))
 
 def surface_of(label: str) -> str:
     return next((s for p, s in _LABEL_SURFACES if label.startswith(p)), "remote_surface")
@@ -95,6 +101,13 @@ RECOVERY_HINTS = {
     # M2.2b1: scale, drain, cordon, rollout restart - nothing is deleted;
     # what changes is how much of the workload is running
     "cluster_availability": "scale the workload to its previous replica count, uncordon the node, or roll the deployment back",
+    # M2.2c: this machine
+    "host_power": "nothing to restore - start the machine and its services again; unsaved work is gone",
+    "process_control": "start the process again; what it held only in memory is gone",
+    "system_recovery": "none on this machine - the shadow copies, backups, boot settings or event log it removed are what a recovery would have used",
+    "host_network": "the rules or settings saved before the change (iptables-save, nft list ruleset, netsh advfirewall export), if any were saved",
+    "file_ownership": "set the owner and ACL back by hand (chown, or icacls /restore from a saved ACL file)",
+    "system_config": "a `reg export` of the key taken before the change, if one exists",
 }
 GENERIC_HINT = "its version history / rollback"
 
@@ -124,10 +137,14 @@ ESCALATION_CHANNEL = {
     "package_registry": ASK, "schema_migration": ASK, "saas_deploy": ASK,
     "saas_cms": ASK, "service_control": ASK, "remote_filesystem": ASK,
     "external_message": ASK, "external_email": ASK, "remote_surface": ASK,
+    # M2.2c (rulings C2, C3, C7, C8, C9)
+    "host_power": ASK, "process_control": ASK, "host_network": ASK,
+    "file_ownership": ASK, "system_config": ASK,
     # the whole thing gone, no realistic undo
     "datastore_flush": DENY, "disk_format": DENY, "infra_destroy": DENY,
     "recursive_force_delete": DENY, "account_control": DENY, "message_queue": DENY,
     "external_payment": DENY, "paas_destroy": DENY,
+    "system_recovery": DENY,     # M2.2c, ruling C6
 }
 # Escalations that name no surface (decide.py's other branches).
 NO_SURFACE_CHANNEL = {

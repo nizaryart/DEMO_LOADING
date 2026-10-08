@@ -1,0 +1,750 @@
+[
+ {
+  "cmd": "systemctl stop nginx",
+  "source": "inventory"
+ },
+ {
+  "cmd": "systemctl disable nginx",
+  "source": "inventory"
+ },
+ {
+  "cmd": "systemctl mask nginx",
+  "source": "inventory"
+ },
+ {
+  "cmd": "sudo systemctl stop nginx",
+  "source": "inventory"
+ },
+ {
+  "cmd": "service nginx stop",
+  "source": "inventory"
+ },
+ {
+  "cmd": "launchctl unload x.plist",
+  "source": "inventory"
+ },
+ {
+  "cmd": "kill -9 1234",
+  "source": "inventory"
+ },
+ {
+  "cmd": "pkill -f api",
+  "source": "inventory"
+ },
+ {
+  "cmd": "killall node",
+  "source": "inventory"
+ },
+ {
+  "cmd": "reboot",
+  "source": "inventory"
+ },
+ {
+  "cmd": "shutdown -h now",
+  "source": "inventory"
+ },
+ {
+  "cmd": "userdel bob",
+  "source": "inventory"
+ },
+ {
+  "cmd": "deluser bob",
+  "source": "inventory"
+ },
+ {
+  "cmd": "passwd -d bob",
+  "source": "inventory"
+ },
+ {
+  "cmd": "usermod -L bob",
+  "source": "inventory"
+ },
+ {
+  "cmd": "chmod -R 000 src",
+  "source": "inventory"
+ },
+ {
+  "cmd": "chown -R nobody src",
+  "source": "inventory"
+ },
+ {
+  "cmd": "systemctl enable evil",
+  "source": "inventory"
+ },
+ {
+  "cmd": "reg delete HKCU\\\\Software\\\\X /f",
+  "source": "inventory"
+ },
+ {
+  "cmd": "vssadmin delete shadows /all /quiet",
+  "source": "inventory"
+ },
+ {
+  "cmd": "format d: /q",
+  "source": "inventory"
+ },
+ {
+  "cmd": "diskpart /s wipe.txt",
+  "source": "inventory"
+ },
+ {
+  "cmd": "cipher /w:c:",
+  "source": "inventory"
+ },
+ {
+  "cmd": "bcdedit /deletevalue x",
+  "source": "inventory"
+ },
+ {
+  "cmd": "taskkill /f /im node.exe",
+  "source": "inventory"
+ },
+ {
+  "cmd": "wmic process call terminate",
+  "source": "inventory"
+ },
+ {
+  "cmd": "wipefs -a /dev/sdb",
+  "source": "inventory"
+ },
+ {
+  "cmd": "fdisk /dev/sdb",
+  "source": "inventory"
+ },
+ {
+  "cmd": "iptables -F",
+  "source": "inventory"
+ },
+ {
+  "cmd": "ufw disable",
+  "source": "inventory"
+ },
+ {
+  "cmd": "ip link set eth0 down",
+  "source": "inventory"
+ },
+ {
+  "cmd": "cmd /c \"sc delete svc\"",
+  "source": "gate"
+ },
+ {
+  "cmd": "mkfs /dev/sdb",
+  "source": "gate"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sdX",
+  "source": "gate"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sda1",
+  "source": "gate"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sdb1",
+  "source": "gate"
+ },
+ {
+  "cmd": "net share",
+  "source": "gate"
+ },
+ {
+  "cmd": "net start w32time",
+  "source": "gate"
+ },
+ {
+  "cmd": "net user",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc EnumDepend svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc GetKeyName svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc delete svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc f.txt \"x\"",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc qc svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc query",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc query ri= 14",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc sdshow svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc showsid svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc.exe qprotection svc",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc.exe query",
+  "source": "gate"
+ },
+ {
+  "cmd": "sc.exe queryex spooler",
+  "source": "gate"
+ },
+ {
+  "cmd": "systemctl daemon-reload",
+  "source": "gate"
+ },
+ {
+  "cmd": "systemctl start nginx",
+  "source": "gate"
+ },
+ {
+  "cmd": "systemctl status nginx",
+  "source": "gate"
+ },
+ {
+  "cmd": "kill $(lsof -ti:3000)",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -9 $(pgrep -f \"npm run dev\")",
+  "source": "orch"
+ },
+ {
+  "cmd": "ps aux | grep node",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -s TERM 42",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -SIGKILL 42",
+  "source": "orch"
+ },
+ {
+  "cmd": "X=-l; kill $X",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl list-units --type=service",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl $ACTION nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl -t service stop x",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --user restart pipewire",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl start poweroff.target",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl suspend",
+  "source": "orch"
+ },
+ {
+  "cmd": "sudo -u root systemctl stop nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "net share c$ /delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod +x a.txt && ./a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod 755 dir",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod -R u+w .",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod 600 ~/.ssh/id_rsa",
+  "source": "orch"
+ },
+ {
+  "cmd": "chown $(whoami) a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip -4 addr show",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip -br link",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip route",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip r del default",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip link",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip -n ns1 link set lo down",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli c up home",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli d wifi list",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli g hostname newname",
+  "source": "orch"
+ },
+ {
+  "cmd": "ufw allow 22/tcp",
+  "source": "orch"
+ },
+ {
+  "cmd": "ufw route delete 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables -L -n --line-numbers",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables -D INPUT 3",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg export HKCU\\Software\\X out.reg",
+  "source": "orch"
+ },
+ {
+  "cmd": "reboot --help",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown -r +5",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown now",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown",
+  "source": "orch"
+ },
+ {
+  "cmd": "halt -p",
+  "source": "orch"
+ },
+ {
+  "cmd": "poweroff --help",
+  "source": "orch"
+ },
+ {
+  "cmd": "passwd",
+  "source": "orch"
+ },
+ {
+  "cmd": "deluser bob sudo",
+  "source": "orch"
+ },
+ {
+  "cmd": "net user bob",
+  "source": "orch"
+ },
+ {
+  "cmd": "sudo systemctl --now disable nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl restart nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl -H web1 stop nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --user stop app",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl edit nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl clean nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl log-level",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl enable nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --no-such-option stop x",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --no-p stop nginx",
+  "source": "orch"
+ },
+ {
+  "cmd": "service --status-all",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc stop spooler",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc \\\\\\\\BOX delete svc",
+  "source": "orch"
+ },
+ {
+  "cmd": "sc create evil binPath= x.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "net stop w32time",
+  "source": "orch"
+ },
+ {
+  "cmd": "net start",
+  "source": "orch"
+ },
+ {
+  "cmd": "sudo shutdown -h now",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown -c",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown //r //t 0",
+  "source": "orch"
+ },
+ {
+  "cmd": "shutdown /a",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl reboot",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl --dry-run reboot",
+  "source": "orch"
+ },
+ {
+  "cmd": "systemctl start reboot.target",
+  "source": "orch"
+ },
+ {
+  "cmd": "reboot -w",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill %1",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -l",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -0 1234",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill -9 -1",
+  "source": "orch"
+ },
+ {
+  "cmd": "kill $(pgrep node)",
+  "source": "orch"
+ },
+ {
+  "cmd": "killall -l",
+  "source": "orch"
+ },
+ {
+  "cmd": "taskkill //f //im node.exe",
+  "source": "orch"
+ },
+ {
+  "cmd": "taskkill /?",
+  "source": "orch"
+ },
+ {
+  "cmd": "sudo useradd -m eve",
+  "source": "orch"
+ },
+ {
+  "cmd": "usermod -aG sudo eve",
+  "source": "orch"
+ },
+ {
+  "cmd": "passwd -S bob",
+  "source": "orch"
+ },
+ {
+  "cmd": "net user hacker /add",
+  "source": "orch"
+ },
+ {
+  "cmd": "net user victim /delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "net localgroup administrators hacker /add",
+  "source": "orch"
+ },
+ {
+  "cmd": "wipefs /dev/sdb",
+  "source": "orch"
+ },
+ {
+  "cmd": "wipefs -n -a /dev/sdb",
+  "source": "orch"
+ },
+ {
+  "cmd": "fdisk -l",
+  "source": "orch"
+ },
+ {
+  "cmd": "parted /dev/sda print",
+  "source": "orch"
+ },
+ {
+  "cmd": "parted -s /dev/sda mklabel gpt",
+  "source": "orch"
+ },
+ {
+  "cmd": "format d: //q",
+  "source": "orch"
+ },
+ {
+  "cmd": "cipher //w:c:",
+  "source": "orch"
+ },
+ {
+  "cmd": "vssadmin list shadows",
+  "source": "orch"
+ },
+ {
+  "cmd": "wbadmin delete catalog",
+  "source": "orch"
+ },
+ {
+  "cmd": "bcdedit /set {default} recoveryenabled no",
+  "source": "orch"
+ },
+ {
+  "cmd": "bcdedit /enum",
+  "source": "orch"
+ },
+ {
+  "cmd": "wevtutil cl Security",
+  "source": "orch"
+ },
+ {
+  "cmd": "wmic shadowcopy delete",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables -nvL",
+  "source": "orch"
+ },
+ {
+  "cmd": "sudo iptables -P INPUT DROP",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables --fl",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables-save",
+  "source": "orch"
+ },
+ {
+  "cmd": "iptables-restore < rules.v4",
+  "source": "orch"
+ },
+ {
+  "cmd": "ufw --dry-run reset",
+  "source": "orch"
+ },
+ {
+  "cmd": "ufw status verbose",
+  "source": "orch"
+ },
+ {
+  "cmd": "nft flush ruleset",
+  "source": "orch"
+ },
+ {
+  "cmd": "nft list ruleset",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip a",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip l s eth0 down",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip link set eth0 up",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip a f dev eth0",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip route add default via 10.0.0.1",
+  "source": "orch"
+ },
+ {
+  "cmd": "ip netns exec ns1 rm a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli connection delete home",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli networking off",
+  "source": "orch"
+ },
+ {
+  "cmd": "nmcli device status",
+  "source": "orch"
+ },
+ {
+  "cmd": "ifconfig eth0 down",
+  "source": "orch"
+ },
+ {
+  "cmd": "ifconfig",
+  "source": "orch"
+ },
+ {
+  "cmd": "netsh advfirewall set allprofiles state off",
+  "source": "orch"
+ },
+ {
+  "cmd": "netsh advfirewall show allprofiles",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod 600 a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod -R 000 dir",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod -x a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod --reference a.txt b.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod 644 missing.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "chmod --help",
+  "source": "orch"
+ },
+ {
+  "cmd": "chown -R nobody sub",
+  "source": "orch"
+ },
+ {
+  "cmd": "chgrp staff a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "icacls a.txt //grant Everyone:F",
+  "source": "orch"
+ },
+ {
+  "cmd": "icacls a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "takeown //f a.txt",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg delete 'HKCU\\Software\\X' //f",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg add 'HKLM\\Software\\X' //v y //d 1",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg query 'HKCU\\Software\\X'",
+  "source": "orch"
+ },
+ {
+  "cmd": "reg export 'HKCU\\Software\\X' a.txt //y",
+  "source": "orch"
+ }
+]

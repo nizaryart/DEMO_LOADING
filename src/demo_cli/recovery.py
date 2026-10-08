@@ -11,6 +11,7 @@ import math
 import os
 import re
 import shutil
+import stat
 import subprocess
 import uuid
 from dataclasses import dataclass, field
@@ -1054,6 +1055,41 @@ def _put_link(path: str, value: str) -> None:
         raise
 
 
+def _owner_can_write(path: str) -> None:
+    """Add the owner's write bit (and, on a directory, read and search) to ONE
+    existing path the copy-back is about to write, if they are missing. A
+    link is never followed; a failure is left to the copy, which reports it."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return
+    if stat.S_ISLNK(st.st_mode):
+        return
+    want = stat.S_IWRITE | (stat.S_IREAD | stat.S_IEXEC if stat.S_ISDIR(st.st_mode) else 0)
+    if stat.S_IMODE(st.st_mode) & want != want:
+        try:
+            os.chmod(path, stat.S_IMODE(st.st_mode) | want)
+        except OSError:
+            pass
+
+
+def _writable(rp: str, target: str) -> None:
+    """Let the copy-back write over what the recovery point holds. A target
+    whose owner lost write (or, for a directory, read and search) permission
+    - `chmod 444 f`, `chmod -R 000 dir` - refused the copy, and undo failed
+    (M2.2c). Only the paths the snapshot holds are touched, top-down, and
+    copy2 / copytree then put each one's SAVED mode back: nothing else in the
+    live tree changes."""
+    _owner_can_write(target)
+    if not os.path.isdir(rp) or os.path.islink(target):
+        return
+    for dirpath, dirs, files in os.walk(rp):
+        rel = os.path.relpath(dirpath, rp)
+        live = target if rel == "." else os.path.join(target, rel)
+        for name in dirs + files:
+            _owner_can_write(os.path.join(live, name))
+
+
 def restore_entry(entry: dict) -> bool:
     kind = entry.get("kind", "sqlite")
     if kind in ("group", "set"):
@@ -1072,6 +1108,7 @@ def restore_entry(entry: dict) -> bool:
                 os.makedirs(parent, exist_ok=True)
             if entry.get("link") is not None:
                 _put_link(target, entry["link"])
+            _writable(rp, target)
             shutil.copy2(rp, target)
         except (OSError, ValueError):
             return False
@@ -1081,6 +1118,7 @@ def restore_entry(entry: dict) -> bool:
             return False
         # Overlay the snapshot tree back onto the target with symlinks preserved.
         try:
+            _writable(rp, target)
             shutil.copytree(rp, target, dirs_exist_ok=True, symlinks=True)
         except OSError:
             return False        # same reasoning as the file branch above

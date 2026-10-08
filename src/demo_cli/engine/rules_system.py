@@ -1,0 +1,147 @@
+"""The system family (M2.2c): services, power, processes, accounts, disks, the
+machine's own recovery data, network and firewall, file modes and owners, the
+Windows registry - loaded only when a line names one of its tools. The work is
+in system_ops.py; the rulings C1-C10 are in its docstring."""
+from __future__ import annotations
+
+from typing import Tuple
+
+from .effects import DELETE, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
+from .rules import OptionSpec, Rule, ex
+from .system_ops import TOOLS
+
+_SD = "service:systemd@local"
+_PW = "power:local"
+_PR = "process:local"
+_AC = "account:local"
+_FW = "net:firewall@local"
+_LK = "net:link@local"
+_OW = "owner:local"
+
+FAMILY_RULES: Tuple[Rule, ...] = (
+    Rule(id="system", tools=TOOLS, resolver="system", options=OptionSpec(),
+         examples=(
+             # C1 services
+             ex("systemctl status nginx", note="a read"),
+             ex("systemctl stop nginx", reaches={_SD: SERVICE_LOSS}),
+             ex("sudo systemctl --now disable nginx", reaches={_SD: SERVICE_LOSS}),
+             ex("systemctl mask nginx", reaches={_SD: SERVICE_LOSS}),
+             ex("systemctl restart nginx", reaches={_SD: SERVICE_KEEP},
+                note="allowed and listed (ruling C1)"),
+             ex("systemctl -H web1 stop nginx", reaches={"service:systemd@web1": SERVICE_LOSS}),
+             ex("systemctl --user stop app", reaches={"service:systemd-user@local": SERVICE_LOSS}),
+             ex("systemctl edit nginx", reaches={_SD: OVERWRITE}),
+             ex("systemctl clean nginx", reaches={_SD: DELETE},
+                note="removes the unit's state, cache and log directories"),
+             ex("systemctl log-level", note="no argument: a read"),
+             ex("systemctl enable nginx", uncovered={"systemctl enable"},
+                note="code that runs later: M2.2d (ruling C10)"),
+             ex("systemctl --no-such-option stop x", uncovered={"systemctl --no-such-option"}),
+             ex("systemctl --no-p stop nginx", reaches={_SD: SERVICE_LOSS},
+                note="getopt_long: a unique prefix is the option (--no-pager)"),
+             ex("service nginx stop", reaches={"service:sysv@local": SERVICE_LOSS}),
+             ex("service --status-all", note="a read"),
+             ex("sc query", note="a read"),
+             ex("sc stop spooler", reaches={"service:sc@local": SERVICE_LOSS}),
+             ex("sc \\\\\\\\BOX delete svc", reaches={"service:sc@\\\\BOX": DELETE}),
+             ex("sc create evil binPath= x.exe", uncovered={"sc create"}, note="M2.2d"),
+             ex("net stop w32time", reaches={"service:net@local": SERVICE_LOSS}),
+             ex("net start", note="lists the started services"),
+             # C2 power
+             ex("reboot", reaches={_PW: SERVICE_LOSS}),
+             ex("sudo shutdown -h now", reaches={_PW: SERVICE_LOSS}),
+             ex("shutdown -c", note="cancels a pending shutdown"),
+             ex("shutdown //r //t 0", reaches={_PW: SERVICE_LOSS}, note="Windows, from Git Bash"),
+             ex("shutdown /a", note="Windows: aborts a shutdown"),
+             ex("systemctl reboot", reaches={_PW: SERVICE_LOSS}),
+             ex("systemctl --dry-run reboot", note="systemctl(1): honoured by reboot"),
+             ex("systemctl start reboot.target", reaches={_PW: SERVICE_LOSS}),
+             ex("reboot -w", note="writes the wtmp record only"),
+             # C3 processes
+             ex("kill -9 1234", reaches={_PR: SERVICE_LOSS}),
+             ex("kill %1", reaches={_PR: SERVICE_LOSS}),
+             ex("kill -l", note="lists the signals"),
+             ex("kill -0 1234", note="signal 0 only tests the process"),
+             ex("kill -9 -1", reaches={_PW: SERVICE_LOSS}, note="every process"),
+             ex("kill $(pgrep node)", reaches={_PR: SERVICE_LOSS},
+                note="pgrep only reads; the PIDs do not change the kind"),
+             ex("pkill -f api", reaches={_PR: SERVICE_LOSS}),
+             ex("killall node", reaches={_PR: SERVICE_LOSS}),
+             ex("killall -l", note="lists the signals"),
+             ex("taskkill //f //im node.exe", reaches={_PR: SERVICE_LOSS}),
+             ex("taskkill /?", note="help"),
+             # C4 accounts
+             ex("userdel bob", reaches={_AC: DELETE}),
+             ex("sudo useradd -m eve", reaches={_AC: OVERWRITE},
+                note="ruling C4: an added account escalates too"),
+             ex("usermod -aG sudo eve", reaches={_AC: OVERWRITE}),
+             ex("passwd -d bob", reaches={_AC: OVERWRITE}),
+             ex("passwd -S bob", note="a read"),
+             ex("net user", note="a read"),
+             ex("net user hacker /add", reaches={_AC: OVERWRITE}),
+             ex("net user victim /delete", reaches={_AC: DELETE}),
+             ex("net localgroup administrators hacker /add", reaches={_AC: OVERWRITE}),
+             # C5 disks
+             ex("mkfs.ext4 /dev/sdb1", reaches={"device:/dev/sdb1": DELETE}),
+             ex("wipefs -a /dev/sdb", reaches={"device:/dev/sdb": DELETE}),
+             ex("wipefs /dev/sdb", note="VERIFIED: without -a or -o it only lists"),
+             ex("wipefs -n -a /dev/sdb", note="--no-act"),
+             ex("fdisk -l", note="lists"),
+             ex("fdisk /dev/sdb", reaches={"device:/dev/sdb": OVERWRITE}),
+             ex("parted /dev/sda print", note="a read"),
+             ex("parted -s /dev/sda mklabel gpt", reaches={"device:/dev/sda": DELETE}),
+             ex("format d: //q", reaches={"device:d:": DELETE}),
+             ex("cipher //w:c:", reaches={"device:freespace": DELETE}),
+             # C6 the machine's recovery data
+             ex("vssadmin delete shadows /all /quiet", reaches={"sysrec:vss": DELETE}),
+             ex("vssadmin list shadows", note="a read"),
+             ex("wbadmin delete catalog", reaches={"sysrec:wbadmin": DELETE}),
+             ex("bcdedit /set {default} recoveryenabled no", reaches={"sysrec:bcd": OVERWRITE}),
+             ex("bcdedit /enum", note="a read"),
+             ex("wevtutil cl Security", reaches={"sysrec:eventlog": DELETE}),
+             ex("wmic shadowcopy delete", reaches={"sysrec:vss": DELETE}),
+             # C7 network and firewall
+             ex("iptables -F", reaches={_FW: DELETE}),
+             ex("iptables -nvL", note="lists"),
+             ex("sudo iptables -P INPUT DROP", reaches={_FW: OVERWRITE}),
+             ex("iptables --fl", reaches={_FW: DELETE}, note="getopt_long prefix of --flush"),
+             ex("iptables-save", note="prints the rules"),
+             ex("iptables-restore < rules.v4", reaches={_FW: OVERWRITE}),
+             ex("ufw disable", reaches={_FW: OVERWRITE}),
+             ex("ufw --dry-run reset", note="VERIFIED: --dry-run first changes nothing"),
+             ex("ufw status verbose", note="a read"),
+             ex("nft flush ruleset", reaches={_FW: DELETE}),
+             ex("nft list ruleset", note="a read"),
+             ex("ip a", note="VERIFIED: show"),
+             ex("ip l s eth0 down", reaches={_LK: SERVICE_LOSS}, note="VERIFIED: link set"),
+             ex("ip link set eth0 up", reaches={_LK: SERVICE_KEEP}),
+             ex("ip a f dev eth0", reaches={_LK: DELETE}, note="VERIFIED: address flush"),
+             ex("ip route add default via 10.0.0.1", reaches={_LK: OVERWRITE}),
+             ex("ip netns exec ns1 rm a.txt", uncovered={"ip netns exec"}),
+             ex("nmcli connection delete home", reaches={_LK: DELETE}),
+             ex("nmcli networking off", reaches={_LK: SERVICE_LOSS}),
+             ex("nmcli device status", note="a read"),
+             ex("ifconfig eth0 down", reaches={_LK: SERVICE_LOSS}),
+             ex("ifconfig", note="a read"),
+             ex("netsh advfirewall set allprofiles state off", reaches={_FW: OVERWRITE}),
+             ex("netsh advfirewall show allprofiles", note="a read"),
+             # C8 modes and owners
+             ex("chmod 600 a.txt", destroys={"a.txt"}, note="captured: REVERSIBLE in the project"),
+             ex("chmod -R 000 dir", destroys={"dir/"}),
+             ex("chmod -x a.txt", destroys={"a.txt"}, note="-x is a mode, not an option"),
+             ex("chmod --reference a.txt b.txt", destroys={"b.txt"}),
+             ex("chmod 644 missing.txt", note="nothing there"),
+             ex("chmod --help", note="help"),
+             ex("chown -R nobody sub", reaches={_OW: OVERWRITE}),
+             ex("chgrp staff a.txt", reaches={_OW: OVERWRITE}),
+             ex("icacls a.txt //grant Everyone:F", reaches={_OW: OVERWRITE}),
+             ex("icacls a.txt", note="displays the ACL"),
+             ex("takeown //f a.txt", reaches={_OW: OVERWRITE}),
+             # C9 the registry
+             ex("reg delete 'HKCU\\Software\\X' //f", reaches={"winreg:HKCU": DELETE}),
+             ex("reg add 'HKLM\\Software\\X' //v y //d 1", reaches={"winreg:HKLM": OVERWRITE}),
+             ex("reg query 'HKCU\\Software\\X'", note="a read"),
+             ex("reg export 'HKCU\\Software\\X' a.txt //y", destroys={"a.txt"},
+                note="writes a local file: captured"),
+         )),
+)
