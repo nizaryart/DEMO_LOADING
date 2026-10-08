@@ -325,22 +325,41 @@ def wget(w, inv, parsed, state, tool) -> None:
 _REMOTE_OPERAND = re.compile(r"^(?:rsync://|[^/]*:)")
 
 
+def _rsync_host(v: str) -> str:
+    """The host of an rsync remote operand: [USER@]HOST:PATH, [USER@]HOST::MODULE
+    or rsync://[USER@]HOST[:PORT]/PATH (rsync(1), SYNOPSIS)."""
+    if v.startswith("rsync://"):
+        v = v[len("rsync://"):].split("/", 1)[0]
+        return v.rsplit("@", 1)[-1].split(":", 1)[0]
+    return v.split(":", 1)[0].rsplit("@", 1)[-1]
+
+
 def rsync(w, inv, parsed, state, tool) -> None:
-    """UNVERIFIED grammar (rsync was not installed where this was written).
-    A remote side is C2's. Locally: into an existing directory, anything
-    under it may be overwritten or (--delete) removed, so it is captured whole."""
+    """VERIFIED (M2.2f) against rsync(1) of rsync 3.5.0 (its Debian package's
+    man page; the binary was not run). Locally: into an existing directory,
+    anything under it may be overwritten or (--delete) removed, so it is
+    captured whole. A PUSH to a host (ruling R8) is OVERWRITE on that host's
+    filesystem, DELETE with any of the --del* family; a PULL is a local write.
+    --dry-run / -n and --list-only change nothing; one SRC with no DEST lists."""
     f, o = parsed.flags, parsed.options
     ops = parsed.operands
     remote = [x for x in ops if not x.expands and _REMOTE_OPERAND.match(x.value)]
-    if remote:
-        w.impact.not_covered("rsync (remote)")
+    if "dry_run" in f or "list_only" in f or len(ops) < 2:
+        return
+    if ops[-1] in remote:
+        kind = DELETE if "delete" in f else OVERWRITE
+        w.impact.reach(f"host:{_rsync_host(ops[-1].value)}", kind)
+        if "remove_source_files" in f:
+            for p in w.paths([x for x in ops[:-1] if x not in remote], state, inv):
+                n = w.node(state, p)
+                if n.exists and not n.is_dir:
+                    w.remove(state, p)
+        return
     for p in w.paths(o.get("log_file", []), state, inv):
         w.write(state, p, True)
     for key in ("write_batch", "only_write_batch"):
         for p in w.paths(o.get(key, []), state, inv):
             w.write(state, p, False)
-    if len(ops) < 2 or "dry_run" in f or ops[-1] in remote:
-        return
     dests = w.paths(ops[-1:], state, inv)
     srcs = w.paths([x for x in ops[:-1] if x not in remote], state, inv)
     if not dests:
@@ -787,5 +806,14 @@ def system(w, inv, parsed, state, tool) -> None:
     system_ops.py - imported the first time a line names one of them."""
     def load():
         from .system_ops import system as run
+        return run
+    w.untimed(load)(w, inv, parsed, state, tool)
+
+
+def vault(w, inv, parsed, state, tool) -> None:
+    """The HashiCorp Vault CLI (M2.2f), in vault_ops.py - imported the first
+    time a line names it."""
+    def load():
+        from .vault_ops import vault as run
         return run
     w.untimed(load)(w, inv, parsed, state, tool)

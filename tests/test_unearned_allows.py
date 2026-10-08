@@ -87,13 +87,18 @@ DESTRUCTIVE = [
     ("npm publish", "package_registry"),
     ("npm deprecate mypkg@1.0.0 'use v2'", "package_registry"),
     ("gem yank mygem -v 1.0.0", "package_registry"),
+    # M2.2f (ruling (b)): code run inside a container is code demo_cli cannot
+    # read, on container_runtime - it asks (the ask channel), as `ssh host cmd`
+    # does on its host.
+    ("docker run --rm app", "container_runtime"),
+    ("docker exec -it app sh", "container_runtime"),
 ]
 
 # Not one of these may escalate. The prose entries are the anchor's whole job.
 ORDINARY = [
-    "docker ps", "docker ps -a", "docker build -t app .", "docker run --rm app",
+    "docker ps", "docker ps -a", "docker build -t app .",
     "docker compose up -d", "docker logs -f app",
-    "docker exec -it app sh", "docker images", "docker inspect app",
+    "docker images", "docker inspect app",
     "docker pull node:20", "docker volume ls", "docker system df",
     "docker stats", "docker tag a b",
     "redis-cli ping", "redis-cli GET mykey", "redis-cli INFO",

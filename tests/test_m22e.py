@@ -27,7 +27,11 @@ def test_1_the_words_come_from_the_tables():
     from demo_cli.engine.rules import shell_prefilter_words
     words = set(shell_prefilter_words())
     covered = (set(LAZY_FAMILIES) | {t for r in RULES for t in r.tools}) - {"git"}
-    assert covered - READ_ONLY - SHELLS <= words
+    # M2.2f: the interpreters a rule claims only narrowly (python manage.py)
+    # stay out: sending every `python x.py` to guard-shell is M2.3's call
+    runners = {"python", "python3", "py"}
+    assert covered - READ_ONLY - SHELLS - runners <= words
+    assert not words & runners
     assert set(_WRAPPERS) <= words
     assert not words & READ_ONLY and not words & SHELLS and "git" not in words
     for tool in ("kubectl", "aws", "terraform", "docker", "systemctl", "crontab", "kill",

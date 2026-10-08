@@ -40,4 +40,16 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("liquibase drop-all", reaches={"migration:liquibase": DELETE}),
              ex("liquibase updateSql", note="VERIFIED: prints the SQL"),
          )),
+    Rule(id="python-django", tools=("python", "python3", "py"), resolver="saas", options=OptionSpec(),
+         examples=(
+             ex("python manage.py migrate", reaches={"migration:django": OVERWRITE},
+                note="M2.2f: the runner is removed, the Django rule decides"),
+             ex("python3 -W ignore ./manage.py flush --no-input", reaches={"migration:django": DELETE}),
+             ex("python -m django migrate app 0001", reaches={"migration:django": DELETE},
+                note="a target migration may go backward"),
+             ex("python manage.py migrate --plan", note="--plan prints"),
+             ex("python manage.py runserver", uncovered={"manage.py runserver"}),
+             ex("python x.py", uncovered={"python"}, note="code this engine does not read: M2.3"),
+             ex("python -c 'import os'", uncovered={"python"}),
+         )),
 )

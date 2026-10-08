@@ -14,7 +14,9 @@ invoice pay, credit notes) = SEND on external_payment (deny); any other
 Stripe write = OVERWRITE / DELETE on http_api_write (ask). Creations stay
 with today's path.
 
-Not claimed: runners in front of the tool (`python manage.py`, `bundle exec
+Claimed since M2.2f: `python manage.py ...` and `python -m django ...` (the
+runner is removed, the Django rule decides). Not claimed: other runners in
+front of the tool (`bundle exec
 rake`, `npx prisma` - M2.3), every command the tool's own data does not list,
 wp-cli commands outside the verified list, raw `stripe get|post|delete` and
 `stripe trigger`.
@@ -356,8 +358,53 @@ def liquibase(w, inv, parsed, state, tool) -> None:
 
 # ---------------------------------------------------------------- entry
 
+# ---------------------------------------------------------------- python manage.py / python -m django (M2.2f)
+
+# CPython's own options (python3 --help): these take the next word as a value.
+_PY_VALUES = frozenset({"-W", "-X", "--check-hash-based-pycs"})
+
+
+def _shifted(inv, argv):
+    """`inv` as if `argv` were its command line (the runner in front removed)."""
+    out = object.__new__(type(inv))
+    for name in type(inv).__slots__:
+        setattr(out, name, getattr(inv, name))
+    out.argv = argv
+    return out
+
+
+def python_runner(w, inv, parsed, state, tool) -> None:
+    """Only the Django management runner is claimed: `python manage.py CMD` and
+    `python -m django CMD` reach the manage.py / django-admin rule. Any other
+    python line runs code this engine does not read: uncovered (M2.3)."""
+    args = list(inv.argv[1:])
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.expands:
+            break
+        v = a.value
+        if v == "-m" or (v.startswith("-m") and len(v) > 2):
+            mod = v[2:] if len(v) > 2 else (args[i + 1].value if i + 1 < len(args) else "")
+            nxt = i + 1 if len(v) > 2 else i + 2
+            if mod == "django":
+                return django(w, _shifted(inv, [args[i]] + args[nxt:]), parsed, state, "django-admin")
+            break
+        if v in _PY_VALUES:
+            i += 2
+            continue
+        if v.startswith("-") and v != "-" and not v.startswith("-c"):
+            i += 1
+            continue
+        break
+    if i < len(args) and not args[i].expands and args[i].value.replace("\\", "/").rsplit("/", 1)[-1] == "manage.py":
+        return django(w, _shifted(inv, args[i:]), parsed, state, "manage.py")
+    w.impact.not_covered(tool)
+
+
 _TOOLS = {"shopify": shopify, "wp": wp, "stripe": stripe, "rails": rails, "rake": rails,
-          "manage.py": django, "django-admin": django, "alembic": alembic, "prisma": prisma,
+          "manage.py": django, "django-admin": django,
+          "python": python_runner, "python3": python_runner, "py": python_runner, "alembic": alembic, "prisma": prisma,
           "knex": knex, "flyway": flyway, "liquibase": liquibase}
 
 

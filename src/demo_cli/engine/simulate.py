@@ -713,6 +713,8 @@ class World:
                     and not (args[0].startswith("-") and len(args[0]) > 1 and "p" in args[0])):
                 self.impact.not_understood(inv.text, "code registered to run later")
             return state, before
+        if tool in ("eval", "su", "watch"):
+            return self.inline(tool, inv, state, before, depth)
         rules = self.table.get(tool)
         if not rules and tool in LAZY_FAMILIES:
             rules = self.load_family(tool)
@@ -751,6 +753,77 @@ class World:
                 elif eff.kind == MKDIR:
                     for p in paths:
                         self.mkdir(state, p, "parents" in parsed.flags)
+        return state, self.merge(before, state)
+
+    def inline(self, tool: str, inv: Invocation, state: State, before: State,
+               depth: int) -> Tuple[Optional[State], Optional[State]]:
+        """A command line carried as TEXT by eval, su -c or watch (M2.2f),
+        read like `bash -c`. VERIFIED from each tool's own help: bash `help
+        eval` (the args joined with spaces, run by this shell - so cd and
+        variables persist); util-linux 2.41 su (-c / --command /
+        --session-command run it with the target user's shell; no -c: an
+        interactive shell); procps-ng 4.0 watch (the command words joined,
+        run by `sh -c` again and again; -x execs them as they are - anything but
+        a read there is code that runs later: LATER). A string built at run
+        time cannot be read: not understood."""
+        args = inv.argv[1:]
+        if tool == "eval":
+            if any(a.expands for a in args):
+                self.impact.not_understood(inv.text, "eval runs a string built at run time")
+                return state, before
+            end = self.run_script(parse(" ".join(a.value for a in args)), state, depth + 1)
+            return end, self.merge(before, end)
+        if tool == "su":
+            text, i = None, 0
+            while i < len(args):
+                v = args[i].value
+                if args[i].expands:
+                    i += 1
+                    continue
+                if v in ("-c", "--command", "--session-command") and i + 1 < len(args):
+                    if args[i + 1].expands:
+                        self.impact.not_understood(inv.text, "su -c runs a string built at run time")
+                        return state, before
+                    text = args[i + 1].value
+                    i += 2
+                    continue
+                if v.startswith(("--command=", "--session-command=")):
+                    text = v.split("=", 1)[1]
+                elif v in ("-s", "--shell") or v.startswith("--shell="):
+                    self.impact.not_covered("su -s")      # another shell reads it
+                    return state, before
+                i += 1
+            if text is None:
+                self.impact.not_covered("su")             # an interactive shell
+                return state, before
+            self.subshell(parse(text), state, depth)
+            return state, self.merge(before, state)
+        # watch
+        i, exec_ = 0, False
+        while i < len(args) and not args[i].expands and args[i].value.startswith("-"):
+            v = args[i].value
+            if v in ("-h", "--help", "-v", "--version"):
+                return state, None
+            if v in ("-x", "--exec"):
+                exec_ = True
+            i += 2 if v in ("-n", "--interval", "-q", "--equexit") else 1
+        rest = args[i:]
+        if not rest:
+            return state, None
+        if any(a.expands for a in rest):
+            self.impact.not_understood(inv.text, "watch runs a command built at run time")
+            return state, before
+        import shlex
+        text = " ".join(shlex.quote(a.value) for a in rest) if exec_ else " ".join(a.value for a in rest)
+        script = parse(text)
+        # watch runs it AGAIN every few seconds after this decision: anything
+        # but a read acts on a future state no capture taken now can cover -
+        # code that runs later (M2.2d's kind), whatever it does now.
+        words = [os.path.basename(cm.argv[0].value) for cm in script.commands if cm.argv]
+        if not words or any(cm.argv and cm.argv[0].expands for cm in script.commands) or not all(
+                wd in READ_ONLY for wd in words) or any(cm.redirects for cm in script.commands):
+            self.impact.reach("later:watch@local", LATER)
+        self.subshell(script, state, depth)
         return state, self.merge(before, state)
 
     def untimed(self, fn):

@@ -7,10 +7,17 @@ is a `reach("container:...", DELETE)` on the `container_runtime` surface, as
 the old rules escalate today; a push may replace a registry tag
 (`container:registry/...`, OVERWRITE, ruling R2).
 
+CODE IN A CONTAINER (M2.2f, ruling (b)): `run`, `exec`, `container run|exec`,
+`compose run|exec` run code this engine cannot read, inside the container -
+RUN on `container:<engine>`, which follows container_runtime's ask row
+("Runs code demo_cli cannot read, on container_runtime"). A bind mount
+(`-v "$PWD":/w`) lets that code change project files too: nothing captures
+them, which is exactly why a person is asked.
+
 WHAT IT CLAIMS, AND WHAT IT DOES NOT. Anything not listed is `uncovered`,
 and today's text path decides the line unchanged. Not claimed ON PURPOSE:
-code that runs in a container (run, exec, create, start, build, compose up /
-run / exec / watch), lifecycle commands that lose nothing persistent (stop,
+create, start, build, compose up / watch (they run an image's own command,
+or a build whose effects stay in the image), lifecycle commands that lose nothing persistent (stop,
 kill, pause, restart, unpause: ruling R5 leaves them to today's path, which
 allows them), and the tools' own configuration (login, logout, context
 changes).
@@ -40,7 +47,7 @@ from typing import Dict, FrozenSet, List, Optional, Tuple
 
 from ..model import Word
 from .cloud_ops import READ, _reach
-from .effects import DELETE, OVERWRITE
+from .effects import DELETE, OVERWRITE, RUN
 
 _DOCKER_VALUES = frozenset({"--config", "-c", "--context", "-H", "--host", "-l", "--log-level",
                             "--tlscacert", "--tlscert", "--tlskey"})
@@ -129,6 +136,8 @@ def _compose(w, inv, args: List[Word], tool: str, where: str) -> None:
         return _reach(w, inv, f"container:{where}", DELETE, rest, tool)    # ruling R5
     if s == "push":
         return _reach(w, inv, f"container:registry/{where}", OVERWRITE, rest, tool)
+    if s in ("run", "exec"):
+        return w.impact.reach(f"container:{where}", RUN)          # M2.2f, ruling (b)
     w.impact.not_covered(f"compose {s}")
 
 
@@ -200,6 +209,9 @@ def container(w, inv, parsed, state, tool) -> None:
         return
     if c in ("rm", "rmi"):
         return _reach(w, inv, f"container:{where}", DELETE, rest, tool)
+    if c in ("run", "exec") or (c == "container" and rest and not rest[0].expands
+                                and rest[0].value in ("run", "exec")):
+        return w.impact.reach(f"container:{where}", RUN)          # M2.2f, ruling (b)
     if c == "cp" or (c == "container" and rest and rest[0].value == "cp"):
         return _cp(w, inv, state, rest[1:] if c == "container" else rest, tool, where)
     if c == "push":

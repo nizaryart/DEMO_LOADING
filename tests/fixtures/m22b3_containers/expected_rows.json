@@ -73,21 +73,21 @@
  },
  "docker run --rm -v \"$PWD\":/w alpine rm -rf /w/src": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker run"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker exec app rm -rf /data": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker exec"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker cp evil.sh app:/etc/profile": {
   "decision": "ESCALATE",
@@ -180,31 +180,31 @@
   ]
  },
  "docker exec -it app sh": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker exec"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker exec c sh -c 'rm -rf /data'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker exec"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker exec c sh -c 'rm -rf later'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker exec"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker image prune -a": {
   "decision": "ESCALATE",
@@ -332,13 +332,13 @@
   "uncovered": []
  },
  "docker run --rm app": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "docker run"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker stats": {
   "decision": "ALLOW",
@@ -645,21 +645,21 @@
  },
  "docker compose exec db psql -c \"DROP TABLE users\"": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "compose exec"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker compose run --rm app rm -rf /data": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "container_runtime",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "compose run"
-  ]
+  "remote": {
+   "container:docker@local": "RUN"
+  },
+  "uncovered": []
  },
  "docker stop app": {
   "decision": "ALLOW",

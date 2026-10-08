@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Dict, FrozenSet, List, Mapping, Optional, Tuple
 
-from .effects import CREATE, DELETE, MKDIR, MOVE
+from .effects import CREATE, DELETE, MKDIR, MOVE, OVERWRITE
 
 
 class OptionSpec:
@@ -597,7 +597,7 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("wget -r https://h/", unknown=True),
              ex("wget -O - https://h/x", note="stdout"),
          )),
-    Rule(id="rsync", tools=("rsync",), resolver="rsync", partial=None, verified=False,
+    Rule(id="rsync", tools=("rsync",), resolver="rsync", partial=None,
          options=OptionSpec(
              values={k: k.lstrip("-").replace("-", "_") for k in (
                  "-e", "--rsh", "--rsync-path", "--exclude", "--include", "-f", "--filter",
@@ -613,7 +613,12 @@ C1_RULES: Tuple[Rule, ...] = (
                  "--stop-after", "--stop-at")},
              flags={"-n": "dry_run", "--dry-run": "dry_run", "-b": "backup", "--backup": "backup",
                     "--remove-source-files": "remove_source_files",
-                    "--ignore-existing": "ignore_existing", "--delete": "delete"}),
+                    "--ignore-existing": "ignore_existing", "--list-only": "list_only",
+                    # M2.2f: the whole --del* family (rsync(1), rsync 3.5.0)
+                    **{d: "delete" for d in (
+                        "--del", "--delete", "--delete-before", "--delete-during",
+                        "--delete-delay", "--delete-after", "--delete-excluded",
+                        "--delete-missing-args")}}),
          examples=(
              ex("rsync -a sub/ dir/", destroys={"dir/"}, note="into an existing dir: WITHIN"),
              ex("rsync -an sub/ dir/", note="--dry-run"),
@@ -625,7 +630,12 @@ C1_RULES: Tuple[Rule, ...] = (
              ex("rsync --ignore-existing a.txt b.txt", note="an existing file is kept"),
              ex("rsync -b --backup-dir=old a.txt b.txt", destroys={"b.txt"}, unknown=True,
                 note="where --backup-dir puts the backup is not modelled"),
-             ex("rsync -a sub/ host:/x", uncovered={"rsync (remote)"}),
+             ex("rsync -a sub/ host:/x", reaches={"host:host": OVERWRITE},
+                note="M2.2f, ruling R8: a push changes the host"),
+             ex("rsync -a --delete sub/ deploy@web1:/srv/", reaches={"host:web1": DELETE}),
+             ex("rsync -a --del sub/ rsync://web1/mod/", reaches={"host:web1": DELETE}),
+             ex("rsync -an --delete sub/ web1:/srv/", note="--dry-run: nothing changes"),
+             ex("rsync -a web1:/srv/ dir/", destroys={"dir/"}, note="a pull: a local write, captured"),
          )),
     Rule(id="tar", tools=("tar",), resolver="tar", options=TAR_OPTIONS,
          examples=(
@@ -700,6 +710,8 @@ LAZY_FAMILIES: Dict[str, str] = {
     "mailx": "rules_send", "sendmail": "rules_send", "swaks": "rules_send", "ssh": "rules_send", "scp": "rules_send", "sftp": "rules_send",
     "npm": "rules_send", "pnpm": "rules_send", "yarn": "rules_send", "cargo": "rules_send", "twine": "rules_send", "gem": "rules_send",
     "poetry": "rules_send",
+    # M2.2f: vault; the Django runner in front of manage.py
+    "vault": "rules_vault", "python": "rules_saas", "python3": "rules_saas", "py": "rules_saas",
     # M2.2d: schedulers - code that runs later
     "crontab": "rules_system", "at": "rules_system", "batch": "rules_system", "atq": "rules_system",
     "atrm": "rules_system", "schtasks": "rules_system", "systemd-run": "rules_system",
@@ -769,4 +781,10 @@ def shell_prefilter_words() -> Tuple[str, ...]:
     family added later reaches the shell door by being added here."""
     from ..classify import _WRAPPERS
     words = set(LAZY_FAMILIES) | {t for r in RULES for t in r.tools} | set(_WRAPPERS)
-    return tuple(sorted(words - READ_ONLY - SHELLS - {"git"}))
+    return tuple(sorted(words - READ_ONLY - SHELLS - {"git"} - _RUNNERS))
+
+
+# Interpreters: a rule claims only a narrow use of them (M2.2f: python
+# manage.py), and sending every `python x.py` typed in a shell to guard-shell
+# (~0.4 s each) is M2.3's decision, made with real numbers.
+_RUNNERS = frozenset({"python", "python3", "py"})

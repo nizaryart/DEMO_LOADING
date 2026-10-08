@@ -63,8 +63,9 @@ def test_a_rules_grammar_matches_the_installed_tools_help(rule_id):
 
 def test_unverified_grammars_are_marked():
     # C1's own rules (C2a adds mysql, pinned in test_engine_c2a.py)
+    # M2.2f: rsync's grammar is VERIFIED now (rsync(1) of rsync 3.5.0)
     assert {r.id for r in C1_RULES if not r.verified} == \
-        {"prettier", "eslint", "black", "isort", "rustfmt", "rsync"}
+        {"prettier", "eslint", "black", "isort", "rustfmt"}
 
 
 # ---- verdicts ----------------------------------------------------------------

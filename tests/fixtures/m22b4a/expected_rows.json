@@ -207,9 +207,7 @@
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "eval"
-  ]
+  "uncovered": []
  },
  "npm install": {
   "decision": "SUPERVISED",

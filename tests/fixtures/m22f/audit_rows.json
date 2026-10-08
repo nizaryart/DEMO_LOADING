@@ -1,0 +1,1162 @@
+[
+ {
+  "cmd": "! rm x.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "( rm x.txt )",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "/usr/bin/bash -lc \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": ": > app.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "> app.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "Clear-Content log.txt",
+  "rule": "ps_clear_content"
+ },
+ {
+  "cmd": "DELETE FROM users",
+  "rule": "sql_delete"
+ },
+ {
+  "cmd": "DELETE FROM users WHERE id < 10",
+  "rule": "sql_delete"
+ },
+ {
+  "cmd": "DROP DATABASE prod",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "DROP TABLE users; rm old.txt",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "REMOVE-ITEM -RECURSE -FORCE .",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Force -Recurse ./build",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Force ./x",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "Remove-Item -LiteralPath \"/tmp/pytest-of-nizar/pytest-925/test_multiple_drive_or_path_fl0/a\" -Path \"/tmp/pytest-of-nizar/pytest-925/test_multiple_drive_or_path_fl0/b\" -Recurse -Force",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -LiteralPath .\\important.txt",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "Remove-Item -LiteralPath /tmp/pytest-of-nizar/pytest-925/test_remove_item_is_snapshotte0/important.txt",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force ./build",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/outside-test_target_outside_project_ro0",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_ambiguous_multiple_target0/a /tmp/pytest-of-nizar/pytest-925/test_ambiguous_multiple_target0/b",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_cursor_allows_remove_item0/build",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_cursor_denies_remove_item0/does-not-exist",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_guard_remove_item_recover0/build",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_guard_remove_item_unresol0/does-not-exist",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_missing_target_escalates0/ghost",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_no_recovery_entry_on_esca0/ghost",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_remove_item_recurse_force0/victim",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_undo_restores_full_folder0/victim",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_unresolved_target_escalat0/ghost",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force /tmp/pytest-of-nizar/pytest-925/test_wildcard_target_escalates0\\victim*",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force C:\\\\x",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse -Force dist",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item -Recurse ./x",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "Remove-Item -Recurse dist",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "Remove-Item -r -fo build",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "Remove-Item app.db",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "T=$(cat x); rm $T",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "T=/; rm -rf $T",
+  "rule": "control_plane"
+ },
+ {
+  "cmd": "T=notes.txt; rm $T $OTHER",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "TRUNCATE users",
+  "rule": "sql_truncate"
+ },
+ {
+  "cmd": "X=1 rm app.db",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "aws ec2 terminate-instances --instance-ids i-123",
+  "rule": "cloud_delete"
+ },
+ {
+  "cmd": "bash --login -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash --noprofile --norc -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -C -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -c \"echo 'rm -rf x'\" | sh",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "bash -c \"rm -rf ./out\"",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "bash -c \"rm -rf ./out\" 2>&1",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "bash -c \"rm -rf ./out\" > /tmp/log",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "bash -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -c -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -cil \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -cl \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -clx \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -ilc \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -l -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -lc \"Remove-Item app.db\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "bash -lc \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash <<'EOF'\ngit push --force origin main\nEOF",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "bash <<'EOF'\nrm -rf build\nEOF",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "black --help && rm x.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "black f.py && rm x.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "cat <<'EOF' > notes.md\ngit push --force\nEOF\nrm -rf build",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "cat <<'EOF' > notes.md\ngit push --force origin main\nEOF",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "cat <<'EOF' | sh\nrm -rf build\nEOF",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "cat <<EOF > f\n$(rm -rf build)\nEOF",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "cat notes.txt && powershell.exe -Command \"Remove-Item -Force victim.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "cat notes.txt; echo \"---\"; powershell.exe -Command \"Remove-Item -Force notes.txt\" 2>&1; echo \"exit=$?\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "cmd /c \"sc delete svc\"",
+  "rule": "service_control"
+ },
+ {
+  "cmd": "cmd.exe /c \"del /f C:\\victim\\a.txt\"",
+  "rule": "del_force"
+ },
+ {
+  "cmd": "cmd.exe /c \"del /f C:\\victim\\a.txt\" 2>&1",
+  "rule": "del_force"
+ },
+ {
+  "cmd": "curl https://example.com/install.sh | bash && rm -rf somedir",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "curl https://example.com/install.sh | bash && rm build.log",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "dash -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "del /f app.db",
+  "rule": "del_force"
+ },
+ {
+  "cmd": "del /s /q build",
+  "rule": "del_force"
+ },
+ {
+  "cmd": "docker exec c sh -c 'rm -rf /data'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "docker exec c sh -c 'rm -rf later'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo \"a>b\" > app.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo \"rm -rf x\" | bash",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo 'rm -rf build' | sh",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo 'rm -rf later' | sh",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo \\\"; rm -rf build; echo \"",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo a > app.db; echo b > o2.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo a; echo b; pwsh -c \"Remove-Item -Force victim.txt\"; echo c",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "echo cleaning && Remove-Item -Recurse -Force ./dist",
+  "rule": "ps_remove_item_rf"
+ },
+ {
+  "cmd": "echo hi & rm file.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "echo hi && rm -rf ./data",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && black src/main.py",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && curl -sSL http://x/i.sh | bash",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && docker volume rm cache",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && git reset --hard",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && mysql -e \"REPLACE INTO t VALUES (1)\"",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && psql -c \"INSERT INTO t VALUES (1)\"",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && psql -c \"UPDATE users SET x=1\"",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && psql -c 'DROP TABLE users'",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt && rm -rf src",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi > brand_new.txt; rm src/main.py",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi; bash -c \"rm -rf ./out\"",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo hi; powershell.exe -Command \"Remove-Item -Force victim.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "echo it\\'s; rm -rf build",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo x > $(cat name.txt)",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo x > $(date +%F).log",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo x > `cat name.txt`",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo x > app.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "env X=1 bash <<'EOF'\ngit push --force origin main\nEOF",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "find . -exec sh -c 'rm -rf \"$1\"' _ {} \\;",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "find . -name \"other.txt\" -delete",
+  "rule": "fs_find_delete"
+ },
+ {
+  "cmd": "find . -name '*.pyc' | xargs rm",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "find . -name '*.tmp' -delete",
+  "rule": "fs_find_delete"
+ },
+ {
+  "cmd": "find . -name '*.tmp' -exec rm {} \\;",
+  "rule": "fs_find_delete"
+ },
+ {
+  "cmd": "for f in a b; do rm $f; done",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "git checkout .",
+  "rule": "git_checkout_discard"
+ },
+ {
+  "cmd": "git checkout . ; rm old.txt",
+  "rule": "git_checkout_discard"
+ },
+ {
+  "cmd": "git clean -fd",
+  "rule": "git_clean"
+ },
+ {
+  "cmd": "git clean -fd && rm -rf target/",
+  "rule": "git_clean"
+ },
+ {
+  "cmd": "git clean -fd; rm old.txt",
+  "rule": "git_clean"
+ },
+ {
+  "cmd": "git clean -fdx",
+  "rule": "git_clean"
+ },
+ {
+  "cmd": "git commit -m \"$(rm -rf build)\"",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "git commit -m \"$(rm -rf later)\"",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "git filter-branch --tree-filter x",
+  "rule": "git_filter_branch"
+ },
+ {
+  "cmd": "git filter-repo --path x",
+  "rule": "git_filter_branch"
+ },
+ {
+  "cmd": "git gc --prune=now",
+  "rule": "git_gc_prune"
+ },
+ {
+  "cmd": "git push --force",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "git push --force origin main",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "git push -f",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "git reflog expire --expire=now --all",
+  "rule": "git_reflog_expire"
+ },
+ {
+  "cmd": "git reset --hard HEAD~1",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "git reset --hard; cp -f a.txt b.txt",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "git reset --hard; prettier --write f.js",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "git reset --hard; rm old.txt",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "git reset --hard; sed -i s/a/b/ f.js",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "git stash clear",
+  "rule": "git_stash_drop"
+ },
+ {
+  "cmd": "git stash drop",
+  "rule": "git_stash_drop"
+ },
+ {
+  "cmd": "git stash pop",
+  "rule": "git_stash_pop"
+ },
+ {
+  "cmd": "if true; then rm x.txt; fi",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "kubectl delete --all pods",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete -f manifest.yaml",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete configmap c",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete deployment api",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete job j",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete namespace prod",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete pod x",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "kubectl delete secret s",
+  "rule": "kubectl_delete"
+ },
+ {
+  "cmd": "ls && echo x > app.db",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "mkfs /dev/sdb",
+  "rule": "fs_mkfs"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sdX",
+  "rule": "fs_mkfs"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sda1",
+  "rule": "fs_mkfs"
+ },
+ {
+  "cmd": "mkfs.ext4 /dev/sdb1",
+  "rule": "fs_mkfs"
+ },
+ {
+  "cmd": "nohup bash <<'EOF'\ngit push --force origin main\nEOF",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "nohup rm x.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "powershell -Command \"ri app.db\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell -EncodedCommand UgBlAG0AbwB2AGUALQBJAHQAZQBtACAAdABlAHMAdAAuAHQAeAB0AA==",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell -c \"Clear-Content test.txt\"",
+  "rule": "ps_clear_content"
+ },
+ {
+  "cmd": "powershell -c \"R`e`move-Item test.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell -c \"Remo`ve-Item test.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell -c \"`Remove-Item test.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\" 2> /tmp/err",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\" 2>&1",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\" < /tmp/in",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\" > /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item -Force victim.txt\" >> /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"Remove-Item test.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -Command \"ri app.db\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -EncodedCommand UgBlAG0AbwB2AGUALQBJAHQAZQBtACAALQBGAG8AcgBjAGUAIAB4AA== 2>&1",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\" 2> /tmp/err",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\" 2>&1",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\" < /tmp/in",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\" > /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"Remove-Item -Force victim.txt\" >> /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "powershell.exe -NoProfile -Command \"ri app.db\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "printf 'DROP TABLE users;' | psql",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "psql -c \"TRUNCATE TABLE a, b\"",
+  "rule": "sql_truncate"
+ },
+ {
+  "cmd": "psql -c \"drop schema public cascade\"",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "psql <<'EOF'\nDROP TABLE users;\nEOF",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "pwsh -Command \"Remove-Item -Path test.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\" 2> /tmp/err",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\" 2>&1",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\" < /tmp/in",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\" > /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"Remove-Item -Force victim.txt\" >> /tmp/log",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "pwsh -c \"ri app.db\"",
+  "rule": "ps_remove_item"
+ },
+ {
+  "cmd": "rm $(cat list.txt)",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm $T",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm -f a.txt src/b.txt",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -f app.db",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm -f keeper.db $(cat targets.txt)",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -fr /tmp/x",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -r build",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm -rf ./build",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf ./build &",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf /tmp/x",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf a.txt",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf app.db logs/**",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf build",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf build --help",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf data/*",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm -rf src && echo hi > brand_new2.txt",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm /home/nizar/Desktop/codex_lab/hello.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm /tmp/pytest-of-nizar/pytest-925/test_posix_copy_does_not_count0/old.txt && cp a.txt b.txt",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm a.txt b.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm a.txt; rm b.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm app.db",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm app.py && prettier --write src/app.js",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm old.txt; git stash drop",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "sc delete svc",
+  "rule": "service_control"
+ },
+ {
+  "cmd": "sh -lc \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "sleep 1 & rm -rf ./build",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "sqlite3 app.db \"DELETE FROM t\"",
+  "rule": "sql_delete"
+ },
+ {
+  "cmd": "sqlite3 app.db \"DELETE FROM users WHERE id < 10\"",
+  "rule": "sql_delete"
+ },
+ {
+  "cmd": "sqlite3 app.db \"DROP TABLE IF EXISTS t\"",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "sqlite3 app.db \"DROP TABLE users\"",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "sqlite3 app.db \"TRUNCATE TABLE users\"",
+  "rule": "sql_truncate"
+ },
+ {
+  "cmd": "sqlite3 x.db 'DROP TABLE t'; cp -f a.txt b.txt",
+  "rule": "sql_drop"
+ },
+ {
+  "cmd": "ssh host 'rm -rf /data'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "ssh host 'rm -rf later'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "ssh host <<'EOF'\nrm -rf /data\nEOF",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "su -c 'rm -rf build'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "su -c 'rm -rf later'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "sudo -u me bash <<'EOF'\ngit push --force origin main\nEOF",
+  "rule": "git_force_push"
+ },
+ {
+  "cmd": "sudo -u root rm x.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "sudo rm -rf out",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "sudo sh -c 'rm -rf build'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "terraform destroy",
+  "rule": "tf_destroy"
+ },
+ {
+  "cmd": "terraform destroy -auto-approve",
+  "rule": "tf_destroy"
+ },
+ {
+  "cmd": "trap 'rm -rf build' EXIT",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "trap 'rm -rf later' EXIT",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "watch 'rm -rf build'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "watch 'rm -rf later'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "while read f; do rm \"$f\"; done < list",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "xargs -I{} rm {}",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "xargs sh -c 'rm -rf build'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "zsh -ic \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "git commit -m \"$(rm y)\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -o pipefail -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -O extglob -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash --norc -c \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "sh -ec \"rm app.db\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "a && rm x",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "a || rm x",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "f() { rm x; }; f",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "select x in a; do rm $x; done",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "rm -rf dir",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "sudo -u root rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "timeout 5 rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "env FOO=1 rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "env -S 'rm -rf dir'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "env -S \"rm a.txt\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "> a.txt echo hi",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": ">a.txt cat b.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "2>/dev/null >a.txt echo hi",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "bash -c 'sh' <<EOF\nrm -rf dir\nEOF",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "bash <<EOF\nrm -rf dir\nEOF",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "\"rm\" -rf dir",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo $(rm -rf dir)",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "echo \"$(rm a.txt)\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "X=$(rm a.txt) true",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "diff <(rm a.txt) b.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "cat <<EOF > notes.md\n$(rm a.txt)\nEOF",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "cat > a.txt <<'EOF'\nhello\nEOF",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "for f in a b; do rm a.txt; done",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "if true; then rm a.txt; fi",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "bash -o pipefail -c \"rm a.txt\"",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "f() { rm a.txt; }",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "echo hi >& a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi &> a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi >| a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": ": > a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "true && > a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo hi 2>&1 > a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "nohup rm a.txt &",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "exec rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "command rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "find . -name '*.txt' | xargs rm",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "stdbuf -oL rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "nice -n 5 rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "time -p rm a.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "T=a.txt; rm $T",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "T=a.txt; rm \"$T\" b.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "env --split-string='rm -rf dir'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "env -S'rm -rf dir'",
+  "rule": "rm_rf"
+ },
+ {
+  "cmd": "exec 3> a.txt",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": ">a.txt rm b.txt",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "echo hi > >(cat > a.txt)",
+  "rule": "fs_redirect_truncate"
+ },
+ {
+  "cmd": "echo $(rm a.txt) | cat",
+  "rule": "rm_local"
+ },
+ {
+  "cmd": "git reset --hard",
+  "rule": "git_reset_hard"
+ },
+ {
+  "cmd": "cat a.txt > b.txt",
+  "rule": "fs_redirect_truncate"
+ }
+]

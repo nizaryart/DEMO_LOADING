@@ -48,10 +48,10 @@
   "decision": "ESCALATE",
   "surface": "schema_migration",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "python"
-  ]
+  "remote": {
+   "migration:django": "OVERWRITE"
+  },
+  "uncovered": []
  },
  "prisma migrate reset": {
   "decision": "ESCALATE",
