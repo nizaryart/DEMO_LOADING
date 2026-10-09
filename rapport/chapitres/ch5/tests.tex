@@ -10,7 +10,7 @@
     décrit un comportement observé sur des fichiers jetables.
   \item[Les tests de partie] Chaque partie livre son fichier (\fichier{test\_m23a.py},
     \fichier{test\_v17.py}, \fichier{test\_wsec.py}\ldots), écrit pour échouer sur le code
-    d'avant.
+    d'avant (deux extraits en annexe~\ref{ann:tests}).
   \item[Les lignes figées] Pour chaque famille d'outils, les lignes du portail concernées sont
     figées dans \fichier{tests/fixtures/} avec leur décision attendue ; une partie suivante qui
     les fait bouger doit le justifier.
@@ -53,7 +53,8 @@ FAILED tests/test_m23a.py::test_13_file_tools_that_destroy_are_captured
 11 failed, 6 passed in 0.31s
 \end{terminal}
 
-La même vérification, refaite sur les deux parties suivantes, donne le même profil :
+La même vérification, refaite sur les deux parties suivantes, donne le même profil
+(tableau~\ref{tab:rouge-avant}) :
 
 \begin{table}[htbp]
 \centering

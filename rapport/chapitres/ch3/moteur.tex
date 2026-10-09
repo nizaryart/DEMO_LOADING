@@ -8,7 +8,7 @@ rien exécuter ni rien écrire. La figure~\ref{fig:moteur} le montre sur un exem
 
 \begin{figure}[htbp]
 \centering
-\input{figures/tikz/fig3_moteur}
+\makebox[\linewidth][c]{\input{figures/tikz/fig3_moteur}}
 \caption{L'intérieur du moteur, sur un exemple réel (sortie du moteur au commit \commitref{})}
 \label{fig:moteur}
 \end{figure}
@@ -106,7 +106,7 @@ PaaS, SaaS et migrations, système, coffres de secrets. Le chargement paresseux 
 coût d'import hors du chemin de chaque commande : une ligne \cmd{rm} ne paie jamais
 l'analyseur SQL. La même table génère aussi la liste des mots que le piège du shell envoie au
 moteur (partie M2.2e) : une famille ajoutée atteint la porte du shell sans ligne de code
-supplémentaire.
+supplémentaire. L'annexe~\ref{ann:regles} reproduit une règle réelle de la table.
 
 \subsection{Le budget}
 Le moteur s'exécute sur le chemin critique de chaque commande de l'agent. Il dispose de

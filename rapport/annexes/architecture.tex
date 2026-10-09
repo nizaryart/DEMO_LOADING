@@ -8,7 +8,8 @@ Les sections~\ref{sec:architecture} à~\ref{sec:windows} montrent \demo{} par se
 le moteur, la décision, les filets. Cette annexe le montre en entier, tel qu'il est écrit. Chaque
 boîte de la carte est un fichier réel, chaque nombre est son nombre de lignes, et la carte est
 produite par un script qui lit le code (\fichier{notes/gen\_carte.py}) : il échoue si un seul
-module n'est rangé nulle part. Elle ne peut donc ni oublier un fichier ni en inventer un.
+module n'est rangé nulle part. Elle ne peut donc ni oublier un fichier ni en inventer un. Le tableau~\ref{tab:archi-chiffres}
+en donne les chiffres d'ensemble.
 
 \begin{table}[htbp]
 \centering
@@ -53,7 +54,7 @@ installe, diagnostique et affiche. Les modules en gras sont les pièces centrale
 \caption[La carte complète de \demo{} : les \nbmodules{} modules, groupés par rôle]{La carte complète de \demo{} : les \nbmodules{} modules, groupés par rôle, avec leur
 nombre de lignes au commit \commitref{}. Les familles du moteur sont regroupées (un fichier de
 règles, un fichier d'opérations, parfois un fichier de données générées) ; le détail est au
-tableau~\ref{tab:familles}. C3, en tirets, est décrit à la section~\ref{sec:c3}.}
+tableau~\ref{tab:archi-familles}. C3, en tirets, est décrit à la section~\ref{sec:c3}.}
 \label{fig:carte}
 \end{sidewaysfigure}
 
@@ -76,7 +77,7 @@ figure~\ref{fig:carte})}
 \begin{table}[htbp]
 \centering
 \caption{Les \nbfamilles{} familles du moteur, chargées à la demande}
-\label{tab:familles}
+\label{tab:archi-familles}
 \small
 \begin{tabularx}{\linewidth}{@{}L{3.3cm}Yrr@{}}
 \toprule
@@ -143,7 +144,7 @@ en ressortent, et elles ne doivent rien au hasard :
 
 \section{Carte des modules}
 Le tableau~\ref{tab:modules} donne le rôle de chaque module hors familles (les familles sont au
-tableau~\ref{tab:familles}), dans l'ordre de la carte.
+tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
 
 \begingroup
 \small\linespread{1.0}\selectfont

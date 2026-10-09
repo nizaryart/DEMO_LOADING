@@ -8,7 +8,8 @@ puis \cmd{exec}) et suit aussi ses processus enfants (\cmd{fork}, \cmd{vfork}, \
 \cmd{exec}). À chaque arrêt sur appel système, il ne réagit qu'à l'\emph{entrée} de l'appel
 (registre \cmd{rax} égal à \cmd{-ENOSYS}) et lit le numéro de l'appel et ses arguments dans
 les registres x86-64 ; les chemins sont lus dans la mémoire du processus via
-\cmd{/proc/<pid>/mem} et résolus par rapport au bon répertoire (\cmd{AT\_FDCWD} ou descripteur).
+\cmd{/proc/<pid>/mem} et résolus par rapport au bon répertoire (\cmd{AT\_FDCWD} ou descripteur). Le
+tableau~\ref{tab:syscalls} donne les appels surveillés et la raison de chacun.
 
 \begin{table}[htbp]
 \centering
