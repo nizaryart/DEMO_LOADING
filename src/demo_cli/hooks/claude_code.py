@@ -254,7 +254,7 @@ def run_pretooluse(stdin, stdout) -> int:
             add_ctx = (
                 f"this command was rewritten by demo_cli and runs as: {result.rewrite}. "
                 f"Each file it destroys inside the project is backed up at the moment of "
-                f"destruction (outside it nothing is captured); "
+                f"destruction (outside it each destroyed file is recorded, not backed up); "
                 f"undo with `demo_cli undo {gid}`."
             )
         else:

@@ -228,9 +228,11 @@ def decide(
                       "destroys inside the project is backed up before modification; "
                       "outside the project nothing is captured.")
         else:
+            # V18 step 2: the syscall guard also records (never backs up)
+            # each existing file it destroys outside the project.
             reason = ("covered by the syscall guard: each file it destroys inside "
                       "the project is backed up at the moment of destruction; "
-                      "outside the project nothing is captured.")
+                      "outside the project each destroyed file is recorded, not backed up.")
         return Decision(
             SUPERVISED,
             reason,

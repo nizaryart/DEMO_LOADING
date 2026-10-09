@@ -213,10 +213,15 @@ def test_13_file_tools_that_destroy_are_captured(tmp_path):
 
 def test_14_the_nets_say_they_cover_this_project_only():
     c = Classification(is_destructive=True, is_mutating=True, matched_rule="not_understood")
-    for net_name, start in (("syscall_guard", "covered by the syscall guard"),
-                            ("mount", "covered by the demo_cli filesystem mount")):
+    # V18 step 2: the syscall guard records (never backs up) outside destroys;
+    # the mount does not see outside the project at all.
+    for net_name, start, end in (
+            ("syscall_guard", "covered by the syscall guard",
+             "outside the project each destroyed file is recorded, not backed up."),
+            ("mount", "covered by the demo_cli filesystem mount",
+             "outside the project nothing is captured.")):
         d = decide(c, "unknown", False, supervisable=True, net=net_name)
         assert d.decision == "SUPERVISED"
         assert d.reason.startswith(start), net_name
         assert "inside the project" in d.reason, net_name
-        assert d.reason.endswith("outside the project nothing is captured."), net_name
+        assert d.reason.endswith(end), net_name

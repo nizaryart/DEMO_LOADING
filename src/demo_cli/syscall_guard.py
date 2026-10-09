@@ -17,13 +17,21 @@ mechanism (ptrace, per-syscall stop); the production floor is seccomp-unotify.
 It reuses the existing machinery: recovery.snapshot / Target build the backup,
 receipts.append_receipt records it (hash-chained), so `demo_cli undo` and
 `demo_cli verify` work on these entries exactly like the pre-execution path.
+
+Outside the project (V18 step 2) nothing is backed up and nothing is blocked:
+each existing file a destructive syscall reaches there is RECORDED - one
+receipt per file per run, temp and pseudo filesystems skipped, at most
+_OUTSIDE_CAP receipts per run - so the person can see what unread code
+destroyed outside the project.
 """
 from __future__ import annotations
 
 import ctypes
 import errno
 import os
+import stat
 import sys
+import tempfile
 import uuid
 from typing import Dict, List, Optional, Set
 
@@ -201,6 +209,40 @@ def _in_scope(path: str, root: str, workspace: Optional[str] = None) -> bool:
 # The supervisor
 # --------------------------------------------------------------------------
 
+# V18 step 2: destroys outside the project are recorded, never backed up nor
+# blocked. Temp and pseudo filesystems are skipped (`> /dev/null` truncates a
+# device, a build rewrites its own temp files); a run that reaches more files
+# than the cap gets one closing receipt instead of a flood.
+_OUTSIDE_CAP = 100
+_PSEUDO_ROOTS = ("/proc", "/sys", "/dev")
+
+
+def _temp_roots() -> List[str]:
+    roots = [tempfile.gettempdir(), "/tmp", "/var/tmp", "/dev/shm",
+             os.environ.get("TMPDIR", ""), os.environ.get("XDG_RUNTIME_DIR", "")]
+    out: List[str] = []
+    for r in roots:
+        if r:
+            for q in (os.path.abspath(r), os.path.realpath(r)):
+                if q not in out:
+                    out.append(q)
+    return out
+
+
+class _Outside:
+    """Per-run state for the outside-the-project record."""
+
+    def __init__(self) -> None:
+        self.skip = list(_PSEUDO_ROOTS) + _temp_roots()
+        self.count = 0
+
+    def skipped(self, ap: str) -> bool:
+        # By its own path and by its parent's real path (the file itself may
+        # be the link being removed, so it is not resolved).
+        real = os.path.join(os.path.realpath(os.path.dirname(ap)), os.path.basename(ap))
+        return any(recovery._contains(r, ap) or recovery._contains(r, real) for r in self.skip)
+
+
 def available() -> bool:
     """True on Linux x86-64 where ptrace is usable."""
     if sys.platform != "linux" or _libc is None:
@@ -338,6 +380,7 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
 
     created: Set[str] = set()                      # files the command itself created
     snapped: Set[str] = set()                      # dedupe snapshots per path
+    outside = _Outside()                           # V18: outside-the-project record
     active_pids: Set[int] = {pid}
     child_rc = 0
 
@@ -376,7 +419,8 @@ def run_supervised(argv: List[str], config: Optional[Config] = None,
 
         sig = os.WSTOPSIG(status) if os.WIFSTOPPED(status) else 0
         if sig == (5 | 0x80):                       # syscall-stop (SIGTRAP|0x80)
-            _maybe_snapshot(wpid, root, created, snapped, env, config, deny, group, planes)
+            _maybe_snapshot(wpid, root, created, snapped, env, config, deny, group, planes,
+                            outside)
         # ptrace-event / SIGSTOP / SIGTRAP control stops are just resumed; a
         # prototype does not need full signal-forwarding fidelity.
         try:
@@ -393,10 +437,12 @@ _ENOSYS = ctypes.c_ulonglong(-errno.ENOSYS).value   # rax value at syscall-ENTRY
 def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
                     env: str, config: Config, deny: bool,
                     group: Optional[str] = None,
-                    planes: Optional[List[str]] = None) -> None:
+                    planes: Optional[List[str]] = None,
+                    outside: Optional[_Outside] = None) -> None:
     """On a syscall stop: act only at ENTRY (rax == -ENOSYS, the reliable
     entry/exit discriminator) and only for a destructive file syscall on an
-    in-scope, pre-existing file - snapshot it (and optionally deny)."""
+    in-scope, pre-existing file - snapshot it (and optionally deny). Outside
+    the project, a pre-existing file is recorded only (V18 step 2)."""
     try:
         regs = _getregs(pid)
     except OSError:
@@ -482,6 +528,13 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
     if ap in created or ap in snapped:
         return
     if not _in_scope(ap, root, config.workspace):
+        if outside is not None:
+            # The file the syscall destroys: an open follows a link to its
+            # target; unlink / rename remove the name itself.
+            dp = (os.path.realpath(ap) if name.startswith("openat") else
+                  os.path.join(os.path.realpath(os.path.dirname(ap)), os.path.basename(ap)))
+            if not (recovery._contains(root, dp) or recovery._contains(os.path.realpath(root), dp)):
+                _record_outside(dp, name, snapped, env, config, group, outside)
         return
     if not os.path.exists(ap):
         return                                     # nothing to lose (or already handled)
@@ -526,3 +579,47 @@ def _maybe_snapshot(pid: int, root: str, created: Set[str], snapped: Set[str],
     undo_id = group or (dec_entry['id'] if dec_entry else "")
     sys.stderr.write(f"demo_cli [syscall] {decision}: {name} {ap}"
                      + (f"  (undo: demo_cli undo {undo_id})" if dec_entry else "") + "\n")
+
+
+def _record_outside(ap: str, name: str, snapped: Set[str], env: str,
+                    config: Config, group: Optional[str], outside: _Outside) -> None:
+    """V18 step 2: a destructive syscall on an existing file outside the
+    project is let through (never blocked, even with deny) and recorded - no
+    backup, so the receipt says it cannot be undone."""
+    if ap in snapped or outside.count > _OUTSIDE_CAP or outside.skipped(ap):
+        return
+    try:
+        st = os.lstat(ap)
+    except OSError:
+        return                                     # nothing there to lose
+    if not (stat.S_ISREG(st.st_mode) or stat.S_ISDIR(st.st_mode) or stat.S_ISLNK(st.st_mode)):
+        return                                     # a device, pipe or socket
+    snapped.add(ap)
+    outside.count += 1
+    if outside.count > _OUTSIDE_CAP:
+        action = "[syscall] more destroys outside the project"
+        reason = (f"More than {_OUTSIDE_CAP} files outside the project were destroyed "
+                  "in this run; the rest are not listed (behavioral guard).")
+        rule = "sys_outside_cap"
+    else:
+        action = f"[syscall] {name} {ap}"
+        reason = (f"{name} on {ap}: outside the project - recorded, not backed up, "
+                  "cannot be undone (behavioral guard).")
+        rule = f"sys_outside_{name}"
+    append_receipt(config.receipts_path, Receipt(
+        action_raw=action,
+        action_type="syscall",
+        target_environment=env,
+        decision="ALLOW",
+        reason=reason,
+        mode="enforce-syscall",
+        matched_rule=rule,
+        classification="destructive",
+        recovery_point=None,
+        agent_id="syscall-guard",
+        session_id="run",
+        group_id=group,
+    ))
+    sys.stderr.write("demo_cli [syscall] RECORDED (outside the project, not backed up): "
+                     + (f"{name} {ap}" if rule != "sys_outside_cap" else "more files, not listed")
+                     + "\n")
