@@ -18,8 +18,8 @@ from demo_cli.guard import Guard
 
 # Every one of these escalated before 2026-09-14.
 BENIGN = [
-    "npm update",
-    "npm update --save",
+    # M2.3b (ruling Rb2): `npm update` installs packages, which run their own
+    # install scripts - it escalates when no runtime net exists (test_m23b).
     "apt-get update",
     "cargo update",
     "brew update",

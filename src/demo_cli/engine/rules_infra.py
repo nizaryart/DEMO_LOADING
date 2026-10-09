@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from .effects import CREATE, DELETE, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
+from .effects import CREATE, DELETE, OVERWRITE, RUN, SERVICE_KEEP, SERVICE_LOSS
 from .rules import OptionSpec, Rule, ex
 
 _HERE = "cluster:current/default"
@@ -58,14 +58,14 @@ FAMILY_RULES: Tuple[Rule, ...] = (
                 note="--prune deletes what the manifests no longer list"),
              ex("kubectl create deployment api --image=x", reaches={_HERE: CREATE}),
              ex("kubectl create job j --image=x -- rm -rf /data",
-                uncovered={"kubectl create (a command or data on the line)"},
-                note="the command runs in the cluster: today's path decides"),
+                reaches={"cluster:current/default": RUN},
+                note="M2.3b (Rb4): the command runs in the cluster, nobody read it - RUN"),
              ex("kubectl scale deploy api --replicas=0", reaches={_WORKLOAD: SERVICE_LOSS}),
              ex("kubectl scale deploy api --replicas=3", reaches={_WORKLOAD: SERVICE_KEEP}),
              ex("kubectl drain node1", reaches={_WORKLOAD: SERVICE_LOSS}),
              ex("kubectl rollout restart deploy/api", reaches={_WORKLOAD: SERVICE_KEEP}),
-             ex("kubectl exec app -- rm -rf /data", uncovered={"kubectl exec"},
-                note="code runs in the pod: today's path decides"),
+             ex("kubectl exec app -- rm -rf /data", reaches={_WORKLOAD: RUN},
+                note="M2.3b (Rb4, F2): code runs in the pod - RUN, like docker exec"),
          )),
     Rule(id="helm", tools=("helm",), resolver="infra", options=OptionSpec(),
          examples=(
@@ -76,9 +76,8 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("helm del api", reaches={_HERE: DELETE}, note="VERIFIED alias"),
              ex("helm upgrade api ./chart", reaches={_HERE: OVERWRITE}),
              ex("helm install api ./chart", reaches={_HERE: CREATE}),
-             ex("helm install api ./chart --set k=v",
-                uncovered={"helm install (values on the line)"},
-                note="values feed templates the engine cannot read"),
+             ex("helm install api ./chart --set k=v", reaches={"cluster:current/default": RUN},
+                note="M2.3b (Rb4): values feed templates the engine cannot read - RUN"),
              ex("helm upgrade api ./chart --dry-run=server", note="a dry run"),
              ex("helm test api", uncovered={"helm test"}, note="test pods run code"),
              ex("helm rollback api 1 --dry-run=none", reaches={_HERE: OVERWRITE},

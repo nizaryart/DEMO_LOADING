@@ -105,6 +105,10 @@ def wp(w, inv, parsed, state, tool) -> None:
     if "--help" in opts or not words:
         return w.impact.not_covered("wp")
     cmd = tuple(words[:2])
+    if cmd in (("db", "query"), ("db", "cli")) or words[0] in ("eval", "eval-file", "shell"):
+        # M2.3b: SQL or PHP on the site, nobody read it.
+        w.impact.not_understood(inv.text, f"wp {' '.join(cmd)} runs SQL or PHP the engine does not read")
+        return
     if words[0] == "search-replace":
         if "--dry-run" in opts:
             return
@@ -127,6 +131,16 @@ _MONEY_OPS = {"payment_intents": {"create", "confirm", "capture", "increment_aut
               "invoices": {"pay"}, "setup_intents": set(), "subscriptions": set()}
 
 
+# stripe-cli's own commands (pkg/cmd/root.go AddCommand, fetched 2026-10-09),
+# beside the generated API resources in saas_data.STRIPE.
+_STRIPE_BUILTINS = frozenset({
+    "reporting", "agent", "data", "docs", "completion", "config", "daemon", "feedback",
+    "fixtures", "listen", "login", "logout", "logs", "open", "reauth", "resources", "samples",
+    "serve", "status", "switch", "trigger", "version", "whoami", "postinstall", "provision",
+    "community", "sandbox", "plugin", "get", "post", "delete", "terminal", "help",
+})
+
+
 def stripe(w, inv, parsed, state, tool) -> None:
     from .saas_data import STRIPE
     args = [a for a in inv.argv[1:]]
@@ -139,6 +153,20 @@ def stripe(w, inv, parsed, state, tool) -> None:
         words.append(a.value)
     key = next((" ".join(words[:n]) for n in range(len(words), 1, -1)
                 if " ".join(words[:n]) in STRIPE), None)      # the longest "<...> <res> <op>"
+    if key is None and words[:1] in (["post"], ["delete"]) and not _flag(args, "-h", "--help"):
+        # M2.3b: the generic API calls - `stripe post /v1/charges`.
+        res = (words[1].strip("/").split("/") + ["", ""])[1] if len(words) > 1 else ""
+        if words[0] == "delete":
+            return _reach(w, inv, "http:api.stripe.com", DELETE, [], tool)
+        if res in _MONEY_RES or res in _MONEY_OPS:
+            return _reach(w, inv, "payment:stripe", SEND, [], tool)
+        return _reach(w, inv, "http:api.stripe.com", OVERWRITE, [], tool)
+    if key is None and words and words[0] not in _STRIPE_BUILTINS \
+            and not any(k.split()[0] == words[0] for k in STRIPE):
+        # M2.3b: neither an API resource nor a stripe-cli command
+        # (`stripe charge create` - the resource is `charges`).
+        return w.impact.not_understood(inv.text, f"stripe {words[0]}: not a command of the "
+                                                 f"stripe-cli this engine knows")
     if key is None:
         return w.impact.not_covered(f"stripe {' '.join(words[:2])}".strip())
     if _flag(args, "-h", "--help"):

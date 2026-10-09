@@ -212,3 +212,27 @@ FETCHERS = frozenset({"curl", "wget"})
 # Remote-family calls whose unread part only rewrites local files: the net
 # and a checkpoint DO see those (`terraform fmt -recursive`).
 LOCAL_UNREAD = frozenset({("terraform", "fmt"), ("tofu", "fmt")})
+
+# Rb2 (M2.3b, Nizar 2026-10-09): runners that, with NO runtime net, escalate
+# instead of ALLOW + note. With the net they are SUPERVISED like every runner.
+# Inline code (the value of the option) that names a call starting other
+# programs - its effects are other programs' nobody read:
+INLINE_SPAWNS = {
+    "python": (("-c",), ("os.system", "os.popen", "subprocess", "pty.spawn", "os.exec",
+                         "os.spawn", "commands.get", "__import__", "exec(", "eval(")),
+    "python3": (("-c",), ("os.system", "os.popen", "subprocess", "pty.spawn", "os.exec",
+                          "os.spawn", "commands.get", "__import__", "exec(", "eval(")),
+    "node": (("-e", "--eval", "-p", "--print"), ("child_process", "execSync", "spawnSync",
+                                                 "require('child_process')", "process.binding")),
+}
+# Package installs: they write the dependency tree and run each package's own
+# install scripts (npm lifecycle scripts, setup.py, gem extensions). (tool,
+# first word); "" = the tool alone (bare `yarn` installs).
+PACKAGE_INSTALLS = frozenset({
+    ("npm", "install"), ("npm", "i"), ("npm", "add"), ("npm", "ci"), ("npm", "update"),
+    ("npm", "up"), ("pnpm", "install"), ("pnpm", "i"), ("pnpm", "add"), ("pnpm", "update"),
+    ("yarn", ""), ("yarn", "install"), ("yarn", "add"), ("yarn", "upgrade"),
+    ("pip", "install"), ("pip3", "install"), ("pipx", "install"), ("gem", "install"),
+    ("bundle", "install"), ("bundle", ""), ("poetry", "install"), ("poetry", "add"),
+    ("uv", "add"), ("uv", "sync"), ("cargo", "install"), ("go", "install"), ("go", "get"),
+})

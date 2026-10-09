@@ -113,7 +113,10 @@ def test_4_the_cap_is_exact(tmp_path):
 # Test 5: A value that is an option is not understood
 # ------------------------------------------------------------------------------
 
-def test_5_a_value_that_is_an_option_is_not_understood(tmp_path):
+def test_5_a_known_value_that_is_an_option_is_read_as_one(tmp_path):
+    # M2.3b: the value is known on the line, so the engine reads it as the
+    # option it is (I1a had left it not understood: options were parsed
+    # before the value was known).
     (tmp_path / "a.txt").write_bytes(b"a")
     src = tmp_path / "src"
     src.mkdir(exist_ok=True)
@@ -126,8 +129,10 @@ def test_5_a_value_that_is_an_option_is_not_understood(tmp_path):
     ]
     for cmd in option_cmds:
         imp = simulate(cmd, cwd=str(tmp_path), budget_ms=10_000)
-        assert imp.destroys == {}
-        assert [why for _u, why in imp.unknown] == ["an expansion that starts with '-' may be read as an option"]
+        assert set(imp.destroys) == {str(src)}, cmd
+        assert imp.unknown == [], cmd
+    imp = simulate("rm $X src", cwd=str(tmp_path), budget_ms=10_000)
+    assert (imp.destroys, [why for _u, why in imp.unknown]) == ({}, ["$X is not set on this line"])
 
     # Controls:
     imp_ctrl1 = simulate("X=src; rm -rf $X", cwd=str(tmp_path), budget_ms=10_000)
@@ -182,7 +187,12 @@ def _make_fixture_7(root_path: Path):
     (src / "n.py").write_bytes(b"y")
 
 
-def test_7_the_decision_falls_back_to_what_reads_it_right(tmp_path):
+def test_7_the_decision_falls_back_to_what_reads_it_right(tmp_path, monkeypatch):
+    # M2.3b: no runtime net here, so part 2 escalates on every machine.
+    from demo_cli import mountstate, syscall_guard
+    from demo_cli.mountstate import MountStatus
+    monkeypatch.setattr(syscall_guard, "available", lambda: False)
+    monkeypatch.setattr(mountstate, "status", lambda cfg: MountStatus(recorded=False, running=False))
     # 1. X=-rf; rm $X src -> REVERSIBLE, both files in src restored
     root1 = tmp_path / "p1"
     root1.mkdir()

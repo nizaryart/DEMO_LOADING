@@ -39,7 +39,7 @@ from typing import List, Optional
 
 from ..model import Word
 from .cloud_ops import READ, _reach
-from .effects import DELETE, OVERWRITE
+from .effects import DELETE, OVERWRITE, RUN
 
 _DELETE_V = frozenset({"destroy", "delete", "remove", "rm", "reset", "purge", "drop", "wipe",
                        "truncate", "prune"})
@@ -103,6 +103,9 @@ def heroku(w, inv, parsed, state, tool) -> None:
     cid = HEROKU_ALIASES.get(args[0].value, args[0].value)
     if cid not in HEROKU:
         return w.impact.not_covered(f"heroku {args[0].value}")      # a plugin, or not heroku's
+    if cid.split(":")[0] == "run" and not _flag(args[1:], "-h", "--help"):
+        # M2.3b (Rb4): a command on a one-off dyno, with the app's environment.
+        return _reach(w, inv, "deploy:heroku", RUN, [], tool)
     if _flag(args[1:], "-h", "--help"):
         return
     _claim(w, inv, "heroku", cid.split(":"), args[1:])
@@ -179,18 +182,32 @@ def fly(w, inv, parsed, state, tool) -> None:
     _claim(w, inv, "fly", cmd.split(), rest)
 
 
+_WRANGLER_LOCAL_READS = frozenset({"kv key list", "kv key get", "kv bulk get", "r2 object get",
+                                   "complete"})
+
+
 def wrangler(w, inv, parsed, state, tool) -> None:
     from .paas_data import WRANGLER_ALIASES, WRANGLER_COMMANDS, WRANGLER_LOCAL, WRANGLER_NAMESPACES
     args = list(inv.argv[1:])
     known = set(WRANGLER_COMMANDS) | set(WRANGLER_NAMESPACES)
     cmd, at = _longest(args, known, WRANGLER_ALIASES)
+    if cmd is None and args and not args[0].expands and not args[0].value.startswith("-"):
+        # M2.3b: no wrangler 4 command or namespace (`kv:key` is wrangler 3's
+        # remote KV syntax): a remote change nobody read.
+        return w.impact.not_understood(inv.text, f"wrangler {args[0].value}: not a command "
+                                                 f"of the wrangler this engine knows")
     if cmd is None or cmd not in WRANGLER_COMMANDS:
         return w.impact.not_covered(f"wrangler {args[0].value if args else ''}".strip())
     rest = args[at:]
     if _flag(rest, "-h", "--help"):
         return
-    if cmd in WRANGLER_LOCAL and not (_flag(rest, "--remote", "--preview") or _flag(rest, "--local=false")):
-        return w.impact.not_covered(f"wrangler {cmd} (local)")       # VERIFIED: local by default
+    remote = _flag(rest, "--remote", "--preview") or _flag(rest, "--local=false")
+    if cmd in _WRANGLER_LOCAL_READS:
+        return
+    if cmd == "d1 execute" or (cmd in WRANGLER_LOCAL and not remote):
+        # M2.3b: SQL on a D1 database, or a write to wrangler's local state
+        # (.wrangler, VERIFIED local by default) - nobody read what it changes.
+        return w.impact.not_understood(inv.text, f"wrangler {cmd} changes data the engine does not read")
     if cmd in ("deploy", "versions deploy") and _flag(rest, "--dry-run"):
         return
     if cmd == "delete":

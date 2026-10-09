@@ -192,7 +192,7 @@ def systemctl(w, inv, parsed, state, tool) -> None:
         if not a.expands and v.startswith("--"):
             name = _long_match(v, longs)
             if name is None:
-                return w.impact.not_covered("systemctl " + v.split("=", 1)[0])
+                return w.impact.not_covered("systemctl (option)")      # M2.3b: not read
             if name in SYSTEMCTL_VALUES and "=" not in v:
                 opts[name] = args[i + 1] if i + 1 < len(args) else None
                 i += 2
@@ -213,7 +213,7 @@ def systemctl(w, inv, parsed, state, tool) -> None:
                         i += 1
                     break
                 if o not in SYSTEMCTL_FLAGS:
-                    return w.impact.not_covered("systemctl " + o)
+                    return w.impact.not_covered("systemctl (option)")         # M2.3b: not read
                 opts[o] = None
                 j += 1
             i += 1

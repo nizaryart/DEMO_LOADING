@@ -247,13 +247,13 @@
   "uncovered": []
  },
  "aws ec2 run-instances --image-id ami-1 --user-data 'rm -rf /data'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "aws ec2 run-instances"
-  ]
+  "remote": {
+   "cloud:aws:ec2": "RUN"
+  },
+  "uncovered": []
  },
  "aws lambda invoke --function-name f out.json": {
   "decision": "ESCALATE",
@@ -594,7 +594,7 @@
   "uncovered": []
  },
  "s3cmd --foo del s3://b/x": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -674,7 +674,7 @@
   "uncovered": []
  },
  "rclone --foo sync sub remote:b": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -957,8 +957,8 @@
   "uncovered": []
  },
  "aws s3 cp a.txt s3://b/ --no-overwrite --metadata note=\"rm -rf /\"": {
-  "decision": "ESCALATE",
-  "surface": "object_storage",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -975,7 +975,7 @@
   "uncovered": []
  },
  "s3cmd put --skip-existing a.txt s3://b/ --add-header \"x-cmd: DROP TABLE t\"": {
-  "decision": "ESCALATE",
+  "decision": "ALLOW",
   "surface": null,
   "captured": false,
   "remote": {},

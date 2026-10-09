@@ -354,9 +354,9 @@
   "uncovered": []
  },
  "git -c core.pager='rm -rf ~' log": {
-  "decision": "SUPERVISED",
+  "decision": "ESCALATE",
   "surface": null,
-  "approvable": false,
+  "approvable": true,
   "captured": false,
   "remote": {},
   "uncovered": []

@@ -191,7 +191,7 @@
   "uncovered": []
  },
  "terraform -chdir infra destroy": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

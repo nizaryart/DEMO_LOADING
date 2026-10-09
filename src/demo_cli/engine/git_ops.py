@@ -34,6 +34,7 @@ no local copy restores, and escalates.
 from __future__ import annotations
 
 import os
+import re
 from typing import List, Optional, Tuple
 
 from ..model import Word
@@ -363,6 +364,31 @@ def _push(w, inv, args: List[Word], state) -> None:
         w.impact.reach(label, CREATE)
 
 
+# A message is text git stores, not a name it acts on: what it expands to
+# changes no effect (M2.3b). Its $( ) still runs, and the simulation reads it.
+_MESSAGE_SUBS = frozenset({"commit", "tag", "stash", "merge", "notes"})
+
+
+def _not_messages(sub: str, rest):
+    """`rest` without the values of -m / --message (git commit / tag / stash
+    push / merge / notes)."""
+    if sub not in _MESSAGE_SUBS:
+        return rest
+    out, skip = [], False
+    for a in rest:
+        if skip:
+            skip = False
+            continue
+        r = a.raw
+        if r in ("-m", "--message") or re.fullmatch(r"-[A-Za-z]*m", r):
+            skip = True                         # -m MSG, --message MSG, -am MSG
+            continue
+        if r.startswith("--message=") or re.match(r"-[A-Za-z]*m.", r) and not r.startswith("--"):
+            continue                            # --message=MSG, -mMSG, -amMSG
+        out.append(a)
+    return out
+
+
 def git(w, inv, parsed, state, tool) -> None:
     args = list(inv.argv[1:])
     idx, cwd = _globals(w, inv, args, state)
@@ -370,7 +396,7 @@ def git(w, inv, parsed, state, tool) -> None:
         return
     sub = args[idx].value
     rest = args[idx + 1:]
-    if any(a.expands for a in rest):
+    if any(a.expands for a in _not_messages(sub, rest)):
         w.impact.not_understood(inv.text, f"a git {sub} argument named by an expansion")
         return
     # The subcommand runs where `-C` left us, not where the hook stands.

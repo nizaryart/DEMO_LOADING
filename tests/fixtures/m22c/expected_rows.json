@@ -898,11 +898,11 @@
  },
  "systemctl --no-such-option stop x": {
   "decision": "ESCALATE",
-  "surface": "service_control",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
-   "systemctl --no-such-option"
+   "systemctl (option)"
   ]
  },
  "systemctl --no-p stop nginx": {

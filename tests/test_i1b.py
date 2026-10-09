@@ -209,7 +209,8 @@ def test_5_what_stays_unknown(tmp_path):
           "command substitution: a command this engine does not read"]),
         ("$(echo rm) a.txt", set(), ["the command word: command substitution"]),
         ("rm $(cat ../o.txt)", set(), ["command substitution: o.txt is outside the project"]),
-        ("rm $(cat opts.txt)", set(), ["an expansion that starts with '-' may be read as an option"]),
+        # M2.3b: the options come from a file this line shows - read as options
+        ("rm $(cat opts.txt)", {"src"}, []),
         ("rm $(cat zero.txt)", set(), ["command substitution: the output holds a NUL byte"]),
         ("rm $(cat bad.txt)", set(), ["command substitution: bad.txt is not UTF-8 text"]),
         ("rm $(cat big.txt)", set(), ["command substitution: big.txt is larger than 64 KiB"]),

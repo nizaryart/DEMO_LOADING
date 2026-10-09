@@ -88,7 +88,7 @@
   "uncovered": []
  },
  "python3 -c 'import os; os.system(\"rm -rf x\")'": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -574,7 +574,7 @@
   "uncovered": []
  },
  "python -c \"__import__('os').system('ls')\"": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -583,7 +583,7 @@
   ]
  },
  "python -c \"import subprocess; subprocess.call('ls', shell=True)\"": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -601,7 +601,7 @@
   ]
  },
  "python3 -c \"import os; os.system('ls')\"": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -717,14 +717,14 @@
   "uncovered": []
  },
  "eval $CMD": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": []
  },
  "X=dir; eval \"cd $X\"": {
-  "decision": "ESCALATE",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},

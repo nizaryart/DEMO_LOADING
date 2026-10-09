@@ -104,8 +104,10 @@ ORDINARY = [
     "redis-cli ping", "redis-cli GET mykey", "redis-cli INFO",
     "redis-cli --scan --pattern 'user:*'", "redis-cli CONFIG GET maxmemory",
     "redis-cli LLEN queue",
-    "npm run build", "npm test", "npm ci", "npm view mypkg",
-    "cargo build", "cargo test", "gem install rails",
+    "npm run build", "npm test", "npm view mypkg",
+    "cargo build", "cargo test",
+    # M2.3b (Rb2): `npm ci` and `gem install` escalate without a runtime net
+    # (package installs run the packages' own scripts) - pinned in test_m23b.
     # Prose. Each of these escalates against an unanchored version of the rule.
     "grep -rn 'FLUSHALL' src/",
     "echo 'docker rm is destructive' >> notes.md",

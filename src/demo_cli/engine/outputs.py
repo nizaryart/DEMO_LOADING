@@ -258,3 +258,47 @@ def _dirname(args: List[str]) -> str:
             d = t[:t.rindex("/")].rstrip("/") or "/"
         out.append(d + "\n")
     return "".join(out)
+
+
+def piped_text(w, inv, state) -> str:
+    """What `inv` writes into a pipe a shell reads as its script (M2.3b):
+    `echo 'rm -rf build' | sh`, `cat <<'EOF' | sh`. The same few commands as
+    output() - echo, printf, cat - plus cat of ONE heredoc whose body cannot
+    change before it runs (a quoted delimiter, or a body with no $, ` or \\).
+    Raises Unknown for anything else: the shell then runs what nobody read."""
+    if (inv.clause or inv.prefix or inv.wrappers or inv.subs or inv.payload is not None
+            or inv.powershell or inv.depth or not inv.argv):
+        raise Unknown("a command this engine does not read")
+    if "PATH" in state.vars:
+        raise Unknown("PATH is changed on this line")
+    if w.redefined:
+        raise Unknown(f"`{w.redefined}` on this line may change what a name runs")
+    head = inv.argv[0]
+    tool = head.value
+    if head.expands or "/" in tool or "\\" in tool or tool not in ("cat", "echo", "printf"):
+        raise Unknown("a command this engine does not read")
+    if tool in w.functions:
+        raise Unknown(f"{tool} is a function defined on this line")
+    for r in inv.redirects:
+        if r.heredoc is not None and tool == "cat":
+            continue
+        t = r.target
+        if not (r.fd == "2" and r.op in (">", ">>") and t is not None
+                and not t.expands and t.value == "/dev/null"):
+            raise Unknown("a redirection on what feeds the shell")
+    args = _args(w, state, inv.argv[1:])
+    if inv.heredocs:
+        docs = [r.heredoc for r in inv.redirects if r.heredoc is not None]
+        if tool != "cat" or len(docs) != 1 or args not in ([], ["-"]):
+            raise Unknown("a heredoc this engine does not read")
+        body = docs[0].body
+        if not docs[0].quoted and any(ch in body for ch in "$`\\"):
+            raise Unknown("a heredoc body that expands")
+        return body + "\n"
+    if tool == "cat":
+        if args[:1] == ["--"]:
+            args = args[1:]
+        if not args or any(a.startswith("-") for a in args):
+            raise Unknown("cat with options, or reading stdin")
+        return _cat(w, state, args)
+    return _echo(args) if tool == "echo" else _printf(args)

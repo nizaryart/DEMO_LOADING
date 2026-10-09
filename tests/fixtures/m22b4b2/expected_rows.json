@@ -72,12 +72,12 @@
   "uncovered": []
  },
  "npx prisma generate": {
-  "decision": "SUPERVISED",
+  "decision": "ALLOW",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
-   "npx"
+   "prisma"
   ]
  },
  "echo \"we use stripe charge in prod\"": {
@@ -114,21 +114,17 @@
  },
  "stripe charge create --amount 5000": {
   "decision": "ESCALATE",
-  "surface": "external_payment",
+  "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "stripe charge create"
-  ]
+  "uncovered": []
  },
  "stripe refund create": {
   "decision": "ESCALATE",
-  "surface": "external_payment",
+  "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "stripe refund create"
-  ]
+  "uncovered": []
  },
  "wp db drop": {
   "decision": "ESCALATE",
@@ -279,9 +275,7 @@
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wp db query"
-  ]
+  "uncovered": []
  },
  "wp search-replace http://a https://b": {
   "decision": "ESCALATE",
@@ -365,9 +359,7 @@
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wp eval wp_delete_post(1);"
-  ]
+  "uncovered": []
  },
  "stripe charges create --amount 100 --currency usd": {
   "decision": "ESCALATE",
@@ -619,8 +611,8 @@
   "uncovered": []
  },
  "alembic revision -m x": {
-  "decision": "ESCALATE",
-  "surface": "schema_migration",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -646,8 +638,8 @@
   "uncovered": []
  },
  "prisma migrate dev --create-only": {
-  "decision": "ESCALATE",
-  "surface": "schema_migration",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -690,10 +682,10 @@
   "decision": "ESCALATE",
   "surface": "schema_migration",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "npx"
-  ]
+  "remote": {
+   "migration:prisma": "DELETE"
+  },
+  "uncovered": []
  },
  "knex migrate:latest": {
   "decision": "ESCALATE",
@@ -721,8 +713,8 @@
   "uncovered": []
  },
  "knex migrate:make x": {
-  "decision": "ESCALATE",
-  "surface": "schema_migration",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [

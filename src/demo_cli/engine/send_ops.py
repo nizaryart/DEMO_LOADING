@@ -448,6 +448,8 @@ def gh(w, inv, parsed, state, tool) -> None:
     if not args or (len(args) == 1 and args[0].value in ("--version", "-h", "--help")):
         return
     cmd, k = _gh_command(args, tree)
+    if cmd is None and not args[0].expands and args[0].value.startswith("-"):
+        return w.impact.not_covered("gh (option)")              # M2.3b: an option gh's tree lacks
     if cmd is None or tree.get(cmd, {}).get("group"):
         if cmd is not None and any(a.value in ("-h", "--help") for a in args):
             return
@@ -464,6 +466,11 @@ def gh(w, inv, parsed, state, tool) -> None:
     if cmd == "api":
         return _gh_api(w, inv, pos, got, tool, where)
     kind = _GH_KIND.get(cmd)
+    if kind is None and cmd in ("pr create", "issue create", "release create"):
+        # M2.3b: a pull request, an issue or a release published on the
+        # remote (a release may fire deploy workflows) - it kept escalating
+        # through the old path; it is a SEND the person sees (ask).
+        kind = SEND
     if kind is None:
         return w.impact.not_covered(f"gh {cmd}")
     if cmd == "repo delete" and pos:

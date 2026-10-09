@@ -1038,3 +1038,28 @@ def sevenzip(w, inv, parsed, state, tool) -> None:
         for p in w.paths(files, state, inv):
             if w.node(state, p).exists:
                 w.remove(state, p)
+
+
+def remote_reads(w, inv, parsed, state, tool) -> None:
+    """M2.3b (Rb3): a CLI in rules.UNMODELLED_REMOTE. The command path is the
+    leading words before any option; a verified read-only path (or a prefix
+    of it listed whole, like `inspect db`) has no effect; anything else is
+    NOT UNDERSTOOD - a remote change this engine does not read, which no
+    runtime net or checkpoint sees: it escalates."""
+    from .rules import UNMODELLED_REMOTE
+    if parsed.flags & {"help", "version"}:
+        return
+    words = []
+    for a in inv.argv[1:]:
+        if a.expands or a.value.startswith("-"):
+            break
+        words.append(a.value)
+    if not words:
+        w.impact.not_understood(inv.text, f"a {tool} command read with its options first")
+        return
+    reads = UNMODELLED_REMOTE[tool]
+    for k in range(len(words), 0, -1):
+        if " ".join(words[:k]) in reads:
+            return
+    w.impact.not_understood(inv.text, f"{tool} {' '.join(words[:3])}: a remote change this "
+                                      f"engine does not read")

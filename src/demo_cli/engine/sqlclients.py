@@ -33,6 +33,7 @@ from urllib.parse import urlsplit
 
 from .effects import CREATE, DELETE, OVERWRITE, _LOSS_ORDER
 from .sql import META, READ, UNKNOWN, WRITE, statements
+from .words import Unknown, expand
 
 # R4: the largest SQL text read from a file or stdin. MEASURED 2026-09-28
 # (SP/sql_timing.py, three script shapes): 256 KiB takes 21-31 ms, over the
@@ -525,6 +526,19 @@ def sql_client(w, inv, parsed, state, tool) -> None:
     return _mysql(w, inv, parsed, state)
 
 
+def _known(w, inv, state, word) -> Optional[str]:
+    """The one argument `word` becomes, when this line shows its value
+    (M2.3b: `DB=app.db; sqlite3 $DB ...`, `sqlite3 app.db "$(cat q.sql)"`);
+    None when it is not known or splits into several arguments."""
+    def no_glob(_p):
+        raise Unknown("a glob")
+    try:
+        fields = expand(word, state.vars, state.cwd, no_glob, outputs=w.outputs.get(id(inv)))
+    except Unknown:
+        return None
+    return fields[0] if len(fields) == 1 else None
+
+
 def _sqlite3(w, inv, parsed, state) -> None:
     f, o = parsed.flags, parsed.options
     if "archive" in o or "zip" in f:
@@ -535,11 +549,11 @@ def _sqlite3(w, inv, parsed, state) -> None:
     sess = Session(w, inv, state, "sqlite", readonly=readonly, safe="safe" in f)
     if ops:
         name = ops[0]
-        if name.expands:
+        v = _known(w, inv, state, name) if name.expands else name.value
+        if v is None:
             w.impact.not_understood(inv.text, "the database is named by an expansion")
             sess.write(DELETE)
         else:
-            v = name.value
             if v.startswith("file:"):
                 base, _q, query = v[5:].partition("?")
                 if "mode=ro" in query or "immutable=1" in query:
@@ -557,10 +571,11 @@ def _sqlite3(w, inv, parsed, state) -> None:
             sess.run_text(c.value, 0)
     sql_args = ops[1:]
     for a in sql_args:
-        if a.expands:
+        text = _known(w, inv, state, a) if a.expands else a.value
+        if text is None:
             sess.unknown("SQL built from an expansion")
         else:
-            sess.run_text(a.value, 0)
+            sess.run_text(text, 0)
     if not sql_args:
         feed_stdin(sess, w, inv, state)
     sess.finish()

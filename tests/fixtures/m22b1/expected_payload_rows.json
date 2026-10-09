@@ -1,66 +1,66 @@
 {
  "kubectl create job x --image=busybox -- rm -rf /data": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "kubectl create (a command or data on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "kubectl create cronjob c --image=busybox --schedule='* * * * *' -- rm -rf /data": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "kubectl create (a command or data on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "kubectl create deployment d --image=busybox -- sh -c 'rm -rf /data'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "kubectl create (a command or data on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "helm install api ./chart --set init.sql='DROP TABLE users'": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "helm install (values on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "helm install api ./chart --set job.cmd='rm -rf /data'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "helm install (values on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "kubectl create configmap c --from-literal=sql='DROP TABLE users'": {
   "decision": "ESCALATE",
-  "surface": null,
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "kubectl create (a command or data on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "cat k8s/dep.yaml | kubectl create -f -": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "kubectl create (a command or data on the line)"
-  ]
+  "remote": {
+   "cluster:current/default": "RUN"
+  },
+  "uncovered": []
  },
  "kubectl create deployment api --image=x": {
   "decision": "ALLOW",

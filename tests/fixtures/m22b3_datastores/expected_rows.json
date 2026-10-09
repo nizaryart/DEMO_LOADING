@@ -282,7 +282,7 @@
   "uncovered": []
  },
  "redis-cli --foo GET k": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

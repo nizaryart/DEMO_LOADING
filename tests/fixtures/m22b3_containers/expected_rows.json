@@ -567,7 +567,7 @@
   "uncovered": []
  },
  "docker --foo rm c": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -734,7 +734,7 @@
   "uncovered": []
  },
  "docker volume --foo rm v": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

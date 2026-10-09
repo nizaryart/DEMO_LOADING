@@ -31,6 +31,7 @@ import fnmatch
 import glob as _glob
 import os
 import re
+import shlex
 import stat
 import time
 from typing import Dict, FrozenSet, List, Optional, Tuple
@@ -40,7 +41,7 @@ from typing import Dict, FrozenSet, List, Optional, Tuple
 _CPU_CLOCK = "perf_counter" if os.name == "nt" else "process_time"
 WALL_CEILING_MS = 250.0
 
-from ..model import Script, parse
+from ..model import Script, Word, parse
 from .effects import CREATE, DELETE, LATER, MKDIR, OVERWRITE, TRUNCATE, Impact
 from .invocation import Invocation, build, parse_options, reads_stdin_script
 from .rules import (LAZY_FAMILIES, READ_ONLY, RULES, SHELLS, Rule, applies, family_rules,
@@ -51,6 +52,7 @@ NEW = ""                     # the origin of content this command itself makes
 SINKS = frozenset({"/dev/null", "/dev/zero", "/dev/stdout", "/dev/stderr", "/dev/tty",
                    "/dev/full", "/dev/random", "/dev/urandom", "/dev/stdin"})
 MAX_GLOB = 10_000
+_LAUNCHERS = frozenset({"npx", "bunx", "pnpm", "yarn", "bun"})
 MAX_DEPTH = 8
 _WRITES = (">", ">|", "&>", ">&", ">>", "&>>")
 _VAR_BUILTINS = ("export", "readonly", "declare", "typeset", "local")
@@ -661,6 +663,9 @@ class World:
         tool = os.path.basename(head[0].replace("\\", "/")) if head else ""
         if tool.lower().endswith(".exe"):
             tool = tool[:-4]
+        launched = self.launched(inv, tool) if tool in _LAUNCHERS else None
+        if launched is not None:
+            inv, tool = launched                         # M2.3b: `npx prisma ...` is prisma
         if tool in ("alias", "enable", "hash"):
             self.redefined = tool                        # a name may no longer be its command (I1b)
 
@@ -705,7 +710,13 @@ class World:
             return state, self.merge(before, state)
         if tool in SHELLS:
             if shell_stdin and piped_in and not inv.heredocs:
-                self.impact.not_understood(inv.text, "a shell runs whatever the pipe feeds it")
+                # M2.3b: what a literal echo / printf / cat / heredoc feeds the
+                # shell is a script this engine can read, like `sh <<'EOF'`.
+                text = self.piped_script(upstream, state)
+                if text is None:
+                    self.impact.not_understood(inv.text, "a shell runs whatever the pipe feeds it")
+                else:
+                    self.subshell(parse(text), state, depth)
             return state, self.merge(before, state)
         if tool == "trap":
             args = [w.value for w in inv.argv[1:] if w.value != "--"]
@@ -722,6 +733,7 @@ class World:
             if tool not in READ_ONLY:
                 self.impact.not_covered(tool)
             return state, before
+        args = self.known_options(inv, state)
         for rule in rules:
             if rule.partial:
                 # The file side is modelled; the rest (a network request, a
@@ -729,7 +741,7 @@ class World:
                 # stays OUT_OF_SCOPE instead of looking covered and harmless.
                 if rule.partial == "network":
                     self.impact.not_covered(f"{tool} (network)")
-            parsed = parse_options(inv.argv[1:], rule.options)
+            parsed = parse_options(args, rule.options)
             if not applies(rule, parsed):
                 continue
             if "xargs" in inv.wrappers:
@@ -754,6 +766,67 @@ class World:
                     for p in paths:
                         self.mkdir(state, p, "parents" in parsed.flags)
         return state, self.merge(before, state)
+
+    def launched(self, inv: Invocation, tool: str) -> Optional[Tuple[Invocation, str]]:
+        """`npx prisma migrate reset` runs prisma: when the package a launcher
+        (npx, bunx, pnpm / yarn dlx, bun x) starts is a tool with rules, the
+        line is that tool's (M2.3b). Anything else stays the launcher's - a
+        runner of code this engine does not read."""
+        args = inv.argv[1:]
+        if tool in ("pnpm", "yarn", "bun"):
+            if not args or args[0].expands or args[0].value not in ("dlx", "x"):
+                return None
+            args = args[1:]
+        i = 0
+        while i < len(args):
+            a = args[i]
+            if a.expands:
+                return None
+            v = a.value
+            if v in ("-p", "--package"):
+                i += 2
+                continue
+            if v in ("-c", "--call"):
+                return None                              # a command string: unread
+            if v.startswith("-"):
+                i += 1
+                continue
+            break
+        if i >= len(args):
+            return None
+        name = args[i].value
+        name = name.rsplit("/", 1)[-1]
+        name = name.split("@", 1)[0] if not name.startswith("@") else name
+        if not name or not (name in self.table or name in LAZY_FAMILIES):
+            return None
+        out = object.__new__(type(inv))
+        for slot in type(inv).__slots__:
+            setattr(out, slot, getattr(inv, slot))
+        out.argv = [Word(shlex.quote(name), name, args[i].start, args[i].end)] + list(args[i + 1:])
+        return out, name
+
+    def known_options(self, inv: Invocation, state: State) -> List[Word]:
+        """The arguments as the tool receives them, where that is known on this
+        line (M2.3b): `X=-rf; rm $X src` is `rm -rf src`. An expansion whose
+        value is fully known and yields a field starting with '-' is replaced
+        by its fields, so parse_options reads them as the options they are.
+        Anything not known stays as written - paths() then reports it (I1a)."""
+        out: List[Word] = []
+        for w in inv.argv[1:]:
+            if not w.expands:
+                out.append(w)
+                continue
+            try:
+                fields = expand(w, state.vars, state.cwd, lambda p: self.glob(state, p),
+                                outputs=self.outputs.get(id(inv)))
+            except Unknown:
+                out.append(w)
+                continue
+            if not any(f.startswith("-") and f != "-" for f in fields):
+                out.append(w)
+                continue
+            out.extend(Word(shlex.quote(f), f, w.start, w.end) for f in fields)
+        return out
 
     def inline(self, tool: str, inv: Invocation, state: State, before: State,
                depth: int) -> Tuple[Optional[State], Optional[State]]:
@@ -858,6 +931,19 @@ class World:
                 continue                                 # fd duplication
             for p in self.paths([r.target], state, inv):
                 self.write(state, p, r.op in (">>", "&>>"))     # /dev: see device()
+
+    def piped_script(self, upstream: Optional[Invocation], state: State) -> Optional[str]:
+        """The script text the pipe carries, when the command feeding it is one
+        engine/outputs.piped_text reads; None otherwise."""
+        if upstream is None:
+            return None
+        outputs = self.untimed(_outputs)
+        try:
+            text = outputs.piped_text(self, upstream, state)
+        except Unknown:
+            return None
+        self.impact.computed.append((upstream.text, text))
+        return text
 
     def output(self, sub: Script, state: State) -> Tuple[bool, str]:
         """(True, what `sub` prints, trailing newlines removed) for the few

@@ -195,12 +195,10 @@
  },
  "wrangler kv:key delete K": {
   "decision": "ESCALATE",
-  "surface": "saas_deploy",
+  "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wrangler kv:key"
-  ]
+  "uncovered": []
  },
  "wrangler tail": {
   "decision": "ALLOW",
@@ -280,13 +278,13 @@
   ]
  },
  "heroku run bash -a myapp": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "saas_deploy",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "heroku run"
-  ]
+  "remote": {
+   "deploy:heroku": "RUN"
+  },
+  "uncovered": []
  },
  "heroku ps:restart -a myapp": {
   "decision": "ALLOW",
@@ -542,8 +540,8 @@
   "uncovered": []
  },
  "netlify deploy --prod --draft": {
-  "decision": "ESCALATE",
-  "surface": "saas_deploy",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -658,12 +656,10 @@
  },
  "wrangler kv key delete K": {
   "decision": "ESCALATE",
-  "surface": "saas_deploy",
+  "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wrangler kv key delete (local)"
-  ]
+  "uncovered": []
  },
  "wrangler kv key delete K --remote": {
   "decision": "ESCALATE",
@@ -675,31 +671,25 @@
   "uncovered": []
  },
  "wrangler kv key put K v --local": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wrangler kv key put (local)"
-  ]
+  "uncovered": []
  },
  "wrangler d1 execute db --command \"DROP TABLE t\"": {
   "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wrangler d1 execute (local)"
-  ]
+  "uncovered": []
  },
  "wrangler d1 execute db --remote --command \"DROP TABLE t\"": {
   "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "wrangler d1 execute"
-  ]
+  "uncovered": []
  },
  "wrangler r2 bucket delete b": {
   "decision": "ESCALATE",

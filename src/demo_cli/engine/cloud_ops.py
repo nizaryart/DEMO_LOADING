@@ -332,6 +332,10 @@ def aws(w, inv, parsed, state, tool) -> None:
         return
     if any(r.value in ("--dry-run", "--generate-cli-skeleton") and not r.expands for r in rest):
         return                                                # VERIFIED: simulates or is refused
+    if any(r.value.partition("=")[0] == "--user-data" for r in rest if not r.expands):
+        # Rb4 (M2.3b): a script the new machine runs at boot - code shipped to
+        # run elsewhere, nobody read: RUN on that service (ask).
+        return _reach(w, inv, _aws_label(svc, op, profile), RUN, rest, tool)
     if svc in _AWS_UNCLAIMED_SERVICES and (svc, op) not in _AWS_LOCAL_READ:
         return w.impact.not_covered(f"aws {svc} {op}")
     if (svc, op) in _AWS_UNCLAIMED or "wizard" in op:

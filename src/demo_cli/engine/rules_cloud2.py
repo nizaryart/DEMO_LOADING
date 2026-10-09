@@ -89,7 +89,7 @@ FAMILY_RULES: Tuple[Rule, ...] = (
              ex("railway variable set K=V", reaches={"secret:railway:variable": OVERWRITE}),
              ex("railway up", reaches={"cloud:railway:up": OVERWRITE}),
              ex("railway restart", reaches={"cloud:railway:restart": SERVICE_KEEP}),
-             ex("railway run python manage.py migrate", uncovered={"railway run"},
-                note="runs a local command: today's path decides"),
+             ex("railway run python manage.py migrate", unknown=True,
+                note="M2.3b: a command with the platform's environment - not understood"),
          )),
 )

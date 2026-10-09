@@ -856,7 +856,7 @@
   "uncovered": []
  },
  "http --foo https://api.x.com/items": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -939,10 +939,10 @@
   "decision": "ESCALATE",
   "surface": "vcs_remote_state",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "gh pr create"
-  ]
+  "remote": {
+   "github:current": "SEND"
+  },
+  "uncovered": []
  },
  "gh issue delete 3 --yes": {
   "decision": "ESCALATE",
@@ -954,7 +954,7 @@
   "uncovered": []
  },
  "gh issue comment 3 -b 'rm -rf /'": {
-  "decision": "SUPERVISED",
+  "decision": "ALLOW",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -975,10 +975,10 @@
   "decision": "ESCALATE",
   "surface": "vcs_remote_state",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "gh release create"
-  ]
+  "remote": {
+   "github:current": "SEND"
+  },
+  "uncovered": []
  },
  "gh release upload v1 a.zip": {
   "decision": "ALLOW",
@@ -1135,12 +1135,12 @@
   "uncovered": []
  },
  "gh --foo pr list": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
-   "gh --foo"
+   "gh (option)"
   ]
  },
  "gh myextension do-thing": {

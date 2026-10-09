@@ -116,17 +116,65 @@ def _nothing_else_acts(c: Classification) -> bool:
 _related = recovery._related
 
 
-def _old_rules_fire(c: Classification) -> bool:
-    """Did the old text rules flag this line (M2.3a: they keep a stricter
-    answer for a line the engine did not fully read, until an engine rule
-    covers the tool - M2.3b retires them one family at a time)?"""
-    return bool(c.needs_recovery or c.nonrecoverable_surface or c.remote_exec)
+_SPAWNS = "runs inline code that starts other programs"
+
+
+def _needs_the_net(command: str) -> Optional[str]:
+    """Rb2 (M2.3b): a runner that may ALLOW with a note when no net exists,
+    unless a policy row says otherwise: inline code naming a call that starts
+    other programs (policy.INLINE_SPAWNS), or a package install, which runs the
+    packages' own scripts (policy.PACKAGE_INSTALLS). The reason, or None."""
+    from . import policy
+    from .classify import _WRAPPERS
+    from .model import parse
+    try:
+        cmds = parse(command.replace("\r\n", "\n")).commands
+    except Exception:
+        return None
+    for cm in cmds:
+        words = [w.value for w in cm.argv if not w.expands]
+        while words and words[0] in _WRAPPERS:
+            words = words[1:]
+        if not words:
+            continue
+        tool, rest = os.path.basename(words[0]), words[1:]
+        if tool in ("python", "python3", "py") and rest[:2] == ["-m", "pip"]:
+            tool, rest = "pip", rest[2:]
+        flags = policy.INLINE_SPAWNS.get(tool)
+        if flags:
+            opts, calls = flags
+            for k, w in enumerate(rest[:-1]):
+                if w in opts and any(call in rest[k + 1] for call in calls):
+                    return _SPAWNS
+        sub = next((w for w in rest if not w.startswith("-")), "")
+        if (tool, sub) in policy.PACKAGE_INSTALLS:
+            return "installs packages, which run their own install scripts"
+    return None
 
 
 _SQL_CLIENTS = frozenset({"sqlite3", "psql", "mysql", "mariadb"})
 
 
-def _net_blind(impact, command: str) -> bool:
+def _remote_family(tool: str) -> bool:
+    """A tool of the engine's remote families (cloud, clusters, containers,
+    data stores, services, accounts, SaaS, mail, ssh: rules.LAZY_FAMILIES, and
+    the CLIs in rules.UNMODELLED_REMOTE). Runners are not - their code is local
+    (M1); git and the SQL clients have their own exclusions (git_unread /
+    sql_unread): a checkpoint holds .git and a project's sqlite file."""
+    from . import policy
+    from .engine.rules import LAZY_FAMILIES, UNMODELLED_REMOTE
+    return ((tool in LAZY_FAMILIES or tool in UNMODELLED_REMOTE)
+            and tool not in policy.CODE_RUNNERS and tool != "git" and tool not in _SQL_CLIENTS)
+
+
+def _unparsed_remote(impact) -> bool:
+    """M2.3b: a remote tool met an option its table does not know - its
+    marker says `(option)`. The line was not read, so it is not understood:
+    `gcloud --foo compute instances delete vm1` is not "no effect"."""
+    return any(u.endswith("(option)") and _remote_family(u.split()[0]) for u in impact.uncovered)
+
+
+def _net_blind(impact, command: str) -> Optional[str]:
     """Does this unread line reach past local files, where neither the net nor
     a checkpoint sees (V18)? Yes when an unread part is a call to a tool of
     the engine's remote families (cloud, clusters, containers, data stores,
@@ -134,13 +182,16 @@ def _net_blind(impact, command: str) -> bool:
     excepted - their code is local, M1), when such a tool or a download
     shares the line with what cannot be read (`aws s3 cp s3://b/x.sh - |
     bash`), or when a runner reads a download (`bash <(curl ...)`).
-    policy.LOCAL_UNREAD lists the remote-family calls that only touch files."""
+    policy.LOCAL_UNREAD lists the remote-family calls that only touch files.
+    Returns "fetch" for fetched code that runs (fetch-and-run: its deny
+    channel), "remote" for any other unread remote call, None otherwise."""
     from . import policy
     from .classify import _WRAPPERS
     from .engine.rules import LAZY_FAMILIES
     from .model import parse
 
-    def calls(text):
+    def calls(text, depth=0):
+        """Every command the text runs, $( ) and backticks included."""
         try:
             cmds = parse(text.replace("\r\n", "\n")).commands
         except Exception:
@@ -151,17 +202,28 @@ def _net_blind(impact, command: str) -> bool:
                 words = words[1:]
             if words:
                 yield os.path.basename(words[0]), (words[1] if len(words) > 1 else "")
+            if depth < 4:
+                for w in cm.argv:
+                    for _a, _b, inner in w.subs:
+                        yield from calls(inner, depth + 1)
+
+    def substituted(text):
+        """The commands inside $( ) / backticks: their output is part of the line."""
+        try:
+            cmds = parse(text.replace("\r\n", "\n")).commands
+        except Exception:
+            return
+        for cm in cmds:
+            for w in cm.argv:
+                for _a, _b, inner in w.subs:
+                    yield from calls(inner, 1)
 
     def remote(tool, sub):
-        # git and the SQL clients have their own exclusions (git_unread /
-        # sql_unread): a checkpoint holds .git and a project's sqlite file.
-        return ((tool in LAZY_FAMILIES and tool not in policy.CODE_RUNNERS
-                 and tool != "git" and tool not in _SQL_CLIENTS
-                 and (tool, sub) not in policy.LOCAL_UNREAD)
-                or tool in policy.FETCHERS)
+        return (_remote_family(tool) and (tool, sub) not in policy.LOCAL_UNREAD) \
+            or tool in policy.FETCHERS
 
     if re.search(r"<\([^)]*\b(?:%s)\b" % "|".join(sorted(policy.FETCHERS)), command):
-        return True
+        return "fetch"
     if any(t in policy.FETCHERS for t, _ in calls(command)):
         # Download, then run it: `curl -o x.sh URL && bash x.sh`.
         fetched = {os.path.normcase(p) for p in list(impact.created) + list(impact.creates)}
@@ -175,12 +237,19 @@ def _net_blind(impact, command: str) -> bool:
                 words = words[1:]
             if words and (os.path.basename(words[0]) in policy.CODE_RUNNERS or "/" in words[0]):
                 if any(os.path.normcase(os.path.abspath(x)) in fetched for x in words):
-                    return True
+                    return "fetch"
+    if _unparsed_remote(impact):
+        return "remote"
     if not impact.unknown:
-        return False
+        return None
+    on_line = [remote(t, sub) for t, sub in calls(command)]
+    if any(why == "a shell runs whatever the pipe feeds it" for _u, why in impact.unknown) and any(on_line):
+        return "fetch"                      # a download piped into a shell
+    if any(t in policy.FETCHERS for t, _ in substituted(command)):
+        return "fetch"                      # `eval "$(curl ...)"`: a download that runs
     if any(remote(t, sub) for unit, _why in impact.unknown for t, sub in calls(unit)):
-        return True
-    return any(remote(t, sub) for t, sub in calls(command))
+        return "remote"
+    return "remote" if any(on_line) else None
 
 
 def _db_targets(impact) -> Tuple[List[recovery.Target], bool]:
@@ -567,8 +636,6 @@ class Guard:
         refused = self._control_plane_refusal(command, dialect, door, c, impact, prediction, intent, agent_id, session_id)
         if refused: return refused
         route = None if self._engine_applies(dialect, impact) else self._unread_route(command, dialect, impact)
-        if route == "plain" and _old_rules_fire(c):
-            route = None            # a word with no engine rule that an old rule catches: today's path
         if self._engine_applies(dialect, impact):
             f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
         elif route is not None:
@@ -628,7 +695,7 @@ class Guard:
         words = {u.split()[0] for u in impact.uncovered}
         if words & policy.OLD_RULES_KEEP:
             return None
-        if impact.unknown:
+        if impact.unknown or _unparsed_remote(impact):
             return "unknown"
         if words & policy.CODE_RUNNERS or words & self._started_by_path(command):
             return "runner"
@@ -653,55 +720,44 @@ class Guard:
                       target_path: Optional[str], explicit_db: Optional[str],
                       db_url: Optional[str], can_supervise: bool, intent: Intent,
                       actual_env: Optional[str]) -> _Facts:
-        """M2.3a. What the engine DID read still decides first: a remote change
+        """M2.3a/b. What the engine DID read decides first: a remote change
         that escalates, a destroy outside the project, a database nothing can
-        capture - an unread part cannot make those any better. Otherwise the
-        unread part goes to the runtime net, else a checkpoint (never for a
-        line with an operand outside the project: V17), else a runner is
-        ALLOWED with an honest note (M1) and an unread line ESCALATES (M3).
-        Git and SQL lines never go to the net: it cannot capture .git or a
-        database (the old path's exclusions, kept). A line whose unread part
-        acts beyond local files escalates (_net_blind). Where the old rules
-        flag an unread line, they keep their capture or escalation (B0)."""
-        import copy
+        capture - an unread part cannot make those any better. A line whose
+        unread part acts beyond local files escalates (_net_blind). Otherwise
+        the unread part goes to the runtime net, else a checkpoint (never for
+        a line with an operand outside the project: V17). With neither, a
+        runner is ALLOWED with an honest note (M1) unless a policy row says it
+        needs the net (Rb2), and an unread line ESCALATES (M3). Git and SQL
+        lines never go to the net: it cannot capture .git or a database. The
+        old text rules no longer decide a POSIX line here (M2.3b)."""
         from .engine.verdict import assess
         from .model import parse
         a = assess(impact, self.config)
-        old = copy.copy(c)                                 # what the old rules said, before the reset
         if route == "plain" or a.remote_escalated or a.outside or a.no_capture or a.plane_hits:
             return self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
-        if old.nonrecoverable_surface or old.remote_exec:
-            # An old rule names a surface no local copy recovers (a payment, a
-            # message), or fetched / generated code (`curl ... | bash`,
-            # `python -c "...os.system..."`): neither the net nor a checkpoint
-            # stands for those - both cover this project only (B0: the old
-            # rules keep a STRICTER answer, never their ALLOW).
-            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
-                                      can_supervise, intent, actual_env)
         try:
             tools = {os.path.basename(cm.argv[0].value) for cm in parse(command).commands
                      if cm.argv and not cm.argv[0].expands}
         except Exception:
             tools = set()
-        blind = _net_blind(impact, command)
-        if route == "unknown" and not blind and _old_rules_fire(old):
-            # B0: on a line it cannot read, the old path may keep a CAPTURE or
-            # an escalation (`X=-rf; rm $X src` snapshots src; `DB=app.db;
-            # sqlite3 $DB "DELETE ..."` previews app.db) - it never ALLOWS a
-            # line its rules flag. M3 decides what the old rules do not see.
-            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
-                                      can_supervise, intent, actual_env)
+        segments = max(c.destructive_segments, 1)          # the classifier's count stays
         c.is_destructive = c.is_mutating = True
         c.is_sql_mutating = c.is_file_writer = c.remote_exec = False
         c.nonrecoverable_surface = None
         c.run_surfaces = []
-        c.destructive_segments = max(old.destructive_segments, 1)   # the classifier's count stays
+        c.destructive_segments = segments
+        blind = _net_blind(impact, command)
         if blind:
-            # A cloud / container / service / SaaS ... call, or a download
-            # feeding what runs: it acts where neither the net nor a
+            # A cloud / container / service / SaaS ... call nobody read, or a
+            # download feeding what runs: it acts where neither the net nor a
             # checkpoint sees (V18). It escalates.
             c.matched_rule = "remote_unread"
-            return _Facts(entry=None, c=c)
+            c.remote_exec = blind == "fetch"               # fetch-and-run keeps its deny channel
+            what = sorted({u for u in impact.uncovered} | {unit.split("\n")[0][:60] for unit, _w in impact.unknown})
+            return _Facts(entry=None, c=c,
+                          note=f"Part of it acts beyond this project's files in a way demo_cli does not "
+                               f"read ({'; '.join(what[:3]) or command[:60]}): neither the runtime net "
+                               f"nor a checkpoint can capture that.")
         if "git" in tools:
             c.matched_rule = "git_unread"                  # the net cannot capture .git
         elif tools & _SQL_CLIENTS:
@@ -709,26 +765,29 @@ class Guard:
         else:
             c.matched_rule = "unread_code" if route == "runner" else "not_understood"
         _, mismatches, _ = self._context(command, _Facts(), intent, actual_env, None)
+        needs = _needs_the_net(command) if route == "runner" and c.matched_rule == "unread_code" else None
         (supervisable, net_name, rewrite, group_id, entry, checkpoint_skipped,
          checkpoint_taken) = self._runtime_net_or_checkpoint(
             c, None, None, command, dialect, can_supervise, mismatches,
-            affected_paths=sorted(impact.destroys))
+            affected_paths=sorted(impact.destroys),
+            checkpoint_ok=needs != _SPAWNS,
+            # V21: a runner's outside operand refuses the checkpoint (V17), not
+            # the net - which still watches what the code does in the project.
+            net_outside_ok=route == "runner")
         if supervisable or entry is not None:
             return _Facts(entry=entry, affected_paths=sorted(impact.destroys),
                           group_id=group_id or (entry or {}).get("group"),
                           supervisable=supervisable, net_name=net_name, rewrite=rewrite,
                           checkpoint_skipped=checkpoint_skipped,
                           checkpoint_taken=checkpoint_taken, c=c)
-        if route == "runner" and _old_rules_fire(old):
-            # No net and no checkpoint, and M1 would ALLOW: the old rules may
-            # keep a STRICTER answer (B0), never their ALLOW. `c` is put back
-            # first: the receipt records it.
-            vars(c).update(vars(old))
-            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
-                                      can_supervise, intent, actual_env)
         if route == "runner" and c.matched_rule == "unread_code":
-            f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
             runners = sorted({u.split()[0] for u in impact.uncovered})
+            if needs:
+                # Rb2: with no net, these runners escalate (policy rows).
+                return _Facts(entry=None, checkpoint_skipped=checkpoint_skipped, c=c,
+                              note=f"It {needs} ({', '.join(runners)}), and no runtime net was "
+                                   f"available to capture what that changes.")
+            f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
             f.note = (f"It runs code demo_cli does not read ({', '.join(runners)}); no runtime "
                       f"net was available, so nothing that code changes is captured or watched.")
             return f
@@ -1209,6 +1268,8 @@ class Guard:
         mismatches: list,
         cand: Optional[str] = None,
         affected_paths: Optional[List[str]] = None,
+        checkpoint_ok: bool = True,
+        net_outside_ok: bool = False,
     ) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[dict], Optional[str], bool]:
         is_sql = bool(c.is_sql_mutating or c.action_type == "sql" or (c.matched_rule and c.matched_rule.startswith("sql_")))
         is_git = bool(c.matched_rule and c.matched_rule.startswith("git_"))
@@ -1229,7 +1290,7 @@ class Guard:
             and not mismatches
             and not is_sql
             and not is_git
-            and not targets_out_of_project
+            and (net_outside_ok or not targets_out_of_project)
         )
 
         supervisable = False
@@ -1261,7 +1322,7 @@ class Guard:
         # lies outside it, the copy cannot bring that file back, and calling
         # the line REVERSIBLE on its strength was an unearned claim
         # (`rm -f /elsewhere/f $(date +%s)` with checkpoints on). It escalates.
-        elif not targets_out_of_project and checkpoint.should_checkpoint(
+        elif checkpoint_ok and not targets_out_of_project and checkpoint.should_checkpoint(
                 c, target, self.config, recovery_captured=entry is not None):
             ck = checkpoint.capture(self.config, action=command)
             entry, checkpoint_skipped, checkpoint_taken = ck.entry, ck.skipped, ck.ok

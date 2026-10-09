@@ -96,9 +96,11 @@ def test_3_what_runs_locally_or_as_a_preview_is_not_the_platform(tmp_path: Path)
     netlify deploy without production is a preview / draft (a creation)."""
     _make_fixture(tmp_path / "p")
     p = tmp_path / "p"
-    assert _remote(p, "wrangler kv key delete K") == ({}, ["wrangler kv key delete (local)"])
+    # M2.3b: a write to wrangler's local state is NOT UNDERSTOOD now (it was
+    # left to the old path as uncovered); test_m23b pins the decision.
+    assert _remote(p, "wrangler kv key delete K") == ({}, [])
     assert _remote(p, "wrangler kv key delete K --remote")[0] == {"deploy:wrangler": "DELETE"}
-    assert _remote(p, 'wrangler d1 execute db --command "DROP TABLE t"')[1] == ["wrangler d1 execute (local)"]
+    assert _remote(p, 'wrangler d1 execute db --command "DROP TABLE t"') == ({}, [])
     assert _remote(p, "vercel deploy") == ({}, ["vercel deploy (a preview)"])
     assert _remote(p, "vercel deploy --target production")[0] == {"deploy:vercel": "OVERWRITE"}
     assert _remote(p, "netlify deploy --prod --draft") == ({}, ["netlify deploy (a draft)"])

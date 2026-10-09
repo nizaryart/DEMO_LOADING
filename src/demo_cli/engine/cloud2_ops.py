@@ -137,12 +137,36 @@ def _gs_label(tool: str):
     return lambda p: f"storage:{tool}:gs://" + p.value[5:].split("/", 1)[0]
 
 
+_STARTUP_KEYS = ("startup-script", "shutdown-script", "user-data", "sysprep-specialize-script")
+
+
+def _boot_code(args: List[Word], names: Tuple[str, ...], keys: Tuple[str, ...] = ()) -> bool:
+    """Rb4 (M2.3b): an option that hands the new machine a script it runs
+    (gcloud --metadata startup-script=..., az --custom-data / --user-data)."""
+    for k, a in enumerate(args):
+        if a.expands:
+            continue
+        name, eq, val = a.value.partition("=")
+        if name not in names:
+            continue
+        if not keys:
+            return True
+        nxt = args[k + 1] if not eq and k + 1 < len(args) else None
+        text = val if eq else (nxt.value if nxt is not None else "")
+        if (nxt is not None and nxt.expands) or any(key in text for key in keys):
+            return True
+    return False
+
+
 def gcloud(w, inv, parsed, state, tool) -> None:
     args = list(inv.argv[1:])
     if any(a.value in ("-h", "--help") and not a.expands for a in args):
         return                                                  # VERIFIED: help
     if any(a.value == "--version" and not a.expands for a in args):
         return
+    if _boot_code(args, ("--metadata", "--metadata-from-file"), _STARTUP_KEYS):
+        group = next((a.value for a in args if not a.expands and not a.value.startswith("-")), "")
+        return _reach(w, inv, _surface("gcloud", group), RUN, args, tool)
     path: List[Word] = []
     after: List[Word] = []
     verb = None
@@ -450,6 +474,8 @@ def az(w, inv, parsed, state, tool) -> None:
         w.impact.not_understood(inv.text, "an az command named by an expansion")
         return
     group, leaf = path[0].value, path[-1].value
+    if _boot_code(rest, ("--custom-data", "--user-data")):
+        return _reach(w, inv, _surface("az", group), RUN, rest, tool)   # Rb4
     if group in _AZ_UNCLAIMED_GROUPS or leaf in _AZ_UNCLAIMED:
         return w.impact.not_covered(f"az {' '.join(p.value for p in path)}")
     if group == "rest":
@@ -624,6 +650,11 @@ def railway(w, inv, parsed, state, tool) -> None:
         w.impact.not_understood(inv.text, "a railway command named by an expansion")
         return
     cmd = pos[0].value
+    if cmd in ("run", "shell", "connect", "ssh"):
+        # M2.3b: a command run with the platform's environment (its database
+        # URLs, its credentials) - what it changes is remote, nobody read it.
+        w.impact.not_understood(inv.text, f"railway {cmd}: a command with the platform's environment")
+        return
     action = pos[1].value if len(pos) > 1 and cmd in _RW_GROUPS else None
     prefix = {"volume": "volume", "variable": "secret"}.get(cmd, "cloud")
     label = f"{prefix}:railway:{cmd}"

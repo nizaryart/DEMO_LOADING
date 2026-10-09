@@ -75,7 +75,7 @@ import os
 from typing import Dict, FrozenSet, List, Optional, Tuple
 
 from ..model import Word
-from .effects import CREATE, DELETE, OVERWRITE, SERVICE_KEEP, SERVICE_LOSS
+from .effects import CREATE, DELETE, OVERWRITE, RUN, SERVICE_KEEP, SERVICE_LOSS
 from .simulate import _host_path
 
 _HELP = frozenset({"-h", "--help"})
@@ -223,7 +223,8 @@ def _carries_payload(rest: List[Word], data_options: Tuple[str, ...]) -> bool:
     code: a command after `--`, a manifest or values on stdin (`-f -`), or
     literal data / values (`--from-literal`, `--set`). The engine reads none
     of that, and today's text path does read it, so such a line is not
-    claimed (M2.2b1 review)."""
+    claimed (M2.2b1 review). M2.3b (Rb4): with the old path retired, such
+    a line is RUN on the cluster - code shipped to run elsewhere, ask."""
     words = [a for a in rest if not a.expands]
     if any(a.value == "--" for a in words):
         return True
@@ -530,7 +531,9 @@ def kubectl(w, inv, parsed, state, tool) -> None:
         # A raw POST / PUT to any API path (a pod eviction is a POST).
         return _remote(w, inv, objects, OVERWRITE, rest, tool)
     if sub == "create" and _carries_payload(rest, ("--from-literal",)):
-        return w.impact.not_covered("kubectl create (a command or data on the line)")
+        # Rb4 (M2.3b): a command, a manifest or data the cluster runs or
+        # consumes, nobody read: RUN on the cluster (ask), like docker run.
+        return _remote(w, inv, objects, RUN, rest, tool)
     if sub in ("create", "expose", "autoscale"):
         return _remote(w, inv, objects, CREATE, rest, tool)
     if sub == "delete":
@@ -564,6 +567,10 @@ def kubectl(w, inv, parsed, state, tool) -> None:
         # --prune deletes what the manifests no longer list.
         return _remote(w, inv, objects, DELETE if _has(rest, "--prune") else OVERWRITE,
                        rest, tool)
+    if sub in ("exec", "run", "debug", "attach"):
+        # M2.3b (Rb4, F2): code that runs in the cluster, nobody read it -
+        # RUN there (ask), like docker exec / run.
+        return _remote(w, inv, workload, RUN, rest, tool)
     if sub not in ("rollout", "cluster-info", "auth", "config", "plugin"):
         return w.impact.not_covered(f"kubectl {sub}")
     ok, action = _action(w, inv, rest, tool, _KUBECTL_GLOBALS)
@@ -643,7 +650,7 @@ def helm(w, inv, parsed, state, tool) -> None:
         if sub == "install" and not _has(rest, "--replace"):
             if _carries_payload(rest, ("--set", "--set-string", "--set-file",
                                        "--set-json", "--set-literal")):
-                return w.impact.not_covered("helm install (values on the line)")
+                return _remote(w, inv, label, RUN, rest, tool)        # Rb4: values the chart runs
             return _remote(w, inv, label, CREATE, rest, tool)
         return _remote(w, inv, label, OVERWRITE, rest, tool)
     if sub == "rollback":

@@ -140,8 +140,9 @@ RULES: Tuple[Rule, ...] = (
             ex("rm {a,b}.txt", destroys={"a.txt", "b.txt"}),
             ex('rm "dir/*.txt"', note="quoted: a literal name, which does not exist"),
             ex("X=a.txt; rm $X", destroys={"a.txt"}),
-            ex("X=-rf; rm $X dir", unknown=True,
-               note="the value is an option for rm, not a file name (I1a)"),
+            ex("X=-rf; rm $X dir", destroys={"dir/"},
+               note="M2.3b: the value is known on this line, so it is read as the option it is "
+                    "(I1a had left it not understood)"),
             ex("rm *", unknown=True,
                note="the fixture's file -f reaches rm as the option -f (I1a)"),
             ex("X=a.txt rm $X", unknown=True,
@@ -873,6 +874,51 @@ M4_RULES: Tuple[Rule, ...] = (
          )),
 )
 RULES = RULES + M4_RULES
+
+# ==========================================================================
+# M2.3b (ruling Rb3): remote CLIs this engine does not model in detail. Only
+# the subcommands verified READ-ONLY from each CLI's own command tree have no
+# effect; anything else is a remote change nobody read - it escalates (no net
+# or checkpoint sees a remote service). Sources: supabase/cli
+# apps/cli/src/commands (190 commands, each with its SIDE_EFFECTS.md; `db
+# reset` drops all user objects of the linked / --db-url database and
+# discards the local one's data), contentful/contentful-cli lib/cmds (no
+# `entry` command exists).
+UNMODELLED_REMOTE: Dict[str, FrozenSet[str]] = {
+    "supabase": frozenset({
+        "status", "start", "whoami", "projects list", "orgs list", "branches list",
+        "branches get", "functions list", "secrets list", "sso list", "sso info", "sso show",
+        "storage ls", "snippets list", "migration list", "backups list", "domains get",
+        "network-bans get", "network-restrictions get", "postgres-config get",
+        "ssl-enforcement get", "vanity-subdomains get", "vanity-subdomains check-availability",
+        "telemetry status", "db lint", "db advisors", "db branch list", "inspect db",
+        "completion",
+    }),
+    "contentful": frozenset({
+        "space list", "content-type list", "content-type get", "config list",
+        "organization list", "extension list", "extension get", "merge show",
+    }),
+}
+
+UNMODELLED_RULES: Tuple[Rule, ...] = (
+    Rule(id="remote_reads", tools=tuple(UNMODELLED_REMOTE), resolver="remote_reads",
+         options=OptionSpec(flags=dict(_HELP)), verified=True,
+         examples=(
+             ex("supabase status", note="read-only (its command tree)"),
+             ex("supabase inspect db locks", note="read-only"),
+             ex("supabase db reset", unknown=True,
+                note="drops the database's user objects: a remote change, not modelled"),
+             ex("supabase db reset --linked", unknown=True),
+             ex("supabase --workdir x db reset", unknown=True,
+                note="an option before the command: not read"),
+             ex("contentful space list", note="read-only"),
+             ex("contentful space delete", unknown=True),
+             ex("contentful entry delete --id 9", unknown=True,
+                note="no such command in contentful-cli"),
+             ex("supabase --help", note="help"),
+         )),
+)
+RULES = RULES + UNMODELLED_RULES
 
 
 

@@ -104,5 +104,11 @@ def test_guard_evaluate_multi_call_cache_acceleration(tmp_path, monkeypatch):
     tok_info = _tokenize_cached.cache_info()
 
     assert seg_info.hits >= 1, f"Expected cache hits for the parse, got {seg_info}"
+    # M2.3b: the old tokenizer no longer reads a POSIX line the engine
+    # routes; PowerShell keeps the old path until C3, and its splits are
+    # served from the cache.
+    _tokenize_cached.cache_clear()
+    guard.evaluate("Remove-Item -Recurse -Force target; Clear-Content log.txt", dialect="powershell")
+    tok_info = _tokenize_cached.cache_info()
     assert tok_info.hits >= 1, f"Expected cache hits for _tokenize, got {tok_info}"
 

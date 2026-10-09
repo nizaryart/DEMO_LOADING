@@ -102,7 +102,7 @@
   "uncovered": []
  },
  "gcloud secrets versions access latest --secret s": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -192,13 +192,13 @@
   ]
  },
  "gcloud compute instances create vm1 --metadata startup-script='rm -rf /'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "gcloud (option)"
-  ]
+  "remote": {
+   "cloud:gcloud:compute": "RUN"
+  },
+  "uncovered": []
  },
  "gcloud container clusters get-credentials c": {
   "decision": "ALLOW",
@@ -242,7 +242,7 @@
   "uncovered": []
  },
  "gcloud deploy releases create r --delivery-pipeline p": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -261,7 +261,7 @@
  },
  "gcloud --foo compute instances delete vm1": {
   "decision": "ESCALATE",
-  "surface": "cloud_resource_delete",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -319,7 +319,7 @@
   "uncovered": []
  },
  "gcloud storage cp --no-clobber --custom-metadata k='rm -rf /' a.txt gs://b/": {
-  "decision": "SUPERVISED",
+  "decision": "ALLOW",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -458,8 +458,8 @@
   "uncovered": []
  },
  "gsutil -h \"x-goog-meta-k:rm -rf /\" cp -n a.txt gs://b/": {
-  "decision": "ESCALATE",
-  "surface": "object_storage",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -536,7 +536,7 @@
  },
  "gsutil --foo rm gs://b/x": {
   "decision": "ESCALATE",
-  "surface": "object_storage",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -626,13 +626,13 @@
   ]
  },
  "az vm create -n vm1 -g rg --custom-data 'rm -rf /'": {
-  "decision": "SUPERVISED",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cloud_resource_delete",
   "captured": false,
-  "remote": {},
-  "uncovered": [
-   "az vm create"
-  ]
+  "remote": {
+   "cloud:az:vm": "RUN"
+  },
+  "uncovered": []
  },
  "az vm run-command invoke -g rg -n vm1 --command-id RunShellScript --scripts 'ls'": {
   "decision": "ESCALATE",
@@ -737,8 +737,8 @@
   "uncovered": []
  },
  "az storage blob upload -c c -f a.txt -n a.txt --metadata k='rm -rf /'": {
-  "decision": "ESCALATE",
-  "surface": "object_storage",
+  "decision": "ALLOW",
+  "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": [
@@ -1002,30 +1002,24 @@
  },
  "railway run python manage.py migrate": {
   "decision": "ESCALATE",
-  "surface": "schema_migration",
+  "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "railway run"
-  ]
+  "uncovered": []
  },
  "railway run psql -c \"DROP TABLE users\" --environment production": {
   "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "railway run"
-  ]
+  "uncovered": []
  },
  "railway connect postgres": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
-  "uncovered": [
-   "railway connect"
-  ]
+  "uncovered": []
  },
  "railway login": {
   "decision": "ALLOW",
