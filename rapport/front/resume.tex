@@ -15,8 +15,9 @@ Partant d'une version bêta qui reconnaissait les commandes par des expressions 
 stage a conduit à un moteur qui analyse la ligne et simule ses effets sur une vue virtuelle du
 système de fichiers, à une table de règles écrite comme des données dont chaque exemple est un
 test, à une politique et un décideur uniques, et à deux filets d'exécution : un garde d'appels
-système fondé sur ptrace sous Linux et un système de fichiers WinFsp sous Windows. Un second
-frontal pour PowerShell partage le même moteur. Le travail a été mené partie par partie, avec
+système fondé sur ptrace sous Linux et un système de fichiers WinFsp sous Windows. L'ancien chemin
+à expressions régulières ne décide plus aucune ligne POSIX, et un second frontal pour
+PowerShell partage le même moteur. Le travail a été mené partie par partie, avec
 des tests qui échouent sur le code d'avant et un portail de 922 commandes qui interdit qu'une
 décision devienne plus permissive sans arbitrage. Un travail offensif a mis en évidence et
 corrigé des vulnérabilités, dont une tâche Windows élevée qui exécutait du code modifiable par

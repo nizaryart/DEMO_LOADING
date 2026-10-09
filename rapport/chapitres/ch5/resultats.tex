@@ -17,24 +17,22 @@ Fichiers de test / fonctions de test & \fichierstests{} / \fonctionstests{} (ava
 Table de règles & \nbregles{} règles, \nbexemples{} exemples exécutés comme tests,
   \nboutils{} outils, \nbfamilles{} familles à la demande \\
 Règles dont la grammaire n'est pas vérifiée sur l'outil & \nbnonverifiees{} \\
-Surfaces distantes avec canal ask/deny & $\approx$ \nbsurfaces{} \\
+Surfaces distantes avec canal ask/deny & \nbsurfaces{} \\
 Suite complète, Linux & \testslinux \\
 Suite complète, Windows & \testswindows \\
-Portail de décision & \nbcorpus{} commandes, comparées à chaque partie \\
-Temps du moteur sur les \nbexemples{} exemples (Linux) & médiane 0,33\,ms ; 95\,\% sous
-  0,86\,ms ; maximum 2,08\,ms (budget : 10\,ms CPU) \\
+Portail de décision (\nbcorpus{} commandes) & Windows : 0 ligne différente ; Linux : une
+  seule ligne, qui dépend des fichiers présents sur la machine \\
+Corpus élargi (validation de M2.3b) & \nbcorpuslarge{} commandes rejouées avant et après \\
+Temps du moteur sur les \nbexemples{} exemples (Linux) & médiane 0,29\,ms ; 95\,\% sous
+  0,79\,ms ; maximum 1,30\,ms (budget : 10\,ms CPU) \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\paragraph{Exécution de contrôle.} Pendant la rédaction, la suite a été relancée sur une machine
-Linux de travail (Python 3.13, compte \cmd{root}) : \num{3392} tests réussis, 37 ignorés (tests
-propres à Windows) et 17 échecs, tous liés à cet environnement et non au code --- outil
-\cmd{mitmproxy} absent, \cmd{initdb} de PostgreSQL refusé sous \cmd{root}, versions locales de
-\cmd{black}, \cmd{eslint}, \cmd{prettier}, \cmd{rustfmt} et \cmd{wget} différentes de celles
-dont les grammaires ont été vérifiées, et deux tests de permissions qui ne peuvent pas échouer
-pour \cmd{root}. Les chiffres de référence sont ceux des exécutions sur les machines de
-développement Linux et Windows.
+\paragraph{Les échecs connus.} Deux échecs connus restent hors du périmètre de l'outil : ils
+dépendent de l'initialisation d'un dépôt git dans l'environnement de test. Les tests ignorés
+sont ceux qui ne s'appliquent pas au système ou à l'environnement de la machine (tests propres à
+Windows sous Linux, et inversement).
 
 \paragraph{Ce que les chiffres ne disent pas.} Le nombre de tests mesure l'effort, pas la
 sûreté. Les indicateurs qui comptent sont qualitatifs et vérifiables : chaque vulnérabilité

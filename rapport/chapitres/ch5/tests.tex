@@ -30,14 +30,17 @@ suivant est le test de V19 :
 \begin{code}{Le test de V19 (\fichier{tests/test\_m23a.py})}
 def test_5_unread_sql_escalates_instead_of_being_allowed(tmp_path):
     proj = _project(tmp_path)
+    # M2.3b: `sqlite3 app.db "$(cat q.sql)"` is now READ (and captured); a
+    # server database behind an unread -c / -e still escalates.
     for cmd in ('psql -c "$(cat q.sql)"', 'mysql -e "$(cat q.sql)"',
-                'sqlite3 app.db "$(cat q.sql)"'):
+                'sqlite3 app.db "$(date)"'):
         r = _eval(proj, cmd)
         assert (r.decision.decision, r.recovery_entry) == ("ESCALATE", None), cmd
 \end{code}
 
-Pour le vérifier, les tests de M2.3a ont été exécutés contre le commit précédent
-(\cmd{99831a9}) : 11 échouent --- ceux qui décrivent les corrections --- et 6 passent : ce
+Le test a évolué avec M2.3b : la ligne SQLite, désormais lue, a été remplacée par une
+substitution réellement illisible. Pour vérifier la règle, les tests de M2.3a, tels qu'ils ont
+atterri (\cmd{3c94414}), ont été exécutés contre le commit précédent (\cmd{99831a9}) : 11 échouent --- ceux qui décrivent les corrections --- et 6 passent : ce
 sont les \emph{témoins}, qui vérifient que ce qui était déjà juste le reste.
 
 \begin{terminal}[les tests de M2.3a sur le code d'avant]
@@ -49,6 +52,26 @@ FAILED tests/test_m23a.py::test_13_file_tools_that_destroy_are_captured
 [...]
 11 failed, 6 passed in 0.31s
 \end{terminal}
+
+La même vérification, refaite sur les deux parties suivantes, donne le même profil :
+
+\begin{table}[htbp]
+\centering
+\caption{Tests de partie rejoués sur le commit qui précède leur partie}
+\label{tab:rouge-avant}
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.2cm}L{3.3cm}L{2.2cm}Y@{}}
+\toprule
+\textbf{Fichier de tests} & \textbf{Code d'avant} & \textbf{Résultat} & \textbf{Lecture} \\
+\midrule
+\fichier{test\_m23a.py} (17) & \cmd{99831a9} & 11 échecs, 6 succès & les 6 succès sont les témoins \\
+\fichier{test\_m23b.py} (46) & \cmd{3c94414} & 21 échecs, 25 succès & témoins et comportements que
+  la partie devait conserver \\
+\fichier{test\_v22.py} (3) & \cmd{ad7ab16} & 1 échec, 2 succès & le défaut, et ses deux témoins
+  (fichier ordinaire, troncature à travers un lien) \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Les pièges des tests eux-mêmes}
 Deux fois, le banc de test du garde du shell a produit des succès \emph{vides} sous Windows :

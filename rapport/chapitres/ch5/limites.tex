@@ -14,11 +14,11 @@ connues, et la plupart sont dites dans la raison même des décisions.
   \item \textbf{Les filets voient le projet, et seulement lui.} Hors du projet, une destruction par
     du code non lu n'est ni capturée ni encore enregistrée (V18, deuxième étape).
   \item \textbf{Un exécuteur de code sans filet est autorisé} avec une note qui dit qu'aucune
-    capture n'a été faite (arbitrage M1). Le constat du tableau~\ref{tab:v-ouvertes} en est un
-    cas particulier.
-  \item \textbf{« Non couvert » vaut « sans effet ».} Un outil absent de la table et qui n'est pas un
-    exécuteur de code est traité comme sans effet ; la table s'étend famille par famille pour
-    réduire ce cas.
+    capture n'a été faite (arbitrage M1) --- sauf le code en ligne qui lance d'autres programmes
+    et les installations de paquets, qui escaladent (Rb2).
+  \item \textbf{Un mot sans règle n'a pas d'effet} (Rb1). Un outil absent de la table et qui n'est
+    pas un exécuteur de code est traité comme sans effet ; la table s'étend famille par famille
+    pour réduire ce cas.
   \item \textbf{PowerShell est lu par des motifs jusqu'à C3} (V12) ; sous Windows, seul le montage
     couvre aujourd'hui ces lignes.
   \item \textbf{Codex ne sait que refuser} : pas de question, pas de filet par réécriture (V15).

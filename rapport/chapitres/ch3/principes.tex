@@ -50,11 +50,10 @@ l'origine des contenus : dans \cmd{mv a b \&\& rm b}, ce qui est perdu est le co
     de règle. On sait \emph{ce qui} est appelé, avec quels arguments ;
   \item \textbf{non compris} (\textit{not understood}) : une partie de la ligne ne peut pas
     être lue avant l'exécution --- une variable affectée ailleurs, une substitution dont la
-    sortie n'est pas prévisible, une valeur qui commence par un tiret, un mot de commande
-    construit.
+    sortie n'est pas prévisible, un mot de commande construit.
 \end{itemize}
 
-\paragraph{La règle retenue (partie M2.3a, arbitrages M1--M5).}
+\paragraph{La règle retenue (parties M2.3a et M2.3b, arbitrages M1--M5 et Rb1--Rb4).}
 \begin{enumerate}
   \item Une ligne \textbf{non comprise} va au filet d'exécution s'il est disponible, sinon à
     un point de contrôle s'ils sont activés, sinon elle est \textbf{escaladée}. Elle
@@ -62,47 +61,71 @@ l'origine des contenus : dans \cmd{mv a b \&\& rm b}, ce qui est perdu est le co
   \item Un \textbf{exécuteur de code} (\cmd{python}, \cmd{node}, \cmd{make}, \cmd{npm},
     \cmd{./script.sh}, \cmd{source}\ldots) lance du code que \demo{} ne lit pas : il va au
     filet, sinon au point de contrôle, sinon il est autorisé \emph{avec une note qui dit
-    qu'aucune capture n'a été faite} (arbitrage M1).
+    qu'aucune capture n'a été faite} (arbitrage M1). Il garde le filet même si on lui passe
+    un fichier hors du projet (V21).
+  \item Deux cas d'exécuteur sont plus risqués et \textbf{escaladent sans filet} (supervisés
+    avec, arbitrage Rb2) : du \textbf{code en ligne qui lance d'autres programmes}
+    (\cmd{python -c "\ldots os.system(\ldots)"}, \cmd{node -e "\ldots child\_process\ldots"})
+    et les \textbf{installations de paquets} (\cmd{pip install}, \cmd{npm install}\ldots), qui
+    exécutent les scripts d'installation de chaque paquet.
   \item Une ligne qui atteint quelque chose au-delà des fichiers locaux sans être lue
-    (cloud, conteneurs, services, ou un téléchargement qui alimente ce qui s'exécute) est
-    escaladée : ni le filet ni le point de contrôle ne la voient.
+    (cloud, conteneurs, services, une option inconnue sur un outil distant, \cmd{kubectl
+    exec}, \cmd{heroku run}\ldots) est escaladée : ni le filet ni le point de contrôle ne la
+    voient. Le code récupéré du réseau puis exécuté (\cmd{curl \ldots{} | bash}) garde son
+    refus.
+  \item Un mot sans règle qui n'est pas un exécuteur de code n'a pas d'effet (arbitrage Rb1).
 \end{enumerate}
 
 \begin{terminal}[ligne non comprise, pas de filet]
 $ demo_cli check --mode enforce 'rm $INCONNU'
 demo_cli 1.7.0  [x] BLOCKED  ·  ESCALATE
+  matched rule        not_understood
 Decision
-  No recovery path for a rm_local on 'unknown'; cannot auto-recover. Human input required.
+  No recovery path for a not_understood on 'unknown'; cannot auto-recover.
+  Human input required.
 $ demo_cli check --mode enforce 'python3 outil.py'
 demo_cli 1.7.0  [+] SAFE  ·  ALLOW
 Decision
   Allowed: it runs code demo_cli does not read (python3); no runtime net was
   available, so nothing that code changes is captured or watched.
+$ demo_cli check --mode enforce 'pip install requests'
+demo_cli 1.7.0  [x] BLOCKED  ·  ESCALATE
+Decision
+  No recovery path for a unread_code on 'unknown'; cannot auto-recover. Human input
+  required. It installs packages, which run their own install scripts (pip), and no
+  runtime net was available to capture what that changes.
 \end{terminal}
 
 \begin{pourquoi}[Pourquoi l'exécuteur sans filet est-il autorisé ?]
-Escalader chaque \cmd{python}, \cmd{make} ou \cmd{npm test} rendrait l'outil inutilisable :
-c'est l'essentiel du travail d'un agent. L'arbitrage M1 accepte ce cas \emph{à visage
-découvert} : la raison de la décision dit qu'aucune capture n'a été faite. Là où le filet
+Escalader chaque \cmd{python script.py}, \cmd{make} ou \cmd{npm test} rendrait l'outil
+inutilisable : c'est l'essentiel du travail d'un agent. L'arbitrage M1 accepte ce cas \emph{à
+visage découvert} : la raison de la décision dit qu'aucune capture n'a été faite. Les deux cas
+où l'exécuteur lance à coup sûr du code étranger --- un programme démarré depuis du code en
+ligne, une installation de paquets --- escaladent en l'absence de filet (Rb2). Là où le filet
 existe (Linux avec Claude Code, Windows avec le montage), ces lignes sont SUPERVISED. Un
 outil inconnu qui n'est pas un exécuteur de code (« non couvert ») est, lui, traité comme
-sans effet ; la table de règles s'étend famille par famille pour réduire ce cas, et un test
-(\fichier{test\_m22f.py}) vérifie qu'aucune ligne du portail sur laquelle une ancienne règle
-se déclenchait n'est restée hors du moteur sans être marquée non comprise.
+sans effet (Rb1) ; la table de règles s'étend famille par famille pour réduire ce cas, et un
+test (\fichier{test\_m22f.py}) vérifie qu'aucune ligne du portail sur laquelle une ancienne
+règle se déclenchait n'est restée hors du moteur sans être marquée non comprise.
 \end{pourquoi}
 
 \paragraph{Lire plutôt qu'abandonner.} « Non compris » doit rester rare, sinon tout escalade.
 Le moteur lit donc ce qui peut l'être sans rien exécuter : la sortie de \cmd{\$(cat
 liste.txt)}, \cmd{echo}, \cmd{printf}, \cmd{pwd}, \cmd{basename}, \cmd{dirname}, sous des
 conditions strictes (fichier régulier du projet, UTF-8, au plus 64~Kio, non modifié plus tôt
-sur la ligne ; partie I1b) :
+sur la ligne ; partie I1b). La partie M2.3b a ajouté ce que l'ancien chemin savait capturer :
+une valeur connue sur la ligne lue comme l'option qu'elle est (\cmd{X=-rf; rm \$X src}), un
+script littéral envoyé à un shell par un tube (\cmd{echo 'rm -rf build' | sh}),
+\cmd{sqlite3 \$DB} et \cmd{sqlite3 app.db "\$(cat q.sql)"}, les messages de commit, et
+\cmd{npx}, \cmd{bunx} ou \cmd{pnpm dlx} qui lancent un outil connu (\cmd{npx prisma migrate
+reset} est lu comme \cmd{prisma}) :
 
 \begin{terminal}[sortie de substitution lue par le moteur]
 $ demo_cli check --mode enforce 'rm $(cat list.txt)'
 demo_cli 1.7.0  [+] SAFE  ·  REVERSIBLE
   target              ~/projet/a.txt
 Recovery
-  snapshot            a.txt.20261009-141116.23b2d7c3.bak
+  snapshot            a.txt.20261009-175242.6d6ca4f4.bak
 Decision
   Recovery point captured before the action; reversible.
 \end{terminal}
@@ -140,25 +163,30 @@ par famille. Pendant ce temps, deux lecteurs coexistent : le moteur et les ancie
 Que faire quand ils divergent ?
 
 \paragraph{La règle retenue (parties B0 et M2.3a).} L'ancien chemin peut garder une
-\emph{capture} ou une \emph{escalade}, jamais son ALLOW. Exemple réel : le moteur marque
-\cmd{X=-rf; rm \$X build} comme non compris (une valeur qui commence par un tiret) ;
-l'ancienne règle, elle, sait capturer \cmd{build}. La réponse la plus stricte --- capturer
---- l'emporte :
+\emph{capture} ou une \emph{escalade}, jamais son ALLOW. Exemple réel, au moment de M2.3a : le
+moteur marquait \cmd{X=-rf; rm \$X build} comme non compris (une valeur qui commence par un
+tiret) ; l'ancienne règle, elle, savait capturer \cmd{build}. La réponse la plus stricte ---
+capturer --- l'emportait. À l'inverse, quand l'ancienne règle aurait autorisé une ligne que le
+moteur ne lit pas, c'est la règle M3 qui s'applique (filet, point de contrôle, escalade) : la
+vulnérabilité V19 était précisément un \cmd{psql -c "\$(cat q.sql)"} autorisé alors que
+\cmd{q.sql} contenait \cmd{DROP TABLE users;}. Il est désormais escaladé.
 
-\begin{terminal}[l'ancienne règle garde sa capture]
+\paragraph{La fin de la migration (M2.3b).} La partie M2.3b a fait lire au moteur tout ce que
+l'ancien chemin capturait encore ; depuis, \textbf{l'ancien chemin ne décide plus aucune ligne
+POSIX}. La même ligne est maintenant capturée par le moteur lui-même :
+
+\begin{terminal}[la ligne est lue par le moteur (M2.3b)]
 $ demo_cli check --mode enforce 'X=-rf; rm $X build'
 demo_cli 1.7.0  [+] SAFE  ·  REVERSIBLE
   target              ~/projet/build
 Recovery
-  snapshot            build.20261009-141000.dc24ff14.snapdir
+  snapshot            build.20261009-175242.30656068.snapdir
 Decision
   Recovery point captured before the action; reversible.
 \end{terminal}
 
-À l'inverse, quand l'ancienne règle aurait autorisé une ligne que le moteur ne lit pas, c'est
-la règle M3 qui s'applique (filet, point de contrôle, escalade) : la vulnérabilité V19 était
-précisément un \cmd{psql -c "\$(cat q.sql)"} autorisé alors que \cmd{q.sql} contenait
-\cmd{DROP TABLE users;}. Il est désormais escaladé.
+La règle « le plus strict gagne » reste en vigueur là où l'ancien chemin sert encore : le texte
+PowerShell et \cmd{cmd.exe} jusqu'à C3, et le cas où le moteur échoue (B0).
 
 % ------------------------------------------------------------------
 \subsection{Les fichiers de \texorpdfstring{\demo}{demo\_cli} : le plan de contrôle}

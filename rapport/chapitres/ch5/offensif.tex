@@ -40,7 +40,7 @@ comportements --- puis corrigés en trois tours. Ils se rangent en trois niveaux
 \end{itemize}
 
 \subsection{Les vulnérabilités du stage}
-Le journal des vulnérabilités (V1--V20) distingue ce qui est corrigé, ce qui a été vérifié et
+Le journal des vulnérabilités (V1--V22) distingue ce qui est corrigé, ce qui a été vérifié et
 n'est pas une faille, et ce qui reste ouvert.
 
 {\small
@@ -76,6 +76,13 @@ V19 & SQL non lu autorisé : \cmd{psql -c "\$(cat q.sql)"} avec \cmd{DROP TABLE 
 V20 & Outils de fichiers destructeurs non vus : \cmd{gzip a.txt}, \cmd{xz}, \cmd{bzip2},
   \cmd{sort -o}, \cmd{iconv -o}, \cmd{patch}, \cmd{awk -i inplace}, \cmd{7z \ldots{} -sdel}
   $\rightarrow$ ALLOW. & Haute & Sondes & M2.3a \\
+V21 & Un exécuteur de code auquel on passait un fichier hors du projet (\cmd{python x.py
+  /etc/hostname}) perdait le filet, disponible pourtant pour \cmd{python x.py}, et devenait ALLOW. &
+  --- & Sondes & M2.3b (\cmd{ad7ab16}) \\
+V22 & La suppression d'un lien symbolique du projet était capturée, mais \cmd{undo} le
+  restaurait comme un \emph{fichier ordinaire} : la restauration utilisait l'entrée de groupe qui
+  enveloppe une cible unique, au lieu de l'entrée interne qui garde le lien. & --- & Revue
+  red-team (R3) & V22 (\cmd{7d2a2aa}) \\
 --- & \cmd{source ./x.sh} vu comme sans effet ; code téléchargé exécuté par
   \cmd{bash <(curl \ldots)} ou \cmd{aws s3 cp \ldots{} - | bash} autorisé. & --- & Sondes & M2.3a \\
 --- & \cmd{undo} impossible sur un fichier passé en \cmd{chmod 444}/\cmd{000} ; plantage du
@@ -119,8 +126,5 @@ V15 & Codex ne peut pas exécuter une commande réécrite sans l'autoriser : pas
   Codex. & Portage Codex \\
 V6, V13 & Reçus : rares lignes déchirées quand Windows et WSL écrivent le même registre ; pas de
   rotation du registre ni de la réserve. & Maintenance \\
-Constat & Un exécuteur de code avec un opérande absolu hors du projet (\cmd{python x.py
-  /etc/hostname}) n'obtient pas le filet, disponible pourtant pour \cmd{python x.py}, et devient
-  ALLOW avec la note. & \acompleter[arbitrage et numéro] \\
 \end{longtable}
 }

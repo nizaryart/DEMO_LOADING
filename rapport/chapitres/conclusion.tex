@@ -8,15 +8,16 @@ Ce stage est parti d'un garde-fou qui avait la bonne idée --- récupérer plut�
 et une lecture fragile des commandes. Il aboutit à un outil dont chaque décision repose sur ce
 que la commande \emph{fait}, et non sur ce à quoi elle \emph{ressemble}. Une analyse unique de
 la ligne et une simulation de ses effets ont remplacé les expressions régulières ; une table de
-\nbregles{} règles, dont chaque exemple est un test, décrit \nboutils{} outils ; une seule
-politique et un seul décideur rendent les mêmes réponses à toutes les portes et sur les deux
+\nbregles{} règles, dont chaque exemple est un test, décrit \nboutils{} outils ; depuis M2.3b, l'ancien chemin
+à expressions régulières ne décide plus aucune ligne POSIX ; une seule politique et un seul
+décideur rendent les mêmes réponses à toutes les portes et sur les deux
 systèmes ; un garde d'appels système sous Linux et un montage WinFsp sous Windows couvrent ce
 que la lecture ne peut pas prédire.
 
 Au-delà des fonctionnalités, le stage a produit une manière de travailler adaptée à un logiciel
 de sécurité : des parties courtes, des arbitrages écrits avant le code, des tests qui échouent
 sur le code d'avant, et un portail de \nbcorpus{} commandes qui montre chaque décision qui
-change. Le travail offensif l'a mise à l'épreuve : une vingtaine de vulnérabilités ont été consignées (V1--V20),
+change. Le travail offensif l'a mise à l'épreuve : les vulnérabilités ont été consignées (V1--V22),
 dont les plus graves --- une tâche élevée qui exécutait du code modifiable par l'agent, du SQL
 non lu autorisé, des outils qui détruisaient des fichiers sans être vus --- sont corrigées et
 couvertes par des tests.
@@ -35,18 +36,23 @@ ne considérer un résultat comme acquis que lorsqu'un test a montré qu'il pouv
 
 \section*{Perspectives}
 \begin{itemize}
-  \item \textbf{C3, le moteur PowerShell} (\statutCthree) : fermer V12 et terminer la symétrie de
+  \item \textbf{C3, le moteur PowerShell} (\statutCthree ; tables de liaison prêtes :
+    \cthreecmdlets{} cmdlets, \cthreealias{} alias) : fermer V12 et terminer la symétrie de
     l'architecture --- deux dialectes, un moteur, un décideur, deux filets.
-  \item \textbf{Le filet Linux de production} : passer de ptrace à seccomp avec notification pour
-    réduire le coût par appel système, et étendre le filet aux commandes tapées par la personne
-    et aux processus qui survivent à la commande (V14).
-  \item \textbf{Au-delà du projet} : que le filet enregistre les destructions hors du projet (V18,
-    deuxième étape), puis, sur données mesurées, décide d'éventuels blocages.
+  \item \textbf{Au-delà du projet} (V18, deuxième étape) : que le filet Linux enregistre les
+    suppressions hors du projet, sans les bloquer, puis décider d'éventuels blocages sur données
+    mesurées.
+  \item \textbf{Vitesse du filet Linux} : passer de ptrace à seccomp avec notification, et étendre
+    le filet aux commandes tapées par la personne et aux processus qui survivent à la commande
+    (V14).
   \item \textbf{Parité Windows du montage} : refus des fichiers de \demo{} par le montage
     lui-même, lecture bornée des fichiers, santé du montage mieux mesurée (V7--V9).
-  \item \textbf{Les autres couches} : la couche réseau (proxy HTTP) et son périmètre
-    d'exfiltration (V10--V11), le portage complet vers Codex (V15), et la rotation du registre
-    et de la réserve de récupération (V6, V13).
+  \item \textbf{Les autres couches} : le proxy de sortie et son périmètre d'exfiltration
+    (V10--V11), le portage complet vers Codex (V15), et la rotation des registres et de la
+    réserve de récupération (V6, V13).
+  \item \textbf{Un jeu d'évaluation étiqueté} : un corpus de commandes dont la décision attendue
+    est fixée à la main, pour mesurer la justesse des décisions et non seulement leurs
+    changements.
   \item \textbf{La table de règles} : continuer à réduire le « non couvert » famille par famille, et
     vérifier les \nbnonverifiees{} règles dont la grammaire vient encore de la documentation.
 \end{itemize}

@@ -1,4 +1,4 @@
-# Analyse du code source — demo_cli (commit 3c94414, 2026-10-09)
+# Analyse du code source — demo_cli (commit 3c94414 ; mise à jour au commit 7d2a2aa : M2.3b, V21, V22)
 
 Notes de travail pour la rédaction du rapport. Chaque fait renvoie au fichier
 qui le porte ; en cas de désaccord avec le README, le code fait foi.

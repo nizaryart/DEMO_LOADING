@@ -14,7 +14,10 @@ réglables) ; au-delà, la capture est refusée et la commande escaladée, jamai
 La restauration a ses propres pièges, découverts en les provoquant : un fichier rendu en
 lecture seule par l'agent (\cmd{chmod 444} ou \cmd{000}) empêchait \cmd{undo} de le réécrire
 (corrigé dans M2.2c) ; l'état écrasé par une restauration est lui-même sauvegardé, pour
-qu'un \cmd{undo} malheureux se défasse à son tour.
+qu'un \cmd{undo} malheureux se défasse à son tour ; et un lien symbolique supprimé revenait comme
+un fichier ordinaire, parce que la restauration utilisait l'entrée de groupe qui enveloppe une
+cible unique au lieu de l'entrée interne qui garde le lien (V22, corrigée : la restauration
+rejoue les entrées internes, vérifié sous Linux et Windows).
 
 \begin{terminal}[undo d'un groupe capturé par le filet]
 $ demo_cli log

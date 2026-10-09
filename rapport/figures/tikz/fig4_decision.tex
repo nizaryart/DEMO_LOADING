@@ -33,12 +33,12 @@
   % Projet
   \cellule{1}{1}{\cA}{rien d'existant détruit}
   \cellule{2}{1}{\cR}{capture exacte, tout ou rien ; sinon ESCALATE·ask}
-  \cellule{3}{1}{\cS}{code non lu : filet, sinon point de contrôle, sinon ALLOW + note}
+  \cellule{3}{1}{\cS}{code non lu : filet, sinon point de contrôle, sinon ALLOW + note (ESCALATE·ask pour code en ligne et installations, Rb2)}
   \cellule{4}{1}{\cEa}{hook git, \texttt{.envrc}\ldots}
   % Hors projet
   \cellule{1}{2}{\cA}{rien d'existant détruit}
   \cellule{2}{2}{\cEa}{aucune copie possible (V17)}
-  \cellule{3}{2}{\cA}{+ note « rien capturé » : le filet ne voit pas hors projet (V18)}
+  \cellule{3}{2}{\cS}{le filet reste (V21) mais ne capture rien hors projet (V18)}
   \cellule{4}{2}{\cEa}{\texttt{\textasciitilde/.bashrc}, crontab, tâche\ldots}
   % Plan de contrôle
   \cellule{1}{3}{\cEd}{même une création}
@@ -48,7 +48,7 @@
   % Distant ask
   \cellule{1}{4}{\cA}{listé dans le reçu}
   \cellule{2}{4}{\cEa}{indice : PITR, versions, reflog\ldots}
-  \cellule{3}{4}{\cEa}{\texttt{ssh hôte cmd}, publication\ldots}
+  \cellule{3}{4}{\cEa}{\texttt{ssh hôte cmd}, publication, création qui porte du code (Rb4)}
   \cellule{4}{4}{\cEa}{\texttt{deferred\_execution}}
   % Distant deny
   \cellule{1}{5}{\cA}{listé dans le reçu}

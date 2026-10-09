@@ -1,12 +1,15 @@
-% 4.7 — M2.3a
-\section{M2.3a : la fin du pouvoir des anciennes règles}
+% 4.7 — M2.3 (M2.3a, M2.3b)
+\section{M2.3 : la fin du pouvoir des anciennes règles}
 \label{sec:m23a}
 
 À la fin de M2.2, le moteur décidait toutes les lignes POSIX qu'il lisait entièrement. Restaient
 les autres : les lignes qu'il ne lisait pas tout à fait, encore confiées aux anciennes règles
 textuelles. Un audit de ces lignes (fixé par \fichier{test\_m22f.py}) a montré le danger : là où
-aucune ancienne règle ne se déclenchait, la ligne était autorisée sans rien capturer. M2.3a,
-dernière partie livrée au commit de référence, applique les arbitrages M1--M5 :
+aucune ancienne règle ne se déclenchait, la ligne était autorisée sans rien capturer. La sortie
+s'est faite en deux parties.
+
+\subsection{M2.3a : les lignes non lues quittent les anciennes règles}
+M2.3a applique les arbitrages M1--M5 :
 
 \begin{itemize}
   \item \textbf{M1} --- un exécuteur de code va au filet, sinon à un point de contrôle, sinon il
@@ -27,5 +30,34 @@ dernière partie livrée au commit de référence, applique les arbitrages M1--M
   \item partout, \textbf{l'ancienne règle garde une capture ou une escalade, jamais son ALLOW}.
 \end{itemize}
 
-Bilan de la partie : 17 nouveaux tests ; les lignes figées des parties précédentes qui ont
+Bilan de M2.3a : 17 nouveaux tests ; les lignes figées des parties précédentes qui ont
 bougé sont toutes devenues plus strictes ; sur le portail, 6 lignes bougent, toutes revues.
+
+\subsection{M2.3b : l'ancien chemin ne décide plus aucune ligne POSIX}
+M2.3b termine la sortie. Depuis cette partie, l'ancien chemin à expressions régulières ne sert
+plus qu'au texte PowerShell et \cmd{cmd.exe} (jusqu'à C3) et au cas où le moteur échoue.
+\begin{itemize}
+  \item \textbf{Le moteur lit ce que l'ancien chemin capturait} : une valeur connue sur la ligne,
+    lue comme l'option qu'elle est (\cmd{X=-rf; rm \$X src}) ; un script littéral envoyé à un
+    shell par un tube (\cmd{echo 'rm -rf build' | sh}) ; \cmd{sqlite3 \$DB} et \cmd{sqlite3 app.db
+    "\$(cat q.sql)"} ; les messages de commit ; \cmd{npx}, \cmd{bunx} et \cmd{pnpm dlx} qui lancent
+    un outil connu (\cmd{npx prisma migrate reset} est lu comme \cmd{prisma}).
+  \item \textbf{Un appel distant non lu escalade} : commandes \cmd{stripe} ou \cmd{wrangler}
+    inconnues, \cmd{supabase} et \cmd{contentful} hors de leurs lectures vérifiées (tirées de leurs
+    sources, arbitrage Rb3), option inconnue sur un outil distant, \cmd{kubectl exec},
+    \cmd{railway run}, \cmd{wp eval}, \cmd{wrangler d1 execute}, \cmd{heroku run},
+    \cmd{gh pr create}. Le code récupéré du réseau puis exécuté garde son refus.
+  \item \textbf{Arbitrages Rb1--Rb4} : un mot sans règle n'a pas d'effet (Rb1) ; du code en ligne
+    qui lance d'autres programmes et les installations de paquets escaladent sans filet,
+    supervisés avec (Rb2) ; règles \cmd{stripe}, \cmd{contentful}, \cmd{wrangler},
+    \cmd{supabase} tirées de leurs sources (Rb3) ; une création distante qui transporte du code
+    à exécuter là-bas (\cmd{kubectl create \ldots{} --}, \cmd{helm --set}, \cmd{aws --user-data},
+    scripts de démarrage \cmd{gcloud} et \cmd{az}) est une \emph{exécution} sur cette surface,
+    soumise à la personne (Rb4).
+  \item \textbf{V21 corrigée} : un exécuteur de code garde le filet même si on lui passe un
+    fichier hors du projet.
+\end{itemize}
+
+Bilan de M2.3b : 46 nouveaux tests ; sur le portail, 65 lignes bougent, toutes plus strictes ou
+arbitrées ; un corpus élargi de \nbcorpuslarge{} commandes a validé le changement
+(section~\ref{sec:portail}).

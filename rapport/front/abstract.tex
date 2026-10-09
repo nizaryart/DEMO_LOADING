@@ -14,7 +14,8 @@ Starting from a beta that recognised commands with regular expressions, the inte
 produced an engine that parses the line and simulates its effects on a virtual view of the
 file system, a rule table written as data in which every example is a test, a single policy
 and a single decider, and two runtime nets: a ptrace-based system-call guard on Linux and a
-WinFsp file system on Windows. A second front end for PowerShell shares the same engine. The
+WinFsp file system on Windows. The old regular-expression path no longer decides any POSIX line, and a second front end for
+PowerShell shares the same engine. The
 work was done one part at a time, with tests that fail on the previous code and a
 922-command decision gate that forbids any decision from becoming looser without an explicit
 ruling. Offensive work found and fixed vulnerabilities, among them an elevated Windows task

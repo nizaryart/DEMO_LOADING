@@ -39,6 +39,7 @@ M2.2b4b1/b2 & 12 / 9 & PaaS (\cmd{firebase deploy} escalade), SaaS et migrations
 M2.2c, d, e & 0 & système, effet LATER, préfiltre généré \\
 M2.2f & 10 & derniers outils signalés \\
 M2.3a & 6 & toutes plus strictes \\
+M2.3b & 65 & plus strictes ou arbitrées (Rb1--Rb4) ; référence Windows enregistrée à part \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -50,4 +51,22 @@ trace de l'arbitrage qui l'a fait bouger, ce qui permet de retrouver, des semain
 pourquoi une commande escalade.
 \end{pourquoi}
 
-\acompleter[exemple réel de sortie du comparateur du portail, et emplacement du corpus]
+\subsection{Quand le portail ne suffit plus : le corpus élargi (M2.3b)}
+M2.3b retirait à l'ancien chemin sa dernière ligne POSIX : un changement qui touche toutes les
+commandes non lues. Le portail de \nbcorpus{} commandes ne suffisait plus à le valider. Un
+\textbf{corpus élargi de \nbcorpuslarge{} commandes} --- le portail, toutes les lignes figées des
+\textit{fixtures} et tous les exemples de la table de règles --- a été rejoué avant et après. Il a
+révélé des régressions que le portail ne voyait pas, comme \cmd{kubectl exec \ldots{} rm -rf} ou
+\cmd{npx prisma migrate reset}, corrigées avant la publication.
+
+Chaque ligne devenue plus permissive y est soit une \emph{décision arbitrée}, soit un \emph{fait
+vérifié} : la suppression d'un fichier absent (rien n'est détruit), un texte « rm -rf » dans les
+métadonnées d'un envoi (une donnée, pas du code), un outil de migration qui crée seulement un
+fichier local.
+
+\subsection{Deux références, une par système}
+Le portail a été réenregistré séparément pour Windows : 21 lignes ne bougent que sous Windows ---
+des chemins POSIX absolus impossibles à traduire en chemins Windows, donc non compris ---, et
+toutes y sont plus strictes ou de même décision. Au commit de référence, le portail ne montre
+aucune ligne différente sous Windows, et une seule sous Linux, qui dépend des fichiers présents
+sur la machine.

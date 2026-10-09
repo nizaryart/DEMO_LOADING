@@ -31,7 +31,8 @@ M2.0--M2.1 & Une seule source de vérité ; le moteur sous Windows pour les lign
 I1a--c, W0 & Lectures sûres (FIFO, \cmd{/dev/zero}), sortie des \cmd{\$( )} en lecture seule,
   mot de passe collé d'\cmd{unzip -P}, citations ANSI-C décodées comme bash~5. \\
 M2.2a--f & Les familles d'outils (tableau~\ref{tab:familles}). \\
-M2.3a & Les lignes non lues quittent les anciennes règles (section~\ref{sec:m23a}). \\
+M2.3a, M2.3b & Les lignes non lues quittent les anciennes règles ; l'ancien chemin ne décide plus
+  aucune ligne POSIX (section~\ref{sec:m23a}). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -101,7 +102,8 @@ Secrets & \cmd{vault} & \cmd{secret\_write} ; jeton révoqué = \cmd{credential\
 \begin{itemize}
   \item \textbf{Un tiret n'est pas un nom de fichier} (I1a). \cmd{X=-rf; rm \$X src} était
     autorisé : le moteur lisait \cmd{-rf} comme un fichier. Une valeur ou un résultat de
-    \textit{glob} qui commence par un tiret est désormais non compris.
+    \textit{glob} qui commence par un tiret est devenu non compris ; depuis M2.3b, une valeur
+    \emph{connue sur la ligne} est lue comme l'option qu'elle est, et la ligne est capturée.
   \item \textbf{Lire un fichier sans se bloquer} (I1a). Un FIFO lu par \cmd{sqlite3 .read}
     bloquait le moteur au-delà de son budget, et un lien vers \cmd{/dev/zero} se lisait sans
     fin. Le moteur ne lit plus que des fichiers réguliers, en mode non bloquant, plafonnés.
