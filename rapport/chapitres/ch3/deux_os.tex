@@ -1,0 +1,95 @@
+% 3.7 — Deux systèmes, un décideur
+\section{Deux systèmes, un décideur}
+\label{sec:deux-os}
+
+Les agents ne travaillent pas de la même façon sous Linux et sous Windows : sous Windows,
+Claude Code dispose d'un outil \cmd{PowerShell} à côté de son outil \cmd{Bash} (Git Bash), et
+Codex écrit du PowerShell. Les chemins s'écrivent \cmd{C:\textbackslash x} ou \cmd{/c/x}, il
+n'y a pas de ptrace, et les appels système n'ont rien de commun. La conception sépare donc
+ce qui \emph{doit} être commun de ce qui \emph{ne peut pas} l'être
+(figure~\ref{fig:os}).
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig5_os}
+\caption{Linux et Windows : un seul décideur, deux filets d'exécution}
+\label{fig:os}
+\end{figure}
+
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Commun]
+    Le moteur, la table de règles, la politique, le décideur, le format des reçus, la
+    récupération et \cmd{undo}. Une ligne POSIX tapée dans Git Bash sous Windows passe par le
+    même moteur que sous Linux ; ses chemins \cmd{/c/\ldots} sont traduits en
+    \cmd{C:\textbackslash\ldots} (partie M2.1), et un chemin POSIX absolu dont la racine MSYS
+    n'est pas connue (\cmd{/tmp}, \cmd{/usr}) est marqué non compris plutôt que deviné.
+  \item[Propre à chaque système]
+    Le filet d'exécution et son activation, la protection du plan de contrôle pendant
+    l'exécution, et le frontal de lecture : POSIX d'un côté, PowerShell de l'autre (C3,
+    section~\ref{sec:c3}).
+\end{description}
+
+\subsection{Linux : pourquoi ptrace}
+Le filet Linux est un \emph{garde d'appels système} fondé sur ptrace
+(\fichier{syscall\_guard.py}). Il lance la commande comme processus suivi et s'arrête à
+l'\emph{entrée} de chaque appel système ; pour un appel destructeur (\cmd{unlink},
+\cmd{unlinkat}, \cmd{rmdir}, \cmd{rename*} sur une destination existante, \cmd{truncate},
+\cmd{open} avec \cmd{O\_TRUNC} ou en écriture) sur un fichier préexistant du projet, il copie
+le fichier \emph{puis} laisse l'appel se faire. Pour un fichier du plan de contrôle, il annule
+l'appel.
+
+Trois mécanismes étaient envisageables :
+\begin{itemize}
+  \item \textbf{FUSE} : monter un système de fichiers sous le projet. Il a été écarté parce que
+    le garde d'appels système fait déjà la même chose --- voir chaque destruction dans le
+    projet avant qu'elle n'ait lieu. De plus, un montage FUSE suppose de placer le projet
+    derrière un point de montage servi par un démon permanent, alors que ptrace ne s'attache
+    qu'à la commande concernée.
+  \item \textbf{seccomp avec notification} : plus rapide, car seuls les appels filtrés
+    réveillent le superviseur. Le code le désigne comme la cible de production du filet ; le
+    prototype actuel utilise ptrace, qui donne la main à l'entrée de chaque appel et permet de
+    lire les registres et la mémoire du processus suivi. \acompleter[confirmer la raison du choix de ptrace pour le prototype]
+  \item \textbf{ptrace} : retenu. Ses limites sont assumées et rappelées au
+    chapitre~\ref{ch:securite} : architecture x86-64, coût d'un arrêt par appel système, et
+    pas de vision au-delà du projet.
+\end{itemize}
+
+\paragraph{Activation.} Le filet doit s'exécuter \emph{à la place} de la commande. Le
+\textit{hook} Claude Code réécrit donc la commande en \cmd{demo\_cli sh -g <id> <commande>}
+via \cmd{updatedInput} --- \emph{sans} répondre \cmd{allow}, pour que l'invite de permission
+de l'utilisateur continue de s'afficher (partie B1b) --- et dit à la personne et au modèle ce
+qui s'exécute réellement. Un \cmd{demo\_cli sh} tapé par l'agent lui-même est déballé et jugé
+sur ce qu'il cache ; un processus déjà suivi par un traceur étranger refuse de s'exécuter
+sans surveillance.
+
+\subsection{Windows : pourquoi un montage WinFsp}
+Windows n'a pas de ptrace. L'endroit où toutes les routes vers un fichier convergent --- API
+Win32, \cmd{ntdll}, appels système directs --- est le système de fichiers. \demo{} y place un
+système de fichiers en espace utilisateur WinFsp (\fichier{fsmount.py}) : le projet
+\cmd{C:\textbackslash projet} devient le point de montage, et les données vivent dans
+\cmd{C:\textbackslash projet.real}, verrouillé par une ACL réservée aux Administrateurs et à
+SYSTEM. Le montage s'exécute avec élévation, l'agent sans : l'agent ne peut pas contourner le
+montage en écrivant directement dans le répertoire réel (\fichier{protect.py}). Le filet
+n'exige donc aucune réécriture de commande : tout ce qui touche le projet passe par lui.
+
+La logique de jugement (\fichier{fsguard.py}) est séparée de la plomberie WinFsp et testable
+sous Linux. Ses règles viennent de journaux d'opérations \emph{observés} sous Windows~10,
+qui ont contredit l'intuition sur trois points sur quatre : le remplacement atomique
+(\cmd{rename} avec remplacement) détruit la destination sans aucun signal de suppression ---
+c'est ainsi que l'outil \cmd{Write} de Claude Code enregistre chaque fichier ; la méthode
+\cmd{overwrite()} n'est jamais appelée, les vraies réécritures passant par une réduction de
+taille ; et seul \cmd{cleanup} avec le bit de suppression signale toutes les suppressions.
+
+Un montage meurt avec la session. Une tâche planifiée à l'ouverture de session le relance ;
+elle s'exécute avec élévation, ce qui en fait une cible : sa conception durcie (W-SEC) est
+décrite à la section~\ref{sec:wsec}.
+
+\subsection{Points de contrôle : utiles, mais optionnels}
+Quand ni capture ciblée ni filet ne sont possibles, \demo{} peut copier tout le projet avant
+la commande (\fichier{checkpoint.py}) --- « je ne sais pas ce que vous allez détruire, donc je
+préserve tout ce que vous pourriez détruire ». Cette option est \textbf{désactivée par
+défaut} : sur un dépôt avec un gros \fichier{.git}, la copie est lente, et « un garde-fou
+qui devient lent sans qu'on le lui demande est un garde-fou qu'on désinstalle ». Elle est
+bornée (256\,Mo et \num{25000} fichiers par défaut), refuse le répertoire personnel et la
+racine, et ne remplace jamais une capture ciblée ni ne couvre une surface distante ou un
+fichier hors du projet.

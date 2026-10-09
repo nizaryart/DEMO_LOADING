@@ -1,0 +1,98 @@
+% 3.6 — La politique et le décideur unique
+\section{La politique et le décideur unique}
+\label{sec:decision}
+
+\subsection{Une seule politique}
+Avant la partie T5, les mêmes questions --- « une suppression distante escalade-t-elle ? »,
+« quelle surface derrière l'étiquette \cmd{db:} ? », « où restaurer un bucket ? » ---
+avaient des réponses dans plusieurs modules. Elles sont désormais réunies dans
+\fichier{policy.py}, que lisent le décideur, le jugement du moteur, l'orchestrateur et
+l'affichage du modèle de menace :
+\begin{itemize}
+  \item \cmd{REMOTE\_POLICY} : sorte d'effet distant $\rightarrow$ ALLOW ou ESCALATE ; une
+    sorte inconnue escalade ;
+  \item \cmd{\_LABEL\_SURFACES} : étiquette du moteur $\rightarrow$ surface
+    (\cmd{storage:} $\rightarrow$ \cmd{object\_storage}, \cmd{vcs-remote:} $\rightarrow$
+    \cmd{remote\_vcs\_history}\ldots) ;
+  \item \cmd{ESCALATION\_CHANNEL} : surface $\rightarrow$ ask ou deny ;
+  \item \cmd{RECOVERY\_HINTS} : surface $\rightarrow$ où le fournisseur garde son propre
+    historique (« bucket versioning, if enabled », « the database's PITR / snapshot »).
+\end{itemize}
+
+\subsection{La table de décision}
+La figure~\ref{fig:decision} résume ce que la politique et le décideur produisent selon
+\emph{où} l'effet tombe et \emph{quelle sorte} d'effet il est. Chaque case a été vérifiée en
+faisant passer des commandes réelles par \cmd{Guard.evaluate}.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig4_decision}
+\caption{La table de décision : où l'effet tombe $\times$ quelle sorte d'effet}
+\label{fig:decision}
+\end{figure}
+
+\subsection{Le décideur}
+\fichier{decide.py} est une fonction pure : elle ne lit aucun fichier, ne capture rien, et
+reçoit tout ce dont elle a besoin --- la classification, l'environnement, le fait qu'une
+capture de la \emph{vraie} cible a réussi, les désaccords de contexte, la disponibilité d'un
+filet. Ses branches s'évaluent dans un ordre fixe (tableau~\ref{tab:ordre}) ; la première qui
+s'applique décide.
+
+\begin{table}[htbp]
+\centering
+\caption{L'ordre des branches de \fichier{decide.py}}
+\label{tab:ordre}
+\small
+\begin{tabularx}{\linewidth}{@{}L{0.6cm}YL{3.6cm}@{}}
+\toprule
+& \textbf{Situation} & \textbf{Décision} \\
+\midrule
+1a & Code illisible exécuté sur une surface nommée (\cmd{ssh hôte cmd}, \cmd{gh workflow run}) &
+  ESCALATE, canal de la surface \\
+1b & Télécharger et exécuter (\cmd{curl \ldots{} | bash}) & ESCALATE, deny \\
+2 & Rien ne modifie & ALLOW \\
+3 & Surface non récupérable & ESCALATE (ALLOW avec jeton structurel) \\
+4 & Désaccord avec le contexte déclaré & CONTEXT\_MISMATCH si capturé, sinon ESCALATE \\
+4b & Cible \emph{déclarée} production, capturée & CONTEXT\_MISMATCH \\
+5 & Capture réussie & DRY\_RUN (aperçu SQL) ou REVERSIBLE \\
+6 & Un filet couvre le projet & SUPERVISED \\
+7 & Sinon & ESCALATE (ask) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{pourquoi}[Pourquoi un seul décideur ?]
+Avec deux chemins de décision, il y a deux réponses possibles à la même question ; c'est la
+forme même des défauts trouvés par l'audit. Le moteur, l'ancien chemin, la porte fichier et
+le chemin des lignes non lues ne font que \emph{rassembler des faits} ; seul
+\fichier{decide.py} conclut. Une correction de politique s'applique donc partout à la fois,
+sur les deux systèmes, et le portail de décision n'a qu'un seul point à observer.
+\end{pourquoi}
+
+\subsection{Six décisions, trois postures}
+Six décisions sont précises mais techniques. Pour la personne, elles sont regroupées en trois
+postures : \textbf{SAFE} (ALLOW, DRY\_RUN, REVERSIBLE, SUPERVISED --- la commande
+s'exécute), \textbf{REVIEW} (CONTEXT\_MISMATCH --- capturé, puis montré), \textbf{BLOCKED}
+(ESCALATE). La décision exacte reste affichée en sous-titre, comme dans les sorties de
+terminal de ce chapitre (« \texttt{[+] SAFE · REVERSIBLE} »).
+
+\subsection{Les escalades sans surface}
+Trois escalades ne portent pas de surface et ont leur propre canal
+(\cmd{NO\_SURFACE\_CHANNEL}) : une modification locale que rien n'a pu capturer (ask), un
+désaccord de contexte sans capture (ask), et le téléchargement-exécution (deny), dont
+personne ne peut voir la charge avant qu'elle ne s'exécute.
+
+\begin{terminal}[une surface distante : la personne est consultée, l'indice de restauration est donné]
+$ demo_cli check --mode enforce 'git push --force origin main'
+demo_cli 1.7.0  [x] BLOCKED  ·  ESCALATE
+  matched rule        git_force_push
+  surface             remote_vcs_history
+Decision
+  Mutation of a non-recoverable surface (remote_vcs_history); a local snapshot
+  cannot cover its blast radius.
+Safe next step
+  1. Confirm the external effect is intended and authorised.
+  2. Supply a structural approval token, or perform it outside the agent.
+  3. If it already ran, restore from the provider: a teammate's
+     un-force-pushed clone or the remote's reflog.
+\end{terminal}

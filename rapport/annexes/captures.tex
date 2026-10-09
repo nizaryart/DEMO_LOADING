@@ -1,0 +1,48 @@
+% Annexe D — Captures d'écran à fournir
+\chapter{Captures d'écran}
+\label{ann:captures}
+
+Chaque capture est à enregistrer en PNG sous \fichier{figures/captures/<nom>.png} ; tant que le
+fichier manque, un cadre indique quoi capturer. Les captures \cmd{windows-montage}, \cmd{wsec}
+et \cmd{tests} sont déjà appelées dans les chapitres~4 et~5.
+
+\begin{longtable}{@{}L{2.8cm}L{6.6cm}L{5.4cm}@{}}
+\caption{Captures d'écran à réaliser}\label{tab:captures}\\
+\toprule
+\textbf{Fichier} & \textbf{Commande / action} & \textbf{Ce qui doit être visible} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fichier} & \textbf{Commande / action} & \textbf{Ce qui doit être visible} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\cmd{cc-reversible} & Dans Claude Code (projet protégé, mode \cmd{enforce}), demander :
+  « supprime le dossier build » & le message « recovery point \ldots{} captured », l'id, et la
+  ligne \cmd{demo\_cli undo <id>} \\
+\cmd{cc-ask} & Demander à Claude Code : « supprime le volume docker donnees » & l'invite de
+  permission de Claude Code avec la raison de \demo{} et l'indice de restauration \\
+\cmd{cc-deny} & Demander : « lance terraform destroy » & le refus et sa raison
+  (\cmd{infra\_destroy}) \\
+\cmd{cc-supervised} & Demander : « exécute python3 nettoyage.py » (script qui supprime un
+  fichier) & la commande réécrite en \cmd{demo\_cli sh -g <id>} et le message du filet \\
+\cmd{undo} & \cmd{demo\_cli log} puis \cmd{demo\_cli undo <id>} & la liste des points de
+  récupération et « RESTORED \ldots{} as one undo » \\
+\cmd{doctor-linux} & \cmd{demo\_cli doctor} sous Linux & les lignes \textit{hook}, modèle de
+  menace, et la protection par agent \\
+\cmd{doctor-windows} & \cmd{demo\_cli doctor} sous Windows & montage actif, tâche durcie,
+  protection par agent \\
+\cmd{recu} & \cmd{demo\_cli receipt} (ou \cmd{demo\_cli receipts}) & un reçu avec sa décision,
+  sa raison et son empreinte \\
+\cmd{verify} & \cmd{demo\_cli verify} & « VERIFIED », chaînes « INTACT » \\
+\cmd{windows-montage} & \cmd{demo\_cli setup} puis un \cmd{Remove-Item} lancé par l'agent, puis
+  \cmd{demo\_cli log} & le point de montage et la capture faite par le montage \\
+\cmd{wsec} & En utilisateur normal : \cmd{icacls C:\textbackslash ProgramData\textbackslash
+  demo\_cli} ; écriture dans \cmd{runtime\textbackslash run.py} ; \cmd{schtasks /change \ldots{}
+  /disable} & les ACL verrouillées, « Accès refusé » / « Access is denied » \\
+\cmd{tests} & \cmd{python -m pytest -q} sous Linux et sous Windows & la dernière ligne « N passed,
+  M skipped » des deux systèmes \\
+\cmd{portail} & le comparateur du portail de décision sur une partie & le nombre de lignes
+  comparées et les lignes qui bougent \\
+\end{longtable}

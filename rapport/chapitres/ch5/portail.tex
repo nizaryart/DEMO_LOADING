@@ -1,0 +1,53 @@
+% 5.4 — Le portail de décision
+\section{Le portail de décision}
+\label{sec:portail}
+
+\subsection{Principe}
+Le portail évalue un corpus de \nbcorpus{} commandes avec le code avant et après une
+modification, et compare pour chaque
+ligne la décision, la règle, la cible et la capture. Il ne sait pas quelle décision est juste ;
+il voit chaque décision qui \emph{change}. Une ligne qui bouge doit être expliquée : erreur
+corrigée, arbitrage appliqué, ou simple changement d'étiquette. La référence est ensuite
+réenregistrée.
+
+\subsection{Les mouvements, partie par partie}
+Le tableau~\ref{tab:portail} reprend ce que chaque message de commit déclare. Les parties qui
+ne devaient rien changer --- le moteur en ombre, les canaux ask/deny, plusieurs familles --- ne
+changent rien ; les autres changent des lignes \emph{nommées et revues}.
+
+\begin{table}[htbp]
+\centering
+\caption{Mouvements du portail de décision déclarés par partie (messages de commit)}
+\label{tab:portail}
+\small
+\begin{tabularx}{\linewidth}{@{}L{2.6cm}L{2.3cm}Y@{}}
+\toprule
+\textbf{Partie} & \textbf{Lignes} & \textbf{Nature} \\
+\midrule
+B, C1, C2a, SYS1 & 0 & moteur en ombre, filets reliés : aucune décision ne change \\
+S2+M1 & 124 & 8 erreurs corrigées, 18 nouvelles captures, 86 nouvelles autorisations (rien
+  d'existant n'était détruit) --- le moteur prend la main \\
+M2.0+M2.1 & 28 & suppression SQLite désormais restaurée ; chemins absents hors projet autorisés \\
+T & 0 & sur les deux portails (Linux et Windows) \\
+M2.2a (git) & 26 & lignes classées, référence réenregistrée \\
+M2.2b1 (infra) & 4 & 3 corrections, 1 arbitrage (R1) \\
+M2.2b2a/b (cloud) & 1 / 0 & une étiquette seulement \\
+M2.2b3 & 37 & comptage des surfaces ; \cmd{compose down} et \cmd{docker push} escaladent \\
+ASK & 0 & le canal s'ajoute à l'escalade sans changer la décision \\
+M2.2b4a (envois) & 24 & 16 comptages, 3 étiquettes \cmd{ssh}, 5 décisions arbitrées \\
+M2.2b4b1/b2 & 12 / 9 & PaaS (\cmd{firebase deploy} escalade), SaaS et migrations \\
+M2.2c, d, e & 0 & système, effet LATER, préfiltre généré \\
+M2.2f & 10 & derniers outils signalés \\
+M2.3a & 6 & toutes plus strictes \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{pourquoi}[Pourquoi réenregistrer la référence ?]
+Après revue, les mouvements deviennent la nouvelle norme : la partie suivante est comparée à
+\emph{elle}, et non à un état ancien. Chaque ligne figée dans \fichier{tests/fixtures/} garde la
+trace de l'arbitrage qui l'a fait bouger, ce qui permet de retrouver, des semaines plus tard,
+pourquoi une commande escalade.
+\end{pourquoi}
+
+\acompleter[exemple réel de sortie du comparateur du portail, et emplacement du corpus]

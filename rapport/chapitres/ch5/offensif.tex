@@ -1,0 +1,126 @@
+% 5.1 — Le travail offensif
+\section{Le travail offensif}
+\label{sec:offensif}
+
+\subsection{Trois façons de chercher}
+Les failles ont été cherchées comme dans un programme de \textit{bug bounty}, avec trois
+méthodes complémentaires :
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[La lecture de code] Lire un module en se demandant « que se passe-t-il si cette
+    hypothèse est fausse ? » --- par exemple, si le fichier que la tâche élevée exécute est
+    inscriptible par l'utilisateur.
+  \item[Les sondes] Fabriquer des commandes piégées et les faire juger dans un projet jetable :
+    une substitution qui lit un fichier SQL, un outil qui supprime son entrée sans que son
+    nom l'annonce, une valeur qui commence par un tiret.
+  \item[La fouille des registres] Analyser les reçus réellement produits par les agents pour
+    voir ce qu'ils exécutent et comment \demo{} les a jugés. L'analyse menée pour C3 a porté
+    sur \nbregistres{} registres et \nbrecus{} reçus, et a montré le poids réel des lignes
+    PowerShell jugées par les anciennes règles.
+\end{description}
+Chaque faille confirmée suit la même règle que le reste du projet : un test qui \emph{échoue}
+sur le code vulnérable est écrit avant la correction.
+
+\subsection{L'audit de reprise}
+Au début de la période documentée, un audit de la version 1.7.0 a confirmé 18 défauts, plus un
+contournement du garde du shell par auto-exclusion. Ils ont d'abord été \emph{figés} par des
+tests rouges --- la suite passait alors avec 1856 tests réussis, aucun ne décrivant ces
+comportements --- puis corrigés en trois tours. Ils se rangent en trois niveaux :
+\begin{itemize}
+  \item \textbf{l'outil revendique une récupération qu'il n'a pas prise} : une modification de
+    fichier hors du projet déclarée REVERSIBLE, un lien symbolique restauré comme un fichier
+    ordinaire, un faux répertoire \fichier{.demo\_cli} ignoré par son \emph{nom}, un
+    \cmd{cp -f} sur un fichier existant non capturé ;
+  \item \textbf{le garde est absent, contournable ou muet} : un préfiltre du shell plus étroit
+    que le classifieur, un appel au garde sans délai maximal, une panne qui ne laisse aucune
+    trace, un interrupteur d'arrêt non relu dans un shell déjà ouvert, une auto-exclusion
+    décidée sur une sous-chaîne au lieu du mot de commande ;
+  \item \textbf{du texte jugé comme une commande} : un message de commit ou un corps de
+    \textit{heredoc} pris pour des commandes, une aide (\cmd{--help}) prise pour une
+    modification.
+\end{itemize}
+
+\subsection{Les vulnérabilités du stage}
+Le journal des vulnérabilités (V1--V20) distingue ce qui est corrigé, ce qui a été vérifié et
+n'est pas une faille, et ce qui reste ouvert.
+
+{\small
+\begin{longtable}{@{}L{1.5cm}L{6.3cm}L{1.6cm}L{1.9cm}L{3.3cm}@{}}
+\caption{Vulnérabilités corrigées}\label{tab:v-corrigees}\\
+\toprule
+\textbf{Id} & \textbf{Description} & \textbf{Gravité} & \textbf{Trouvée par} & \textbf{Correction} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Id} & \textbf{Description} & \textbf{Gravité} & \textbf{Trouvée par} & \textbf{Correction} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+V1 & La tâche Windows d'ouverture de session (niveau « le plus élevé ») exécutait un script de
+  \cmd{\%LOCALAPPDATA\%} modifiable par l'utilisateur, donc par l'agent : code exécuté avec
+  élévation, ou garde désactivé par un \cmd{exit /b 0}. & Haute & Lecture de code, vérifié
+  sous Windows & W-SEC (\cmd{db262df}) \\
+V2 & Même sans ce script, le code de la tâche était inscriptible : installation éditable et
+  environnement virtuel utilisateur. & Haute & Inspection & W-SEC \\
+V3 & La tâche trouvait \cmd{demo\_cli} par le \cmd{PATH} de l'utilisateur, modifiable. & Haute &
+  Lecture de code & W-SEC \\
+V4 & La tâche élevée écrivait son journal dans un dossier inscriptible par l'utilisateur
+  (redirection par un lien). & Moyenne & Revue de conception & W-SEC \\
+V17 & Points de contrôle activés : une ligne illisible avec un opérande \emph{hors} du projet
+  recevait une copie du projet et REVERSIBLE --- une promesse non tenue. & Haute (option) &
+  Lecture, reproduit & V17 (\cmd{99831a9}) \\
+V18 (1) & Les filets et le point de contrôle couvrent le projet seulement, mais la raison disait
+  « chaque fichier détruit est sauvegardé ». & Moyenne (honnêteté) & Lecture de code & M2.3a \\
+V19 & SQL non lu autorisé : \cmd{psql -c "\$(cat q.sql)"} avec \cmd{DROP TABLE users;} $\rightarrow$
+  ALLOW, rien capturé. & Haute & Sondes & M2.3a (\cmd{3c94414}) \\
+V20 & Outils de fichiers destructeurs non vus : \cmd{gzip a.txt}, \cmd{xz}, \cmd{bzip2},
+  \cmd{sort -o}, \cmd{iconv -o}, \cmd{patch}, \cmd{awk -i inplace}, \cmd{7z \ldots{} -sdel}
+  $\rightarrow$ ALLOW. & Haute & Sondes & M2.3a \\
+--- & \cmd{source ./x.sh} vu comme sans effet ; code téléchargé exécuté par
+  \cmd{bash <(curl \ldots)} ou \cmd{aws s3 cp \ldots{} - | bash} autorisé. & --- & Sondes & M2.3a \\
+--- & \cmd{undo} impossible sur un fichier passé en \cmd{chmod 444}/\cmd{000} ; plantage du
+  moteur sur \cmd{git stash pop \&\& git stash drop} ; \fichier{\textasciitilde/.bashrc}, qui
+  active le garde du shell, modifiable par l'agent. & --- & Sondes & M2.2c, M2.2d \\
+\end{longtable}
+}
+
+Deux points ont été vérifiés et ne sont \emph{pas} des failles : un utilisateur normal ne peut
+pas modifier la tâche élevée elle-même (V5, « Access is denied ») ; \cmd{Move-Item} et
+\cmd{Rename-Item} refusent d'écraser une destination existante (vérifié sur PowerShell 5.1) ---
+seul \cmd{Copy-Item} écrase, ce qui relève de V12.
+
+{\small
+\begin{longtable}{@{}L{1.8cm}L{8.2cm}L{4.6cm}@{}}
+\caption{Vulnérabilités et constats ouverts}\label{tab:v-ouvertes}\\
+\toprule
+\textbf{Id} & \textbf{Description} & \textbf{Plan} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Id} & \textbf{Description} & \textbf{Plan} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+V12 & PowerShell non analysé : \cmd{iex "Remove-Item a.txt"}, \cmd{Write-Output "\$(Remove-Item
+  a.txt)"} autorisés, \cmd{Copy-Item a b} écrase en silence, \cmd{Set-Content a.txt hi} escalade
+  inutilement. Seul le montage les couvre aujourd'hui. & C3 (\statutCthree) \\
+V18 (2) & Une destruction hors du projet par du code non lu n'est ni capturée ni enregistrée
+  par le filet. & Le filet l'enregistre (sans bloquer) ; liste de blocage seulement sur données
+  mesurées \\
+V14 & Les commandes tapées par la personne et les processus qui survivent à la commande sont
+  hors du filet Linux. & Plus tard \\
+V7--V9 & Montage Windows : ne refuse pas lui-même les fichiers de \demo{} (les portes le
+  font), lit les fichiers entiers en mémoire, santé réduite à « processus vivant ». & Partie
+  « parité Windows » \\
+V10--V11 & Proxy réseau : repli silencieux si son outil manque ; périmètre d'exfiltration
+  (un \cmd{curl -X POST -d @-} est escaladé, d'autres outils non modélisés). & Partie réseau \\
+V15 & Codex ne peut pas exécuter une commande réécrite sans l'autoriser : pas de filet sur
+  Codex. & Portage Codex \\
+V6, V13 & Reçus : rares lignes déchirées quand Windows et WSL écrivent le même registre ; pas de
+  rotation du registre ni de la réserve. & Maintenance \\
+Constat & Un exécuteur de code avec un opérande absolu hors du projet (\cmd{python x.py
+  /etc/hostname}) n'obtient pas le filet, disponible pourtant pour \cmd{python x.py}, et devient
+  ALLOW avec la note. & \acompleter[arbitrage et numéro] \\
+\end{longtable}
+}

@@ -1,0 +1,41 @@
+% 2.3 — Les bacs à sable
+\section{Les bacs à sable}
+\label{sec:sandbox}
+
+Un bac à sable confie au système d'exploitation le soin de limiter ce qu'une commande peut
+atteindre. Les deux agents en proposent un.
+
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Claude Code]
+    Le bac à sable de l'outil shell s'appuie sur Seatbelt sous macOS et sur
+    \cmd{bubblewrap} sous Linux et WSL2. Il est désactivé par défaut. Une fois activé, les
+    commandes peuvent écrire dans le répertoire de travail, un répertoire temporaire et les
+    répertoires ajoutés ; certains chemins sensibles restent protégés en écriture (fichiers
+    de configuration de l'agent, \fichier{.bashrc}, \textit{hooks} git\ldots). Sous Windows
+    natif, les commandes s'exécutent sans bac à sable~\cite{cc-sandbox}.
+  \item[Codex]
+    Codex sépare deux réglages : une politique d'approbation (quand demander) et un mode de
+    bac à sable (ce que le système autorise), dont le mode \cmd{workspace-write} qui limite
+    les écritures à l'espace de travail~\cite{codex-security}. Sous Linux, l'isolation du
+    système de fichiers repose par défaut sur \cmd{bubblewrap}~\cite{codex-linux-sandbox}.
+  \item[Conteneurs et machines virtuelles]
+    Faire travailler l'agent dans un conteneur ou une machine virtuelle jetable isole la
+    machine hôte entière.
+\end{description}
+
+\paragraph{Ce qu'un bac à sable ne couvre pas.} Le bac à sable répond à la question
+« \emph{où} la commande peut-elle écrire ? ». Or le projet lui-même --- le répertoire de
+travail --- est, par construction, inscriptible : c'est là que l'agent travaille. Un
+\cmd{rm -rf src} ou un \cmd{mv} qui écrase un fichier non suivi par git y est autorisé.
+De même, une commande qui atteint une base de données de production avec des identifiants
+valides, ou qui pousse de force sur un dépôt distant, utilise un accès que le bac à sable
+a laissé ouvert pour que l'agent puisse travailler. Enfin, la protection dépend de la
+plateforme : là où le bac à sable n'existe pas (Windows natif pour Claude Code), il n'y a
+rien.
+
+\begin{pourquoi}[Complémentaire, pas concurrent]
+Le bac à sable \emph{borne} ; \demo{} \emph{juge et récupère à l'intérieur} de la borne.
+Les deux se combinent : le bac à sable empêche l'agent de sortir du projet, \demo{}
+garantit qu'à l'intérieur du projet une destruction reste réversible, et qu'une action à
+distance passe par une personne.
+\end{pourquoi}

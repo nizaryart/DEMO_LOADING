@@ -1,0 +1,53 @@
+% 2.7 — Synthèse et positionnement
+\section{Synthèse et positionnement de \texorpdfstring{\demo}{demo\_cli}}
+\label{sec:synthese}
+
+Le tableau~\ref{tab:existant} compare les approches selon six critères tirés de la
+problématique.
+
+\newcommand{\oui}{\textcolor{dALLOW}{\textbf{oui}}}
+\newcommand{\non}{\textcolor{dDENY}{non}}
+\newcommand{\partl}{\textcolor{dASK}{partiel}}
+\begin{table}[htbp]
+\centering
+\caption{Les protections existantes face aux critères du problème}
+\label{tab:existant}
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.5cm}YYYYYY@{}}
+\toprule
+& \textbf{Prédit l'effet} & \textbf{Récupère} & \textbf{Couvre le shell} &
+  \textbf{Traite le distant} & \textbf{Sans friction} & \textbf{Linux et Windows} \\
+\midrule
+Demande de permission & \non & \non & \oui & \partl{} (la personne) & \non & \oui \\
+Juge automatique & \partl{} & \non & \oui & \partl{} & \oui & \oui \\
+Bac à sable & \non & \non & \oui & \partl{} (réseau) & \oui & \partl{} \\
+Points de restauration de l'agent & \non & \partl{} (édition) & \non & \non & \oui & \oui \\
+Git, sauvegardes & \non & \partl{} & \partl{} & \non & \oui & \oui \\
+Motifs (regex) & \partl{} & \non & \oui & \partl{} & \oui & \oui \\
+Filet d'exécution seul & \non & \oui{} (local) & \oui & \non & \oui & \partl{} \\
+\midrule
+\textbf{\demo{}} & \oui & \oui & \oui & \oui{} (ask/deny) & \partl{} & \oui \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Aucune protection existante ne réunit les deux propriétés centrales : \emph{prédire}
+l'effet d'une ligne et \emph{récupérer} ce qu'elle détruit. \demo{} se positionne donc
+comme une couche qui \emph{s'ajoute} aux autres, avec quatre partis pris :
+\begin{enumerate}
+  \item \textbf{Prédire par la structure et la simulation}, pas par les motifs.
+  \item \textbf{Récupérer d'abord}, ne demander que ce qui ne peut pas être récupéré, et
+    refuser ce dont il n'existe aucun retour réaliste.
+  \item \textbf{Un filet d'exécution comme plancher} pour ce qui ne peut pas être lu.
+  \item \textbf{Ne jamais revendiquer une protection non prise} : chaque décision dit ce
+    qui a été capturé, et ce qui ne l'a pas été.
+\end{enumerate}
+La case « sans friction » reste partielle : une escalade interrompt l'agent, et c'est
+voulu pour ce qui ne peut pas être récupéré.
+
+\section*{Conclusion du chapitre}
+Les protections existantes sont réelles mais orthogonales au problème : les demandes de
+permission s'usent, les bacs à sable laissent le projet inscriptible, les points de
+restauration ignorent le shell, et l'analyse syntaxique s'arrête à la structure. Le
+chapitre suivant décrit l'architecture qui comble ce vide : comment \demo{} lit, simule,
+décide, récupère et surveille.

@@ -1,0 +1,72 @@
+% 3.8 — Choix de conception et alternatives
+\section{Choix de conception et alternatives écartées}
+\label{sec:choix}
+
+Le tableau~\ref{tab:choix} rassemble les décisions d'architecture, l'alternative écartée et
+la raison. Les justifications détaillées se trouvent dans les sections citées.
+
+{\small
+\begin{longtable}{@{}L{3.6cm}L{3.6cm}L{7.2cm}@{}}
+\caption{Choix de conception, alternatives et justifications}\label{tab:choix}\\
+\toprule
+\textbf{Choix} & \textbf{Alternative écartée} & \textbf{Pourquoi} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Choix} & \textbf{Alternative écartée} & \textbf{Pourquoi} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Analyse syntaxique + simulation & Expressions régulières &
+  Le shell est une grammaire ; les motifs se trompent dans les deux sens. L'analyse unique a
+  corrigé 22 cas sans en casser aucun (§\ref{sec:pourquoi-moteur}). \\
+Une seule analyse lue par tous & Un analyseur par besoin &
+  Deux analyseurs qui répondent différemment à la même question étaient la source principale
+  des défauts de l'audit. \\
+Logique déterministe sur la commande & Un LLM qui juge la commande &
+  L'outil accompagne des agents fondés sur des LLM ; il doit donner la même réponse à la même
+  ligne, être testable exemple par exemple, tenir en quelques millisecondes et ne pas
+  pouvoir être convaincu par le texte qu'il analyse. \\
+Règles écrites comme des données, exemples = tests & Code ad hoc par outil &
+  Une règle se lit, se relit et se vérifie ; ses \nbexemples{} exemples sont exécutés à chaque
+  test ; le préfiltre du shell en est généré. \\
+Grammaires tirées des outils eux-mêmes & Grammaires écrites de mémoire &
+  Une option mal connue est une décision fausse (\cmd{unzip -Pxo}, \cmd{helm 4},
+  \cmd{tofu -chdir}) ; les règles non vérifiées sont marquées (§\ref{sec:faits-verifies}). \\
+Récupérer d'abord & Bloquer tout ce qui est dangereux &
+  Héritage de la bêta : bloquer arrête l'agent et pousse à affaiblir les règles ; une copie
+  ciblée laisse le travail continuer et rend l'erreur réversible. \\
+Capture ciblée, tout ou rien & Copie partielle « au mieux » &
+  REVERSIBLE est une promesse ; une copie partielle la rend fausse (§\ref{sec:jamais-reversible}). \\
+Points de contrôle optionnels & Copie du projet avant chaque commande &
+  Coût prohibitif sur un gros \fichier{.git} ; un outil lent est désinstallé. \\
+Moteur en ombre, puis décideur & Basculer directement &
+  Les divergences entre prédiction et décision ont été comprises une à une, à décisions
+  constantes, avant que le moteur ne décide (S2+M1 : 124 changements revus). \\
+L'ancien chemin garde le plus strict & Supprimer les anciennes règles d'un coup &
+  Aucune décision ne doit devenir plus permissive pendant la migration (§\ref{sec:plus-strict}). \\
+Un décideur pur et unique & Décisions dans chaque porte &
+  Une correction s'applique partout ; le décideur ne peut pas revendiquer une capture qu'il
+  n'a pas reçue. \\
+Canal ask/deny par surface, deny par défaut & Tout demander, ou tout refuser &
+  L'attention s'use ; une surface nouvelle ne devient jamais « demandable » par accident
+  (§\ref{sec:ask-deny}). \\
+Filet Linux par ptrace & FUSE &
+  Le garde d'appels système fait déjà ce que ferait un montage FUSE, sans placer le projet
+  derrière un démon permanent (§\ref{sec:deux-os}). \\
+Filet Windows par WinFsp & Pilote de filtre noyau &
+  WinFsp donne un système de fichiers en mode utilisateur, sans pilote noyau à écrire ni à
+  signer ; il voit toutes les routes vers les fichiers. \\
+Tâche planifiée à l'ouverture de session & Service Windows &
+  Une tâche se crée et se supprime en une commande et reste visible dans le Planificateur ;
+  rien de ce que l'outil fait à la machine n'est caché. Elle est durcie (W-SEC). \\
+C3 : analyseur PowerShell maison & Appeler \cmd{powershell.exe} pour analyser chaque ligne &
+  Lancer PowerShell à chaque commande coûte des centaines de millisecondes et le garde doit
+  aussi fonctionner depuis WSL ; l'analyseur de PowerShell sert d'\emph{oracle} dans les
+  tests (§\ref{sec:c3}). \\
+C3 : tables de paramètres générées & Listes écrites à la main &
+  PowerShell a des centaines de paramètres, alias et abréviations ; une nouvelle version
+  devient une régénération, pas une modification de code. \\
+\end{longtable}
+}

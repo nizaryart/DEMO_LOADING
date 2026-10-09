@@ -1,0 +1,92 @@
+% 4.2 — Les portes
+\section{Les portes}
+\label{sec:portes}
+
+\subsection{Le \textit{hook} Claude Code}
+Le \textit{hook} (\fichier{hooks/claude\_code.py}) reçoit l'appel d'outil sur son entrée
+standard, appelle \cmd{Guard.evaluate} (outils \cmd{Bash} et \cmd{PowerShell}) ou
+\cmd{Guard.evaluate\_file\_edit} (\cmd{Edit}, \cmd{Write}, \cmd{MultiEdit},
+\cmd{NotebookEdit}), et traduit la décision (tableau~\ref{tab:hook}).
+
+\begin{table}[htbp]
+\centering
+\caption{Traduction des décisions par le \textit{hook} Claude Code}
+\label{tab:hook}
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.8cm}Y@{}}
+\toprule
+\textbf{Décision} & \textbf{Réponse du \textit{hook}} \\
+\midrule
+ALLOW, REVERSIBLE, DRY\_RUN & Silence sur la permission (l'invite normale de l'utilisateur
+  reste) ; la capture est annoncée au modèle (\cmd{additionalContext}) et à la personne
+  (\cmd{systemMessage}) \\
+SUPERVISED & \cmd{updatedInput} : la commande est réécrite en \cmd{demo\_cli sh -g <id>
+  <commande>}, \emph{sans} \cmd{allow} ; ce qui s'exécute réellement est dit aux deux \\
+CONTEXT\_MISMATCH & \cmd{ask} \\
+ESCALATE approuvable & \cmd{ask} dans les modes qui affichent la question (\cmd{default},
+  \cmd{acceptEdits}, \cmd{plan}, \cmd{auto}) ; \cmd{deny} sinon \\
+ESCALATE non approuvable & \cmd{deny} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Les quatre sorties suivantes sont celles du \textit{hook} lui-même, à qui l'on a donné le JSON
+qu'envoie Claude Code (message lisible sur la sortie d'erreur, JSON sur la sortie standard ;
+liens de signalement coupés, émojis simplifiés) :
+
+\begin{terminal}[hook Claude Code : capture, refus, question, filet]
+$ echo '{..."tool_name":"Bash","tool_input":{"command":"rm -rf src"}}' | demo_cli hook
+demo_cli recovery point d9684862 captured before this ran (1 files).
+         mistake? undo it with:  demo_cli undo d9684862
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext":
+ "[demo_cli] Recovery point captured before the action; reversible. ..."}, ...}
+
+$ echo '{... "command":"terraform destroy -auto-approve"}' | demo_cli hook
+demo_cli blocked: Mutation of a non-recoverable surface (infra_destroy); ...
+         nothing was captured, and nothing is claimed to be.
+{"hookSpecificOutput": {..., "permissionDecision": "deny", ...}}
+
+$ echo '{... "command":"docker volume rm donnees"}' | demo_cli hook
+demo_cli needs your approval: Mutation of a non-recoverable surface (container_runtime)
+         nothing was captured: if you approve, demo_cli cannot undo it.
+{"hookSpecificOutput": {..., "permissionDecision": "ask", "permissionDecisionReason":
+ "... If it has to come back: rebuild from the Dockerfile / compose file, or a
+ volume backup if one exists."}}
+
+$ echo '{... "command":"python3 nettoyage.py"}' | demo_cli hook
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": {"command":
+ "/usr/bin/python3 -m demo_cli sh -g 8553dbf8 'python3 nettoyage.py'"}, ...}}
+\end{terminal}
+
+\begin{pourquoi}[Pourquoi le \textit{hook} se tait-il au lieu de dire « allow » ?]
+Répondre \cmd{allow} court-circuite l'invite de permission de l'utilisateur : ses propres
+règles cesseraient de s'appliquer dès que \demo{} est installé. Un garde-fou ne doit jamais
+\emph{réduire} la sécurité que l'utilisateur avait déjà (partie B1). C'est aussi pourquoi la
+réécriture vers le filet se fait sans \cmd{allow} (partie B1b) : l'utilisateur voit la vraie
+commande qui s'exécutera.
+\end{pourquoi}
+
+\subsection{La porte fichier}
+Les outils d'édition ne passent pas par le shell. \cmd{evaluate\_file\_edit} copie le fichier
+\emph{existant} avant qu'il ne soit réécrit ; une création n'a rien à copier ; un fichier du
+plan de contrôle est refusé ; un fichier hors du projet, ou un lien qui en sort, n'est pas
+copié dans la réserve du projet. Si la copie échoue, la modification est escaladée.
+
+\subsection{Codex et Cursor}
+L'adaptateur Codex (\fichier{hooks/codex.py}) ne parle que \cmd{deny}, seule réponse que
+l'exécution de Codex accepte (section~\ref{sec:agents}) : un CONTEXT\_MISMATCH y est capturé et
+enregistré honnêtement, mais ne peut pas être « demandé ». Il analyse aussi la grammaire des
+\textit{patches} de l'outil \cmd{apply\_patch}, qui nomment explicitement chaque fichier
+cible. L'adaptateur Cursor installe son \textit{hook} avec \cmd{failClosed} pour qu'une panne
+bloque au lieu de laisser passer.
+
+\subsection{Le garde du shell}
+Les commandes tapées dans un terminal (ou le mode \cmd{!} de Claude Code, qui lance
+\cmd{bash -c}) n'ont pas de \textit{hook}. \cmd{demo\_cli install-shell-guard} active un piège
+bash : \cmd{BASH\_ENV} pour les shells non interactifs, un \cmd{trap \ldots{} DEBUG} avec
+\cmd{extdebug} qui évalue chaque commande avant son exécution. Pour ne pas payer
+l'évaluation sur chaque \cmd{ls}, un \emph{préfiltre} ne transmet au moteur que les mots qui
+peuvent avoir un effet ; cette liste est générée à partir de la table de règles (partie
+M2.2e) --- un tableau associatif sous bash~4 et plus, une liste de mots sous bash~3. Une
+escalade approuvable pose la question sur \cmd{/dev/tty} dans un shell interactif uniquement ;
+partout ailleurs, la commande est bloquée.

@@ -1,0 +1,37 @@
+% 5.6 — Limites assumées
+\section{Limites assumées}
+\label{sec:limites}
+
+Un garde-fou qui cache ses limites crée une fausse confiance. Celles de \demo{} sont
+connues, et la plupart sont dites dans la raison même des décisions.
+
+\begin{enumerate}
+  \item \textbf{Des erreurs, pas un adversaire.} Le modèle de menace vise un agent qui se trompe.
+    Un adversaire déterminé dispose de moyens que l'outil ne prétend pas couvrir (charge
+    chiffrée, course entre vérification et usage d'un appel système).
+  \item \textbf{Le filet Linux est un prototype.} ptrace sur x86-64 seulement, un arrêt par appel
+    système ; la cible de production désignée par le code est seccomp avec notification.
+  \item \textbf{Les filets voient le projet, et seulement lui.} Hors du projet, une destruction par
+    du code non lu n'est ni capturée ni encore enregistrée (V18, deuxième étape).
+  \item \textbf{Un exécuteur de code sans filet est autorisé} avec une note qui dit qu'aucune
+    capture n'a été faite (arbitrage M1). Le constat du tableau~\ref{tab:v-ouvertes} en est un
+    cas particulier.
+  \item \textbf{« Non couvert » vaut « sans effet ».} Un outil absent de la table et qui n'est pas un
+    exécuteur de code est traité comme sans effet ; la table s'étend famille par famille pour
+    réduire ce cas.
+  \item \textbf{PowerShell est lu par des motifs jusqu'à C3} (V12) ; sous Windows, seul le montage
+    couvre aujourd'hui ces lignes.
+  \item \textbf{Codex ne sait que refuser} : pas de question, pas de filet par réécriture (V15).
+  \item \textbf{Le distant ne se récupère pas.} Pour une base, un dépôt ou un service distant,
+    \demo{} reconnaît, demande ou refuse, et indique où le fournisseur garde son historique ;
+    il ne restaure rien lui-même.
+  \item \textbf{Les points de contrôle sont optionnels} et bornés ; désactivés, une ligne non lue
+    sans filet est escaladée.
+\end{enumerate}
+
+\section*{Conclusion du chapitre}
+La sécurité de \demo{} n'a pas été supposée : elle a été attaquée --- par la lecture, par des
+sondes, par la fouille des registres --- et chaque faille trouvée a laissé un test. La
+validation repose sur deux filets complémentaires : les tests vérifient ce qu'on a pensé à
+écrire, le portail montre tout ce qui bouge. Les limites qui restent sont connues, datées et
+planifiées.

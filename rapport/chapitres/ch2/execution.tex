@@ -1,0 +1,48 @@
+% 2.6 — La surveillance à l'exécution
+\section{La surveillance à l'exécution}
+\label{sec:execution}
+
+Ce qu'aucune lecture ne peut prédire --- un script Python, un \cmd{make}, une commande
+construite à l'exécution --- ne peut être vu qu'en \emph{regardant} la commande travailler.
+Les systèmes d'exploitation offrent plusieurs points d'observation.
+
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[ptrace (Linux)]
+    L'appel système \cmd{ptrace} permet à un processus traceur « d'observer et de
+    contrôler l'exécution d'un autre processus, et d'examiner et modifier sa mémoire et ses
+    registres » ; il sert d'abord aux débogueurs et au traçage des appels
+    système~\cite{man-ptrace}. Un traceur peut s'arrêter à l'entrée de chaque appel système
+    du processus suivi --- donc \emph{avant} qu'un \cmd{unlink} ne s'exécute.
+  \item[seccomp avec notification (Linux)]
+    Un filtre seccomp peut déléguer la décision sur un appel système à un processus
+    superviseur en espace utilisateur, plus rapidement qu'avec ptrace puisque seuls les
+    appels filtrés sont notifiés. La page de manuel avertit toutefois que ce mécanisme
+    « n'est pas destiné à implémenter une politique de sécurité », notamment à cause d'une
+    situation de concurrence entre la vérification et l'usage des
+    arguments~\cite{man-seccomp-unotify}.
+  \item[Landlock (Linux)]
+    Landlock permet à un processus, même non privilégié, de restreindre ses propres droits
+    d'accès~\cite{landlock}. C'est un outil de \emph{restriction} --- celui des bacs à sable ---
+    pas d'observation ni de copie.
+  \item[FUSE (Linux)]
+    Un système de fichiers en espace utilisateur, dont « les données et métadonnées sont
+    fournies par un processus ordinaire »~\cite{fuse-kernel}. Placé sous le projet, il voit
+    chaque opération sur ses fichiers.
+  \item[WinFsp (Windows)]
+    L'équivalent de FUSE pour Windows : il permet d'écrire un système de fichiers comme un
+    programme en mode utilisateur, sans programmation noyau~\cite{winfsp}. Windows n'ayant
+    pas de ptrace, c'est l'endroit où toutes les routes (Win32, ntdll, appels système
+    directs) convergent avant d'atteindre les fichiers.
+  \item[Pilotes de filtre noyau (Windows)]
+    Les \textit{minifilters} interceptent les opérations du système de fichiers dans le
+    noyau. Ils sont puissants mais exigent un pilote signé et une programmation noyau.
+\end{description}
+
+\begin{pourquoi}[Observer n'est pas comprendre, mais c'est un plancher]
+Un filet d'exécution ne sait pas \emph{pourquoi} un fichier est détruit ; il sait
+seulement \emph{qu'il va l'être}, au moment où l'appel système arrive. C'est exactement ce
+qui manque pour le code que \demo{} ne lit pas : on ne peut pas obscurcir un appel
+système --- \cmd{rm}, quelle que soit la façon dont il est écrit, devient un \cmd{unlink}
+sur un chemin résolu par le noyau. Le filet ne voit cependant que les fichiers locaux : une
+base distante ou un dépôt distant lui sont invisibles.
+\end{pourquoi}

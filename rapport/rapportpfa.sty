@@ -115,8 +115,8 @@
   postbreak=\mbox{\textcolor{termcom}{$\hookrightarrow$}\space},
   showstringspaces=false,upquote=true,
   literate={é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {à}{{\`a}}1 {ç}{{\c{c}}}1
-           {É}{{\'E}}1 {ù}{{\`u}}1 {ô}{{\^o}}1 {î}{{\^i}}1 {—}{{---}}1 {→}{{$\rightarrow$}}1
-           {…}{{\ldots}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1,
+           {É}{{\'E}}1 {ù}{{\`u}}1 {ô}{{\^o}}1 {î}{{\^i}}1 {â}{{\^a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {û}{{\^u}}1 {À}{{\`A}}1 {È}{{\`E}}1 {œ}{{\oe}}1 {—}{{---}}1 {→}{{$\rightarrow$}}1
+           {…}{{\ldots}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1 {·}{{$\cdot$}}1,
 }
 % Terminal : fond sombre, barre de titre, ligne d'invite en vert.
 \lstdefinestyle{terminal}{
@@ -143,6 +143,7 @@
   stringstyle=\color[HTML]{A04A2B},
   numbers=left,numberstyle=\tiny\color{gris},numbersep=6pt,
 }
+\lstdefinestyle{brut}{basicstyle=\ttfamily\footnotesize\color{encre}}
 \newtcblisting{code}[2][python]{
   enhanced,breakable,listing only,
   colback=grisclair,colframe=trait,boxrule=0.5pt,arc=2pt,
@@ -152,7 +153,7 @@
 }
 % « Pourquoi » : la justification d'un choix.
 \newtcolorbox{pourquoi}[1][Pourquoi ?]{
-  enhanced,breakable,colback=wepwnclair,colframe=wepwnfonce,
+  enhanced,colback=wepwnclair,colframe=wepwnfonce,
   boxrule=0pt,leftrule=3pt,arc=0pt,left=8pt,right=6pt,top=4pt,bottom=4pt,
   title={\sffamily\bfseries #1},coltitle=wepwnfonce,colbacktitle=wepwnclair,
   attach title to upper,after title={\par\smallskip},

@@ -1,16 +1,139 @@
 % Annexes
-\chapter{Exemples de reçus}
+\chapter{Exemple de reçu}
 \label{ann:recus}
-\acompleter
+
+Reçu réel écrit par le \textit{hook} Claude Code pour la commande \cmd{python3 nettoyage.py},
+réécrite vers le filet d'exécution (section~\ref{sec:portes}). On y lit la décision et sa
+raison, le groupe qui relie ce reçu aux captures du filet, la prédiction du moteur (outil non
+couvert : \cmd{python3}), l'invariant, et les deux empreintes qui chaînent le reçu à son
+prédécesseur. Chemins abrégés.
+
+\begin{code}[brut]{\fichier{.demo\_cli/receipts.jsonl} --- un reçu (version 2.3)}
+{
+  "action_raw": "python3 nettoyage.py",
+  "action_type": "shell",
+  "agent_id": "claude-code",
+  "approvable": false,
+  "chain": "main",
+  "classification": "destructive",
+  "context": {
+    "aws_profile": "unknown",
+    "azure_subscription": "unknown",
+    "branch": "unknown",
+    "commit": "unknown",
+    "cwd": "~/projet",
+    "environment": "unknown",
+    "environment_source": "unknown",
+    "fingerprint": "0115472ee1db5312",
+    "gcloud_project": "unknown",
+    "remote": "unknown",
+    "repo_root": "unknown",
+    "target_label": "unknown"
+  },
+  "context_mismatches": [],
+  "decision": "SUPERVISED",
+  "declared_intent": {
+    "branch": null,
+    "cwd": null,
+    "env": "unknown",
+    "reasoning": null,
+    "remote": null,
+    "scope": null
+  },
+  "dialect": "posix",
+  "dry_run_affected_rows": null,
+  "group_id": "8553dbf8",
+  "invariant": "mutating_actions_must_be_recoverable_and_match_the_declared_context",
+  "matched_rule": "unread_code",
+  "mode": "enforce",
+  "nonrecoverable_surface": null,
+  "peer_head": null,
+  "pipeline_segments": [],
+  "prediction": {
+    "changes": [],
+    "creates": [],
+    "databases": {},
+    "decision": "ALLOW",
+    "destroys": {},
+    "engine": "shadow-1",
+    "ms": 7.57,
+    "no_capture": {},
+    "remote": {},
+    "truncated": false,
+    "uncovered": [
+      "python3"
+    ],
+    "unknown": [],
+    "why": "nothing that exists is destroyed",
+    "within": []
+  },
+  "prev_receipt_hash": "0bb417b0a3bd74dfbd168e472c8d2c703bb6c2d92f9b9bdaafb276e8aa5be5b6",
+  "reason": "covered by the syscall guard: each file it destroys inside the project is backed up at the moment of destruction; outside the project nothing is captured. Undo with `demo_cli undo 8553dbf8`.",
+  "receipt_hash": "0b74f3d679ddeec3663637f390ff423a4bad445e24fa6de3042c198f9cc526e0",
+  "receipt_id": "6f9f41ee-64cc-40c5-be1f-68e731763eb8",
+  "receipt_version": "2.3",
+  "recovery_point": null,
+  "remote_exec": false,
+  "session_id": "unknown",
+  "target_environment": "unknown",
+  "timestamp": "2026-10-09T14:14:41.474621+00:00"
+}
+\end{code}
 
 \chapter{Extrait de la table de règles}
 \label{ann:regles}
-\acompleter
+
+La règle \cmd{gzip}, ajoutée par M2.3a après la découverte de V20. Chaque \cmd{ex(\ldots)} est un
+test : la commande est simulée dans l'arborescence de référence, et l'impact doit être
+exactement celui indiqué. Les mentions \cmd{VERIFIED} décrivent un comportement observé sur des
+fichiers jetables.
+
+\begin{code}{\fichier{src/demo\_cli/engine/rules.py} (extrait)}
+Rule(id="gzip", tools=("gzip", "gunzip", "zcat"), resolver="compress",
+     options=OptionSpec(flags=_GZ_FLAGS, values={"-S": "suffix", "--suffix": "suffix"}),
+     examples=(
+         ex("gzip a.txt", destroys={"a.txt"}, creates={"a.txt.gz"},
+            note="VERIFIED: the input is removed once a.txt.gz is written"),
+         ex("gzip -k a.txt", creates={"a.txt.gz"}),
+         ex("gzip -c a.txt > /dev/null", note="to stdout"),
+         ex("touch a.txt.gz; gzip a.txt", creates={"a.txt.gz"},
+            note="VERIFIED: an existing output is not overwritten (no terminal)"),
+         ex("touch a.txt.gz; gzip -f a.txt", destroys={"a.txt"}, creates={"a.txt.gz"}),
+         ex("gzip -r dir", destroys={"dir/"}, note="VERIFIED: -r rewrites every file under it"),
+         ex("gzip --rm a.txt", unknown=True, note="an option demo_cli does not know"),
+         ex("gzip $(cat list.txt)", destroys={"a.txt"}, creates={"a.txt.gz"}),
+     )),
+\end{code}
 
 \chapter{Extraits de tests}
 \label{ann:tests}
-\acompleter
 
-\chapter{Captures d'écran}
-\label{ann:captures}
-\acompleter[liste des captures, fournie avec le chapitre 4]
+\section*{V17 : pas de point de contrôle pour un fichier hors du projet}
+\begin{code}{\fichier{tests/test\_v17.py} (en-tête)}
+"""V17 [...]: with checkpoints enabled, a line the engine cannot read whose
+operand lies OUTSIDE the project took a whole-project checkpoint and came back
+REVERSIBLE - but the checkpoint holds only the project, so the outside file was
+not recoverable. Such a line now escalates; the same line inside the project
+still gets its checkpoint."""
+\end{code}
+
+\section*{M2.3a : une ligne non lue va au filet, sinon au point de contrôle, sinon escalade}
+\begin{code}{\fichier{tests/test\_m23a.py}}
+def test_6_an_unread_line_takes_the_net(tmp_path, net):
+    proj = _project(tmp_path)
+    (proj / "cmd.txt").write_text("rm -rf build\n")
+    r = _eval(proj, 'sh -c "$(cat cmd.txt)"', net=True)
+    assert (r.decision.decision, r.classification.matched_rule) == ("SUPERVISED", "not_understood")
+
+def test_6a_with_no_net_a_checkpoint_else_it_escalates(tmp_path):
+    proj = _project(tmp_path)
+    (proj / "cmd.txt").write_text("rm -rf build\n")
+    line = 'sh -c "$(cat cmd.txt)"'
+    r = _eval(proj, line, checkpoints=True)
+    assert (r.decision.decision, r.classification.matched_rule) == ("REVERSIBLE", "not_understood")
+    assert r.recovery_entry is not None
+    r = _eval(proj, line)
+    assert (r.decision.decision, r.recovery_entry) == ("ESCALATE", None)
+\end{code}
+
+\input{annexes/captures}

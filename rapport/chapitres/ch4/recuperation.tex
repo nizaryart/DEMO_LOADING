@@ -1,0 +1,74 @@
+% 4.4 — Récupération et reçus
+\section{La récupération et les reçus}
+\label{sec:recuperation}
+
+\subsection{Captures ciblées et groupes}
+\fichier{recovery.py} copie la cible réelle avant l'exécution : un fichier, un répertoire
+(avec ses sous-répertoires ignorés comme \fichier{.git} quand le parent est détruit), une base
+SQLite. Depuis la partie S2, toutes les captures d'une commande partagent un identifiant de
+\emph{groupe} : un seul \cmd{undo} restaure tout, et \cmd{snapshot\_set} est \emph{tout ou
+rien} --- si une capture échoue, les précédentes sont invalidées et marquées comme telles dans
+l'index. Les captures sont bornées (256\,Mo et \num{25000} fichiers par défaut,
+réglables) ; au-delà, la capture est refusée et la commande escaladée, jamais réduite.
+
+La restauration a ses propres pièges, découverts en les provoquant : un fichier rendu en
+lecture seule par l'agent (\cmd{chmod 444} ou \cmd{000}) empêchait \cmd{undo} de le réécrire
+(corrigé dans M2.2c) ; l'état écrasé par une restauration est lui-même sauvegardé, pour
+qu'un \cmd{undo} malheureux se défasse à son tour.
+
+\begin{terminal}[undo d'un groupe capturé par le filet]
+$ demo_cli log
+  id        when             kind     size    action
+  8553dbf8  20261009-141447  group    30B     openat_trunc app.py (2 files)
+  d9684862  20261009-141441  group    12B     rm -rf src (1 files)
+$ demo_cli undo 8553dbf8
+demo_cli 1.7.0  RESTORED
+  target              ~/projet/src/app.py
+  restored 2 files/databases as one undo
+  target              ~/projet/notes.txt
+  restored 2 files/databases as one undo
+  the previous content was kept as edd72faa - put it back with:  demo_cli undo edd72faa
+\end{terminal}
+
+\subsection{L'aperçu SQL}
+Pour une requête \cmd{DELETE}, \cmd{UPDATE} ou \cmd{TRUNCATE} sur une base locale,
+\fichier{preview.py} compte en lecture seule les lignes qui seraient touchées (pilote standard
+pour SQLite, session en lecture seule pour PostgreSQL). La décision devient DRY\_RUN :
+capturée, réversible, avec le nombre de lignes affichées.
+
+\subsection{Le registre de reçus}
+Chaque décision --- y compris un ALLOW, et chaque capture faite par un filet --- laisse un reçu
+dans \fichier{.demo\_cli/receipts.jsonl}. Un reçu contient la commande, la décision et sa
+raison, la règle, la surface, le point de récupération, le contexte, l'intention déclarée, la
+prédiction du moteur, le groupe, le fait qu'une question \emph{pouvait} être posée
+(\cmd{approvable} --- jamais la réponse, qu'aucune porte ne voit) et l'invariant. Son
+empreinte est calculée sur son contenu canonique \emph{et} l'empreinte du reçu précédent :
+
+\begin{code}{Le chaînage (\fichier{receipts.py}, \cmd{Receipt.finalize})}
+body = asdict(self)
+body.pop("receipt_hash")
+self.receipt_hash = hashlib.sha256(
+    (_canon(body) + self.prev_receipt_hash).encode()).hexdigest()
+\end{code}
+
+Modifier, insérer, supprimer ou réordonner un reçu brise la chaîne. L'écriture est protégée par
+un verrou multiplateforme (\cmd{fcntl} sous Linux, \cmd{msvcrt} sous Windows). Le filet Windows
+écrit dans une seconde chaîne, liée à la première, pour éviter qu'un même fichier soit écrit
+à travers le montage et directement. Les secrets (mots de passe d'URL, clés) sont masqués. Un
+reçu réel complet figure en annexe~\ref{ann:recus}.
+
+\begin{terminal}[vérification, puis après modification d'un seul champ]
+$ demo_cli verify
+demo_cli 1.7.0  VERIFIED
+Receipt chains
+  main         6 entries    INTACT
+Recovery artifacts
+  artifacts    4 verified on disk
+$ # on change "decision" d'un reçu en ALLOW, puis :
+$ demo_cli verify
+demo_cli 1.7.0  TAMPERED
+Receipt chains
+  main         TAMPERED
+             broken at line 2
+             A field in this entry was edited after it was written.
+\end{terminal}

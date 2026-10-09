@@ -2,14 +2,24 @@
 \chapter{Réalisation}
 \label{ch:realisation}
 
-\acompleter[chapitre 4 : rédigé après validation du chapitre 3]
+Ce chapitre montre comment l'architecture du chapitre~\ref{ch:conception} est devenue du
+code. Il présente l'environnement, puis chaque couche dans l'ordre où une commande la
+traverse : les portes, le moteur et ses familles d'outils, la récupération et les reçus, les
+filets d'exécution, et le côté Windows, dont le second frontal du moteur, C3. Il se termine
+par la partie M2.3a, qui a retiré aux anciennes règles textuelles leur dernier pouvoir de
+décision. Toutes les sorties de terminal sont réelles, produites au commit de référence
+\commitref{} ; les chemins sont abrégés.
 
-\section{Le côté Windows et C3, le second frontal du moteur}
-\label{sec:c3}
+\input{chapitres/ch4/environnement}
+\input{chapitres/ch4/portes}
+\input{chapitres/ch4/moteur}
+\input{chapitres/ch4/recuperation}
+\input{chapitres/ch4/filets}
+\input{chapitres/ch4/windows}
+\input{chapitres/ch4/m23a}
 
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig5b_c3}
-\caption{C3 : deux frontaux, un seul moteur (d'après le brief C3 ; statut : \statutCthree)}
-\label{fig:c3}
-\end{figure}
+\section*{Conclusion du chapitre}
+Chaque couche a été construite pour pouvoir être vérifiée isolément : le moteur sans rien
+exécuter, le décideur sans entrée-sortie, le jugement WinFsp sans Windows, la politique dans
+un seul fichier. C'est cette séparation qui rend possible la validation décrite au chapitre
+suivant, ainsi que le travail offensif mené contre l'outil lui-même.

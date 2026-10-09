@@ -1,0 +1,70 @@
+% 3.1 — Besoins
+\section{Analyse des besoins}
+\label{sec:besoins}
+
+\subsection{Acteurs}
+Trois acteurs interagissent avec \demo{} : l'\textbf{agent}, qui propose des commandes et
+des modifications de fichiers ; la \textbf{personne} (le développeur), qui installe l'outil,
+répond aux questions qu'il pose et restaure ce qu'il a capturé ; et les \textbf{systèmes
+tiers} touchés par les commandes (système de fichiers local, bases de données, dépôts git
+distants, fournisseurs cloud).
+
+\subsection{Besoins fonctionnels}
+\begin{table}[htbp]
+\centering
+\caption{Besoins fonctionnels}
+\label{tab:bf}
+\small
+\begin{tabularx}{\linewidth}{@{}L{1cm}Y@{}}
+\toprule
+\textbf{Id} & \textbf{Besoin} \\
+\midrule
+BF1 & Intercepter, avant exécution, chaque commande shell (POSIX et PowerShell) et chaque
+      modification de fichier proposée par l'agent, par toutes les portes disponibles. \\
+BF2 & Prédire l'effet de la commande : ce qu'elle détruit, crée, déplace, et ce qu'elle
+      atteint à distance. \\
+BF3 & Rendre une décision parmi six : ALLOW, REVERSIBLE, DRY\_RUN, SUPERVISED,
+      CONTEXT\_MISMATCH, ESCALATE ; pour une escalade, indiquer si une personne peut
+      l'approuver sur le champ. \\
+BF4 & Capturer, avant l'exécution, une copie exacte de ce qui sera détruit, en un seul
+      groupe par commande, restaurable par \cmd{demo\_cli undo <id>}. \\
+BF5 & Prévisualiser une requête SQL destructrice (nombre de lignes touchées). \\
+BF6 & Placer sous un filet d'exécution ce qui ne peut pas être lu (Linux et Windows). \\
+BF7 & Refuser toute modification des fichiers de \demo{} lui-même par l'agent. \\
+BF8 & Enregistrer chaque décision dans un registre infalsifiable, vérifiable par
+      \cmd{demo\_cli verify}. \\
+BF9 & Diagnostiquer l'installation (\cmd{demo\_cli doctor}) et dire, par agent et par
+      système, ce qui est protégé et ce qui ne l'est pas. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Besoins non fonctionnels}
+\begin{table}[htbp]
+\centering
+\caption{Besoins non fonctionnels}
+\label{tab:bnf}
+\small
+\begin{tabularx}{\linewidth}{@{}L{1.2cm}L{3.4cm}Y@{}}
+\toprule
+\textbf{Id} & \textbf{Qualité} & \textbf{Exigence et justification} \\
+\midrule
+BNF1 & Honnêteté & Une décision ne revendique jamais une protection non prise ; la raison
+  dit ce qui a été capturé et ce qui ne l'a pas été. \\
+BNF2 & Sûreté par défaut & Une \emph{décision} incertaine va vers le plus strict ; une
+  ligne non lue n'est jamais ALLOW. \\
+BNF3 & Ne pas bloquer l'agent sur une panne & Une erreur interne de \demo{} ne doit pas
+  paralyser l'agent : elle laisse passer, bruyamment ; mais une panne du \emph{moteur} ne
+  rend jamais une décision plus permissive (B0). \\
+BNF4 & Latence & Le moteur dispose de 10\,ms de temps CPU (50\,ms pour une seconde
+  tentative) et d'un plafond de 250\,ms en temps réel ; les familles d'outils ne se chargent
+  qu'à la demande. Un outil lent est un outil désinstallé. \\
+BNF5 & Portabilité & Linux et Windows (PowerShell, Git Bash), avec les mêmes garanties ;
+  chaque partie est vérifiée sur les deux systèmes. \\
+BNF6 & Non-régression & Aucune décision ne devient plus permissive sans arbitrage
+  explicite (portail de \nbcorpus{} commandes). \\
+BNF7 & Confidentialité & Les reçus masquent les secrets (mots de passe d'URL, clés) ;
+  aucune télémétrie. \\
+\bottomrule
+\end{tabularx}
+\end{table}

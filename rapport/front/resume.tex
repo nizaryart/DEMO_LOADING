@@ -1,8 +1,26 @@
-% Résumé — rédigé en dernier, quand tous les chapitres sont validés.
+% Résumé
 \chapter*{Résumé}
 \addcontentsline{toc}{chapter}{Résumé}
 
-\acompleter[résumé rédigé après validation des chapitres]
+Les agents de code fondés sur l'intelligence artificielle, comme Claude Code et Codex,
+exécutent eux-mêmes des commandes shell sur la machine du développeur ; une erreur de leur
+part peut supprimer des fichiers, vider une base de données ou réécrire un historique distant.
+Ce rapport présente le travail mené chez WePwn sur \demo{}, un garde-fou qui intercepte chaque
+commande d'un agent \emph{avant} son exécution, en prédit l'effet et rend une décision : la
+laisser passer, la rendre réversible en copiant d'abord ce qu'elle va détruire, la placer sous
+un filet d'exécution, ou la soumettre à une personne et la refuser si rien ne peut être
+récupéré ; chaque décision laisse un reçu dans un registre chaîné.
+
+Partant d'une version bêta qui reconnaissait les commandes par des expressions régulières, le
+stage a conduit à un moteur qui analyse la ligne et simule ses effets sur une vue virtuelle du
+système de fichiers, à une table de règles écrite comme des données dont chaque exemple est un
+test, à une politique et un décideur uniques, et à deux filets d'exécution : un garde d'appels
+système fondé sur ptrace sous Linux et un système de fichiers WinFsp sous Windows. Un second
+frontal pour PowerShell partage le même moteur. Le travail a été mené partie par partie, avec
+des tests qui échouent sur le code d'avant et un portail de 922 commandes qui interdit qu'une
+décision devienne plus permissive sans arbitrage. Un travail offensif a mis en évidence et
+corrigé des vulnérabilités, dont une tâche Windows élevée qui exécutait du code modifiable par
+l'agent.
 
 \medskip
 \noindent\textbf{Mots-clés :} agents de code IA, sécurité, analyse de commandes shell,

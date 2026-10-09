@@ -1,0 +1,59 @@
+% 5.3 — Stratégie de test
+\section{Stratégie de test}
+\label{sec:tests}
+
+\subsection{Les familles de tests}
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Les exemples de règles] Chacun des \nbexemples{} exemples de la table de règles est
+    exécuté par tout le moteur dans une arborescence fixe, et l'impact obtenu est comparé à
+    l'impact attendu (\fichier{test\_engine\_rules.py}). Un exemple marqué \cmd{VERIFIED}
+    décrit un comportement observé sur des fichiers jetables.
+  \item[Les tests de partie] Chaque partie livre son fichier (\fichier{test\_m23a.py},
+    \fichier{test\_v17.py}, \fichier{test\_wsec.py}\ldots), écrit pour échouer sur le code
+    d'avant.
+  \item[Les lignes figées] Pour chaque famille d'outils, les lignes du portail concernées sont
+    figées dans \fichier{tests/fixtures/} avec leur décision attendue ; une partie suivante qui
+    les fait bouger doit le justifier.
+  \item[Les attentes exactes par système] Quand Linux et Windows diffèrent (chemins, filet,
+    dialecte), le test l'écrit explicitement, et la restauration est vérifiée octet par octet.
+  \item[Les confrontations au réel] Grammaires comparées au \cmd{--help} des outils installés ;
+    prédictions SQL comparées à ce que change réellement un serveur PostgreSQL de test ; le
+    garde d'appels système lancé pour de vrai.
+  \item[Les tests d'inertie] Moteur activé, désactivé, en erreur ou hors budget : les décisions
+    du chemin en ombre ne changent pas (horloge simulée pour forcer le dépassement).
+\end{description}
+
+\subsection{Un test qui échoue sur le code d'avant}
+Un test qui passe aussi sur le code vulnérable ne prouve rien sur la correction. L'exemple
+suivant est le test de V19 :
+
+\begin{code}{Le test de V19 (\fichier{tests/test\_m23a.py})}
+def test_5_unread_sql_escalates_instead_of_being_allowed(tmp_path):
+    proj = _project(tmp_path)
+    for cmd in ('psql -c "$(cat q.sql)"', 'mysql -e "$(cat q.sql)"',
+                'sqlite3 app.db "$(cat q.sql)"'):
+        r = _eval(proj, cmd)
+        assert (r.decision.decision, r.recovery_entry) == ("ESCALATE", None), cmd
+\end{code}
+
+Pour le vérifier, les tests de M2.3a ont été exécutés contre le commit précédent
+(\cmd{99831a9}) : 11 échouent --- ceux qui décrivent les corrections --- et 6 passent : ce
+sont les \emph{témoins}, qui vérifient que ce qui était déjà juste le reste.
+
+\begin{terminal}[les tests de M2.3a sur le code d'avant]
+$ git archive 99831a9 src | tar -x -C ancien/ && cd ancien
+$ python3 -m pytest -q tests/test_m23a.py
+FAILED tests/test_m23a.py::test_1_a_runner_goes_to_the_runtime_net
+FAILED tests/test_m23a.py::test_5_unread_sql_escalates_instead_of_being_allowed
+FAILED tests/test_m23a.py::test_13_file_tools_that_destroy_are_captured
+[...]
+11 failed, 6 passed in 0.31s
+\end{terminal}
+
+\subsection{Les pièges des tests eux-mêmes}
+Deux fois, le banc de test du garde du shell a produit des succès \emph{vides} sous Windows :
+le chemin du journal d'appels, écrit dans un script bash, contenait des barres obliques
+inverses que bash lisait comme des échappements ; les tests « aucun appel ne doit avoir eu
+lieu » passaient alors sans rien prouver. Le chemin est désormais dérivé de \cmd{\$0}, ce qui
+supprime la classe d'erreur, et un test témoin vérifie que le journal est bien lu. Un test vert
+n'est une preuve que si l'on a vu qu'il pouvait être rouge.

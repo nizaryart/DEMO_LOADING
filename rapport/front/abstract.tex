@@ -1,10 +1,26 @@
-% Abstract — written last, once every chapter is approved.
+% Abstract
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 \begin{otherlanguage}{english}
-\acompleter[abstract written after the chapters are approved]
+AI coding agents such as Claude Code and Codex run shell commands on the developer's machine
+themselves; a single mistake can delete files, empty a database or rewrite a remote history.
+This report presents the work carried out at WePwn on \demo{}, a safety guard that intercepts
+every command an agent wants to run \emph{before} it runs, predicts its effect and returns one
+decision: let it through, make it reversible by first copying what it will destroy, run it
+under a runtime net, or hand it to a person and refuse it when nothing can be recovered. Every
+decision leaves a receipt in a hash-chained ledger.
+
+Starting from a beta that recognised commands with regular expressions, the internship
+produced an engine that parses the line and simulates its effects on a virtual view of the
+file system, a rule table written as data in which every example is a test, a single policy
+and a single decider, and two runtime nets: a ptrace-based system-call guard on Linux and a
+WinFsp file system on Windows. A second front end for PowerShell shares the same engine. The
+work was done one part at a time, with tests that fail on the previous code and a
+922-command decision gate that forbids any decision from becoming looser without an explicit
+ruling. Offensive work found and fixed vulnerabilities, among them an elevated Windows task
+that ran code the agent could modify.
 
 \medskip
-\noindent\textbf{Keywords:} AI coding agents, security, shell command analysis,
-simulation, recovery, ptrace, WinFsp, PowerShell, hash-chained ledger.
+\noindent\textbf{Keywords:} AI coding agents, security, shell command analysis, simulation,
+recovery, ptrace, WinFsp, PowerShell, hash-chained ledger.
 \end{otherlanguage}

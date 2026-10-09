@@ -1,0 +1,39 @@
+% 2.5 — L'analyse statique des commandes shell
+\section{L'analyse statique des commandes shell}
+\label{sec:statique}
+
+Lire une commande avant de l'exécuter relève de l'analyse statique. Trois familles d'outils
+existent.
+
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Les motifs (expressions régulières)]
+    C'est l'approche des \textit{hooks} de sécurité les plus courants, et celle de la bêta
+    de \demo{} : repérer \cmd{rm -rf}, \cmd{DROP TABLE}, \cmd{--force}. Elle est rapide et
+    lisible, mais elle lit des caractères là où le shell lit une grammaire : citations,
+    commentaires, substitutions, enveloppes, variables (tableau~\ref{tab:regex-pieges}).
+  \item[Les analyseurs de qualité]
+    ShellCheck signale les erreurs de syntaxe, les pièges sémantiques et les cas limites
+    d'un script~\cite{shellcheck}. Son but est la \emph{justesse} du script, pas l'effet
+    d'une ligne sur un système de fichiers donné.
+  \item[Les analyseurs syntaxiques]
+    \cmd{bashlex} est une transposition en Python de l'analyseur de GNU bash, qui produit un
+    arbre syntaxique complet sans rien exécuter~\cite{bashlex} ; \cmd{tree-sitter-bash} est
+    une grammaire bash pour l'outil d'analyse incrémentale tree-sitter~\cite{tree-sitter-bash}.
+\end{description}
+
+\paragraph{Ce qu'un arbre syntaxique ne dit pas.} Un arbre dit que \cmd{mv a.txt b.txt}
+est une commande \cmd{mv} à deux opérandes. Il ne dit pas que \cmd{b.txt} existe, donc que
+son contenu va être perdu ; ni que \cmd{-n} aurait empêché la perte ; ni que, après un
+\cmd{cd build}, \cmd{rm -rf *} vise d'autres fichiers ; ni que \cmd{\$X} vaut \cmd{-rf}.
+Pour passer de la \emph{structure} à l'\emph{effet}, il faut deux connaissances que
+l'analyse syntaxique n'apporte pas :
+\begin{enumerate}
+  \item la \textbf{sémantique de chaque outil} --- sa grammaire d'options et ce que chaque
+    option fait (\cmd{cp} écrase, \cmd{cp -n} n'écrase pas, \cmd{sed -i} réécrit en place,
+    \cmd{gzip} supprime l'original) ;
+  \item l'\textbf{état du système de fichiers}, mis à jour au fil de la ligne (ce qui
+    existe, ce que la commande précédente vient de créer ou de déplacer).
+\end{enumerate}
+C'est ce qui conduit \demo{} à un \emph{moteur} : un analyseur, une table de règles qui
+décrit la sémantique des outils, et une simulation sur une vue virtuelle du système de
+fichiers (chapitre~\ref{ch:conception}).

@@ -1,0 +1,54 @@
+% 3.2 — Modèle de menace et invariant
+\section{Modèle de menace et invariant}
+\label{sec:menace}
+
+\subsection{Contre quoi \texorpdfstring{\demo}{demo\_cli} protège}
+Le modèle de menace est écrit dans le code (\fichier{protection.py}) et affiché par
+\cmd{demo\_cli doctor} :
+
+\begin{encadre}[Modèle de menace (\fichier{protection.py})]
+\textit{« demo\_cli protects against an agent's MISTAKES, not a determined adversary:
+commands it understands are judged before they run; for commands it cannot read, the
+runtime net (syscall guard on Linux, WinFsp mount on Windows) is the floor; a remote change
+that can lose data or cannot be recalled is stopped for review; one that only adds [\ldots]
+is allowed and listed. »}
+\end{encadre}
+
+L'adversaire visé est donc un agent \emph{coopératif qui se trompe} : il veut nettoyer un
+dossier et en supprime un autre, il croit qu'un répertoire existe, il réinitialise une base
+qu'il croit de test. Ce choix a deux conséquences assumées.
+\begin{itemize}
+  \item Ce qui ne relève pas d'une erreur plausible mais d'une évasion délibérée (une charge
+    chiffrée, une course entre la vérification et l'usage d'un appel système) n'est pas
+    l'objectif premier ; le filet d'exécution en réduit cependant la portée.
+  \item En revanche, l'agent ne doit pas pouvoir \emph{désarmer} l'outil par accident ou par
+    excès de zèle : modifier la configuration de \demo{}, désinstaller son \textit{hook},
+    effacer son registre. Ces actions sont refusées à toutes les portes
+    (section~\ref{sec:plan-controle}).
+\end{itemize}
+
+\subsection{L'invariant}
+Toute la logique de décision découle d'une phrase, héritée de la bêta et gravée dans chaque
+reçu (champ \cmd{invariant}) :
+
+\begin{encadre}[Invariant]
+\texttt{mutating\_actions\_must\_be\_recoverable\_and\_match\_the\_declared\_context}\\[2pt]
+Une action qui modifie doit être récupérable \emph{et} conforme au contexte déclaré ;
+sinon, elle est escaladée.
+\end{encadre}
+
+\subsection{Fermé pour les décisions, ouvert pour les pannes}
+Un outil de sécurité branché sur un agent fait face à une tension : s'il échoue « fermé »,
+le moindre défaut interne bloque tout le travail de l'agent et l'outil est désinstallé ;
+s'il échoue « ouvert », un défaut devient une brèche. \demo{} tranche ainsi :
+\begin{itemize}
+  \item une \textbf{décision} est toujours fermée : sans point de récupération, une
+    modification est escaladée dans \emph{tout} environnement, développement compris ;
+  \item une \textbf{erreur interne} de l'adaptateur (entrée illisible, exception) laisse
+    passer la commande, mais \emph{bruyamment} : un avertissement visible, jamais un
+    silence ;
+  \item une \textbf{défaillance du moteur} (dépassement de son budget, exception) ne rend
+    jamais une décision plus permissive : l'ancien chemin peut rester plus strict, mais son
+    ALLOW devient \cmd{engine\_unavailable}, puis filet, point de contrôle ou escalade
+    (partie B0).
+\end{itemize}

@@ -1,0 +1,117 @@
+% 3.5 — Conception du moteur
+\section{Conception du moteur}
+\label{sec:moteur}
+
+\subsection{Vue d'ensemble}
+Le moteur (\fichier{src/demo\_cli/engine/}) transforme une ligne en un \emph{impact}, sans
+rien exécuter ni rien écrire. La figure~\ref{fig:moteur} le montre sur un exemple réel.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig3_moteur}
+\caption{L'intérieur du moteur, sur un exemple réel (sortie du moteur au commit \commitref{})}
+\label{fig:moteur}
+\end{figure}
+
+\subsection{Les étapes}
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Analyse syntaxique (\fichier{model.py})]
+    Un analyseur lexical écrit pour le shell POSIX produit des \cmd{Word} qui gardent leur
+    texte source, leur valeur sans citations, les positions de leurs citations et de leurs
+    substitutions, et un indicateur « s'étend ». Les substitutions \cmd{\$(\ldots)},
+    \cmd{`\ldots`} et \cmd{<(\ldots)} sont analysées comme des \emph{scripts imbriqués}, les
+    \textit{heredocs} sont rattachés à leur redirection, les enveloppes (\cmd{sudo},
+    \cmd{env}, \cmd{xargs}, \cmd{timeout}, \cmd{nice}\ldots) sont traversées pour trouver le
+    vrai mot de commande, et la charge d'un \cmd{bash -c} est analysée à son tour.
+  \item[Invocations et grammaires (\fichier{invocation.py})]
+    Chaque commande devient une invocation : un outil, des options canoniques, des
+    opérandes, des redirections. Les options sont lues avec la grammaire propre à l'outil
+    (options groupées, valeurs collées comme \cmd{sed -i.bak}, permutation à la GNU).
+  \item[Expansion des mots (\fichier{words.py})]
+    L'expansion se fait \emph{sur les mots}, comme bash, et non sur le texte : citations
+    simples littérales, doubles citations sans découpage, \cmd{\$NOM} connu seulement s'il a
+    été affecté plus tôt sur la ligne, accolades puis \textit{globs} sur le texte non cité,
+    évalués sur l'état simulé. Tout le reste lève \cmd{Unknown} avec sa raison --- rien n'est
+    deviné.
+  \item[Simulation (\fichier{simulate.py})]
+    Les effets sont joués dans l'ordre sur une \emph{surcouche} du système de fichiers réel,
+    qui n'est que lu (\cmd{lstat}, \cmd{listdir}). Chaque nœud retient l'origine de son
+    contenu. Les séparateurs sont modélisés comme des \emph{ensembles d'états possibles} :
+    après \cmd{a \&\& b}, \cmd{b} part de l'état où \cmd{a} a réussi ; après \cmd{a || b}, de
+    l'état où \cmd{a} a échoué --- avant \cmd{a} ou en partie ; les fusions sont des unions,
+    donc elles ne peuvent qu'\emph{ajouter} à ce qui est détruit. Les sous-shells copient le
+    répertoire courant et les variables mais gardent leurs effets sur les fichiers.
+  \item[Impact (\fichier{effects.py})]
+    Le résultat : \cmd{destroys} (indexé par le chemin \emph{préexistant} dont le contenu est
+    perdu), \cmd{creates}, \cmd{touched} (tout chemin changé, pour le plan de contrôle),
+    \cmd{remote} (surface $\rightarrow$ sorte d'effet), \cmd{unknown}, \cmd{uncovered}, et
+    les bases de données capturables ou non.
+\end{description}
+
+\subsection{Le langage des effets}
+Un vocabulaire unique décrit ce qu'une commande fait au monde (tableau~\ref{tab:effets}).
+Quand une même surface distante est atteinte deux fois, elle garde la sorte qui perd le
+plus, selon l'ordre DELETE $>$ OVERWRITE $>$ SEND $>$ RUN $>$ LATER $>$ SERVICE\_LOSS $>$
+REF $>$ SERVICE\_KEEP $>$ CREATE.
+
+\begin{table}[htbp]
+\centering
+\caption{Le langage des effets (\fichier{engine/effects.py})}
+\label{tab:effets}
+\small
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}YL{4.2cm}@{}}
+\toprule
+\textbf{Effet} & \textbf{Signification} & \textbf{Conséquence} \\
+\midrule
+DELETE, OVERWRITE, TRUNCATE & un chemin est supprimé, remplacé, vidé & copier avant \\
+MOVE & un contenu passe de la source à la destination & copier la destination si elle existe \\
+CREATE, APPEND, MKDIR & un chemin apparaît, ou reçoit un ajout & rien de préexistant n'est perdu \\
+REF & une référence git bouge & le \textit{reflog} la ramène (arbitrage c) \\
+SEND & part vers l'extérieur sans rappel possible & escalade \\
+RUN & du code s'exécute, ici ou là-bas & lu à travers ce code, ou filet \\
+LATER & du code est planté pour s'exécuter plus tard & escalade (ask) \\
+SERVICE\_LOSS / KEEP & disponibilité perdue / gardée & escalade / autorisé et listé \\
+UNKNOWN & quelque chose qu'on ne peut résoudre & la raison est gardée \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{La table de règles, écrite comme des données}
+Une règle (\fichier{engine/rules.py}) associe un ou plusieurs noms d'outil à une grammaire
+d'options, une condition sur les options, des effets, et des \textbf{exemples}. Les exemples
+ne sont pas de la documentation : chacun devient un test qui exécute tout le moteur dans une
+arborescence fixe et compare l'impact obtenu à l'impact attendu. Un outil que les gabarits ne
+peuvent pas exprimer (\cmd{git}, \cmd{aws}, \cmd{rsync}\ldots) délègue à un
+\emph{résolveur}, mais garde dans la table sa grammaire et ses exemples.
+
+\begin{code}{Extrait réel de la règle \cmd{rm} (\fichier{engine/rules.py})}
+Rule(
+    id="rm",
+    tools=("rm",),
+    options=OptionSpec(flags={
+        "-f": "force", "--force": "force",
+        "-r": "recursive", "-R": "recursive", "--recursive": "recursive",
+        "-d": "dir", "--dir": "dir",
+        # ...
+    }),
+    # effets et exemples : chaque exemple est un test
+)
+\end{code}
+
+Au commit de référence, la table compte \nbregles{} règles, \nbexemples{} exemples et
+\nboutils{} noms d'outils, répartis entre un noyau toujours chargé (fichiers locaux,
+redirections) et \nbfamilles{} familles chargées \emph{à la demande} : SQL, git,
+infrastructure, deux familles cloud, conteneurs, entrepôts de données, envois sortants,
+PaaS, SaaS et migrations, système, coffres de secrets. Le chargement paresseux tient le
+coût d'import hors du chemin de chaque commande : une ligne \cmd{rm} ne paie jamais
+l'analyseur SQL. La même table génère aussi la liste des mots que le piège du shell envoie au
+moteur (partie M2.2e) : une famille ajoutée atteint la porte du shell sans ligne de code
+supplémentaire.
+
+\subsection{Le budget}
+Le moteur s'exécute sur le chemin critique de chaque commande de l'agent. Il dispose de
+10\,ms de temps CPU (mesuré en temps processeur sous Linux, où l'horloge est fine), d'une
+seconde tentative à 50\,ms en cas de dépassement, et d'un plafond de 250\,ms en temps réel.
+Le temps d'import d'une famille et la lecture de certains fichiers sont exclus du budget.
+S'il ne termine pas, la règle de la section~\ref{sec:menace} s'applique : jamais une
+décision plus permissive.

@@ -1,0 +1,32 @@
+% 2.4 — Points de restauration, gestion de versions, sauvegardes
+\section{Points de restauration, gestion de versions et sauvegardes}
+\label{sec:restauration}
+
+\subsection{Les points de restauration des agents}
+Claude Code enregistre automatiquement l'état des fichiers modifiés par ses outils
+d'édition, et une commande \cmd{/rewind} permet de revenir en arrière. Sa documentation
+précise la limite qui intéresse ce projet, avec un exemple sans ambiguïté :
+« Checkpointing does not track files modified by Bash commands », illustré par
+\cmd{rm file.txt}, \cmd{mv old.txt new.txt} et \cmd{cp source.txt dest.txt}, dont les
+modifications « ne peuvent pas être annulées par un retour arrière »~\cite{cc-checkpointing}.
+Autrement dit, les commandes shell --- là où se trouvent les destructions --- sont hors du
+périmètre.
+
+\subsection{La gestion de versions}
+Git protège ce qui a été \emph{validé}. Il ne protège pas les fichiers non suivis ou
+ignorés (données locales, fichiers \cmd{.env}, bases SQLite de développement, artefacts),
+ni les modifications non validées qu'un \cmd{git reset --hard} ou un \cmd{git checkout --}
+efface, ni le dépôt lui-même si l'agent supprime \fichier{.git}. Et un \cmd{git push
+--force} réécrit l'historique \emph{du serveur}, que la copie locale ne restaure pas.
+
+\subsection{Les sauvegardes}
+Une sauvegarde système (instantané de disque, sauvegarde nocturne) récupère beaucoup, mais
+à la mauvaise granularité : elle date de la veille, pas de la seconde qui précède la
+commande, et la restaurer est une opération lourde qu'on n'entreprend pas pour un fichier.
+
+\begin{pourquoi}[L'idée qui en découle]
+Ce qui manque est une copie \emph{ciblée}, prise \emph{juste avant} la commande, de
+\emph{exactement} ce qu'elle va détruire --- et rien qu'elle ne puisse revendiquer à tort.
+C'est l'idée de départ de la bêta de \demo{} ; tout le reste du projet consiste à savoir,
+avant l'exécution, ce que « exactement ce qu'elle va détruire » veut dire.
+\end{pourquoi}

@@ -1,0 +1,230 @@
+% 3.4 — Les principes qui gouvernent les décisions
+\section{Les principes qui gouvernent les décisions}
+\label{sec:principes}
+
+Chaque principe ci-dessous est présenté de la même façon : l'énoncé, la commande qui casse
+l'approche naïve, la règle retenue et le test qui la fige. Les sorties de terminal sont
+réelles (commit \commitref{}, Linux, sans filet d'exécution sauf mention contraire) ; seules
+les lignes sans intérêt sont coupées et les chemins abrégés en \cmd{\textasciitilde/projet}.
+
+% ------------------------------------------------------------------
+\subsection{Analyser et simuler plutôt que reconnaître des motifs}
+\label{sec:pourquoi-moteur}
+
+\paragraph{Le constat.} La bêta et la version 1.7.0 lisaient les commandes avec un
+découpeur de texte et des expressions régulières. L'audit et la revue menés au début de la
+période documentée ont trouvé, encore et encore, des défauts de la même forme : \emph{deux
+analyseurs répondant différemment à la même question} --- le découpeur de lignes, le
+normaliseur de mot de commande, le masqueur de citations, le lecteur de \textit{heredocs},
+le découpeur d'opérandes. Deux de ces défauts avaient été introduits par des corrections
+des autres (\fichier{tests/test\_command\_model.py}).
+
+\paragraph{Ce qui casse.} Le shell n'est pas un texte mais une grammaire. Un commentaire
+neutralise ce qui le suit (\cmd{ls \# ; rm -rf x} ne supprime rien) ; une substitution
+\cmd{\$(\ldots)} exécute une commande cachée dans un argument (\cmd{git commit -m "\$(rm
+y)"}) ; une enveloppe déplace le vrai mot de commande (\cmd{sudo -u x rm},
+\cmd{bash -o pipefail -c "rm app.db"}, \cmd{env -S 'rm -rf x'}) ; un \cmd{case} ou une
+fonction contiennent des commandes que le découpage par \cmd{;} ne voit pas ; une citation
+ANSI-C (\cmd{\$'\textbackslash x72m'}) écrit \cmd{rm} sans les lettres \cmd{r} et \cmd{m}.
+
+\paragraph{La règle retenue.} Une seule analyse de la ligne (\fichier{model.py}), lue par
+tout le reste. Avant de remplacer le découpeur, elle a tourné en ombre : sur toutes les
+commandes de la suite de tests (801, dans les deux dialectes), elle a rendu la même décision
+que le découpeur ; sur un jeu étiqueté à la main de ce que bash exécute réellement, elle
+avait raison dans 22 cas où le découpeur avait tort, et tort dans aucun cas où il avait
+raison. Ces deux chiffres justifient le remplacement plutôt que la cohabitation.
+
+\paragraph{Et la simulation ?} Une structure correcte ne suffit pas
+(section~\ref{sec:statique}) : \cmd{mv a.txt b.txt} n'est destructeur que si \cmd{b.txt}
+existe. Le moteur rejoue donc la ligne sur une vue virtuelle du système de fichiers et suit
+l'origine des contenus : dans \cmd{mv a b \&\& rm b}, ce qui est perdu est le contenu de
+\cmd{a}. C'est exactement le raisonnement qui manquait à l'agent dans l'incident Gemini CLI.
+
+% ------------------------------------------------------------------
+\subsection{L'inconnu n'est pas sûr : « non couvert » et « non compris »}
+\label{sec:inconnu}
+
+\paragraph{Deux ignorances différentes.} Le moteur distingue :
+\begin{itemize}
+  \item \textbf{non couvert} (\textit{uncovered}) : la ligne est lue, mais un outil n'a pas
+    de règle. On sait \emph{ce qui} est appelé, avec quels arguments ;
+  \item \textbf{non compris} (\textit{not understood}) : une partie de la ligne ne peut pas
+    être lue avant l'exécution --- une variable affectée ailleurs, une substitution dont la
+    sortie n'est pas prévisible, une valeur qui commence par un tiret, un mot de commande
+    construit.
+\end{itemize}
+
+\paragraph{La règle retenue (partie M2.3a, arbitrages M1--M5).}
+\begin{enumerate}
+  \item Une ligne \textbf{non comprise} va au filet d'exécution s'il est disponible, sinon à
+    un point de contrôle s'ils sont activés, sinon elle est \textbf{escaladée}. Elle
+    n'obtient jamais ALLOW.
+  \item Un \textbf{exécuteur de code} (\cmd{python}, \cmd{node}, \cmd{make}, \cmd{npm},
+    \cmd{./script.sh}, \cmd{source}\ldots) lance du code que \demo{} ne lit pas : il va au
+    filet, sinon au point de contrôle, sinon il est autorisé \emph{avec une note qui dit
+    qu'aucune capture n'a été faite} (arbitrage M1).
+  \item Une ligne qui atteint quelque chose au-delà des fichiers locaux sans être lue
+    (cloud, conteneurs, services, ou un téléchargement qui alimente ce qui s'exécute) est
+    escaladée : ni le filet ni le point de contrôle ne la voient.
+\end{enumerate}
+
+\begin{terminal}[ligne non comprise, pas de filet]
+$ demo_cli check --mode enforce 'rm $INCONNU'
+demo_cli 1.7.0  [x] BLOCKED  ·  ESCALATE
+Decision
+  No recovery path for a rm_local on 'unknown'; cannot auto-recover. Human input required.
+$ demo_cli check --mode enforce 'python3 outil.py'
+demo_cli 1.7.0  [+] SAFE  ·  ALLOW
+Decision
+  Allowed: it runs code demo_cli does not read (python3); no runtime net was
+  available, so nothing that code changes is captured or watched.
+\end{terminal}
+
+\begin{pourquoi}[Pourquoi l'exécuteur sans filet est-il autorisé ?]
+Escalader chaque \cmd{python}, \cmd{make} ou \cmd{npm test} rendrait l'outil inutilisable :
+c'est l'essentiel du travail d'un agent. L'arbitrage M1 accepte ce cas \emph{à visage
+découvert} : la raison de la décision dit qu'aucune capture n'a été faite. Là où le filet
+existe (Linux avec Claude Code, Windows avec le montage), ces lignes sont SUPERVISED. Un
+outil inconnu qui n'est pas un exécuteur de code (« non couvert ») est, lui, traité comme
+sans effet ; la table de règles s'étend famille par famille pour réduire ce cas, et un test
+(\fichier{test\_m22f.py}) vérifie qu'aucune ligne du portail sur laquelle une ancienne règle
+se déclenchait n'est restée hors du moteur sans être marquée non comprise.
+\end{pourquoi}
+
+\paragraph{Lire plutôt qu'abandonner.} « Non compris » doit rester rare, sinon tout escalade.
+Le moteur lit donc ce qui peut l'être sans rien exécuter : la sortie de \cmd{\$(cat
+liste.txt)}, \cmd{echo}, \cmd{printf}, \cmd{pwd}, \cmd{basename}, \cmd{dirname}, sous des
+conditions strictes (fichier régulier du projet, UTF-8, au plus 64~Kio, non modifié plus tôt
+sur la ligne ; partie I1b) :
+
+\begin{terminal}[sortie de substitution lue par le moteur]
+$ demo_cli check --mode enforce 'rm $(cat list.txt)'
+demo_cli 1.7.0  [+] SAFE  ·  REVERSIBLE
+  target              ~/projet/a.txt
+Recovery
+  snapshot            a.txt.20261009-141116.23b2d7c3.bak
+Decision
+  Recovery point captured before the action; reversible.
+\end{terminal}
+
+% ------------------------------------------------------------------
+\subsection{Jamais un REVERSIBLE non mérité}
+\label{sec:jamais-reversible}
+
+\paragraph{L'énoncé.} REVERSIBLE est une promesse : « \cmd{demo\_cli undo} remettra tout en
+place ». Une capture partielle, ou une copie qui ne contient pas ce que la commande détruit,
+rendrait cette promesse fausse, ce qui est pire qu'une escalade : la personne cesse de se
+méfier.
+
+\paragraph{Les règles qui en découlent.}
+\begin{itemize}
+  \item \textbf{Tout ou rien} : les captures d'une commande forment un groupe ; si l'une échoue,
+    les autres sont invalidées et la commande est escaladée (partie S2,
+    \cmd{recovery.snapshot\_set}).
+  \item \textbf{Pas de point de contrôle pour ce qu'il ne contient pas} : une copie du projet
+    ne restaure ni un fichier hors du projet (V17), ni une base distante, ni un historique
+    git poussé de force.
+  \item \textbf{Hors projet, rien n'est promis} : une destruction connue hors du projet est
+    escaladée, même à côté d'une partie non comprise.
+  \item \textbf{Le décideur ne capture pas} : \cmd{decide.py} ne reçoit qu'un booléen « une
+    capture de la cible réelle a réussi », fourni par l'orchestrateur ; il n'existe aucune
+    cible par défaut sur laquelle se rabattre.
+\end{itemize}
+
+% ------------------------------------------------------------------
+\subsection{Pendant la migration, la réponse la plus stricte gagne}
+\label{sec:plus-strict}
+
+\paragraph{Le problème.} Le moteur a remplacé l'ancien chemin \emph{progressivement}, famille
+par famille. Pendant ce temps, deux lecteurs coexistent : le moteur et les anciennes règles.
+Que faire quand ils divergent ?
+
+\paragraph{La règle retenue (parties B0 et M2.3a).} L'ancien chemin peut garder une
+\emph{capture} ou une \emph{escalade}, jamais son ALLOW. Exemple réel : le moteur marque
+\cmd{X=-rf; rm \$X build} comme non compris (une valeur qui commence par un tiret) ;
+l'ancienne règle, elle, sait capturer \cmd{build}. La réponse la plus stricte --- capturer
+--- l'emporte :
+
+\begin{terminal}[l'ancienne règle garde sa capture]
+$ demo_cli check --mode enforce 'X=-rf; rm $X build'
+demo_cli 1.7.0  [+] SAFE  ·  REVERSIBLE
+  target              ~/projet/build
+Recovery
+  snapshot            build.20261009-141000.dc24ff14.snapdir
+Decision
+  Recovery point captured before the action; reversible.
+\end{terminal}
+
+À l'inverse, quand l'ancienne règle aurait autorisé une ligne que le moteur ne lit pas, c'est
+la règle M3 qui s'applique (filet, point de contrôle, escalade) : la vulnérabilité V19 était
+précisément un \cmd{psql -c "\$(cat q.sql)"} autorisé alors que \cmd{q.sql} contenait
+\cmd{DROP TABLE users;}. Il est désormais escaladé.
+
+% ------------------------------------------------------------------
+\subsection{Les fichiers de \texorpdfstring{\demo}{demo\_cli} : le plan de contrôle}
+\label{sec:plan-controle}
+
+\paragraph{L'énoncé.} Un agent qui peut modifier la configuration de son garde-fou n'a pas de
+garde-fou. Le \emph{plan de contrôle} regroupe : la configuration \fichier{.demo\_cli.toml},
+l'espace de travail \fichier{.demo\_cli/} (registre, réserve de récupération), les
+configurations des \textit{hooks} dans le projet et dans le répertoire personnel, le script du
+garde du shell, \fichier{\textasciitilde/.bashrc} quand il l'active, le lanceur
+\cmd{demo\_cli}, et sous Windows les fichiers de la tâche d'ouverture de session.
+
+\paragraph{La règle.} Toute modification de ces chemins --- y compris une \emph{création} ou un
+ajout en fin de fichier --- est refusée (ESCALATE, jamais approuvable sur place), à toutes les
+portes : avant l'exécution par le moteur et par les anciennes règles, dans la porte fichier,
+et pendant l'exécution par le garde d'appels système, qui annule l'appel.
+
+\begin{terminal}[un agent tente de passer l'outil en mode observation]
+$ demo_cli check --mode enforce 'echo mode = "shadow" > .demo_cli.toml'
+demo_cli 1.7.0  [x] BLOCKED  ·  ESCALATE
+  matched rule        control_plane
+Decision
+  This changes demo_cli's own files, or a directory holding them (.demo_cli.toml):
+  its config, hook settings, ledger or recovery store. An agent may not [...]
+\end{terminal}
+
+% ------------------------------------------------------------------
+\subsection{Demander ou refuser}
+\label{sec:ask-deny}
+
+\paragraph{Le problème.} Une escalade arrête l'agent. Faut-il alors \emph{demander} à la
+personne, ou \emph{refuser} ? Demander tout use l'attention (section~\ref{sec:permissions}) ;
+refuser tout rend l'outil inutilisable pour des opérations ordinaires (supprimer un volume
+Docker de test, pousser une branche).
+
+\paragraph{La règle retenue (partie ASK).} L'escalade reste une escalade --- aucune décision du
+portail ne change --- mais chaque surface porte un \emph{canal} dans
+\fichier{policy.ESCALATION\_CHANNEL} :
+\begin{itemize}
+  \item \textbf{ask} quand le changement est réel mais ordinaire, et que la commande exacte suffit
+    à la personne pour savoir à quoi elle consent (base distante, historique git, bucket,
+    conteneur, déploiement, service\ldots) ;
+  \item \textbf{deny} quand tout part sans retour réaliste (infrastructure détruite, vidage d'un
+    entrepôt de données, formatage de disque, paiement, compte utilisateur supprimé, données
+    de récupération du système) ; seuls un jeton d'approbation structurel, que l'agent ne
+    peut pas forger, ou une exécution hors de l'agent le permettent.
+\end{itemize}
+\textbf{Une surface sans ligne dans la table est refusée} : une surface ajoutée plus tard ne
+devient jamais « demandable » par accident. Enfin, \emph{demander} n'a de sens que si
+quelqu'un voit la question : le \textit{hook} Claude Code ne pose la question que dans les
+modes où l'interface l'affiche (\cmd{default}, \cmd{acceptEdits}, \cmd{plan}, \cmd{auto}) et
+refuse dans les autres --- une question que personne ne voit ne doit jamais devenir « c'est
+passé ». Codex, qui ne sait pas demander, refuse.
+
+% ------------------------------------------------------------------
+\subsection{Les faits sur les outils sont vérifiés}
+\label{sec:faits-verifies}
+
+Une règle fausse est une décision fausse. Chaque grammaire d'options est tirée de la source
+de l'outil lui-même --- son \cmd{--help}, sa page de manuel, son code source, ses données
+publiées (l'index des commandes d'\cmd{aws}, l'arbre de commandes de \cmd{gcloud}, la table
+de commandes de \cmd{redis}) --- et vérifiée sur la version courante. Les comportements
+douteux sont testés sur des fichiers jetables : que \cmd{unzip -Pxo} lit \cmd{xo} comme mot de
+passe et non comme l'option d'écrasement (I1c, vérifié sur UnZip 6.0), que \cmd{helm 4}
+change la sémantique de \cmd{rollback --dry-run}, que \cmd{tofu} accepte \cmd{-chdir DIR}
+sans \cmd{=} quand \cmd{terraform} le refuse. Un test confronte chaque grammaire au
+\cmd{--help} de l'outil installé. Une règle dont la grammaire vient seulement de la
+documentation porte \cmd{verified=False} : c'est le cas de \nbnonverifiees{} règles sur
+\nbregles{}.

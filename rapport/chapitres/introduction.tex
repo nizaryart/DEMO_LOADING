@@ -1,6 +1,46 @@
-% Introduction générale — rédigée après validation des chapitres.
+% Introduction générale
 \chapter*{Introduction générale}
 \addcontentsline{toc}{chapter}{Introduction générale}
 \markboth{Introduction générale}{}
 
-\acompleter[introduction générale, rédigée une fois les chapitres validés]
+Les agents de code fondés sur l'intelligence artificielle ont changé de nature. Ils ne se
+contentent plus de proposer du code : ils l'exécutent. Claude Code ou Codex lisent un projet,
+modifient des fichiers et lancent des commandes dans un shell, avec les droits du développeur
+et sur sa machine. Un agent qui se trompe ne produit plus une suggestion maladroite, mais une
+suppression, un écrasement, une base de données vidée ou un historique réécrit sur un serveur.
+Plusieurs incidents publics l'ont montré, et les protections existantes --- demandes de
+permission, bacs à sable, points de restauration, gestion de versions --- en couvrent chacune
+une partie seulement.
+
+C'est dans ce contexte que s'inscrit ce stage de Projet de Fin d'Année, effectué au sein de
+WePwn, entreprise marocaine de sécurité offensive. Il porte sur \demo{}, un garde-fou pour
+agents de code que WePwn avait publié en version bêta. L'idée de départ de cette bêta est
+simple et forte : avant qu'une commande destructrice ne s'exécute, copier ce qu'elle va
+détruire, pour que l'erreur reste réversible ; et quand rien ne peut être copié, ne pas le
+laisser passer sans qu'une personne l'ait vu. Sa limite l'était tout autant : elle lisait les
+commandes avec des expressions régulières.
+
+La question qui guide ce travail est donc la suivante : \emph{comment, avant qu'une commande
+écrite par un agent ne s'exécute, en prédire l'effet assez exactement pour laisser passer ce
+qui est sans danger, rendre récupérable ce qui peut l'être, et arrêter ou soumettre à une
+personne le reste --- sans jamais revendiquer une protection qu'on n'a pas prise, et de la même
+manière sous Linux et sous Windows ?}
+
+La réponse construite pendant le stage tient en quelques principes : remplacer les motifs par
+un \emph{moteur} qui analyse la ligne et en simule les effets sur une vue virtuelle du système
+de fichiers ; réunir toute la politique dans un seul module et toutes les décisions dans un
+seul décideur ; placer, sous ce que le moteur ne sait pas lire, un \emph{filet d'exécution} ---
+un garde d'appels système sous Linux, un système de fichiers WinFsp sous Windows ; refuser à
+l'agent toute action sur les fichiers de l'outil ; et faire évoluer l'ensemble avec une méthode
+qui interdit qu'une décision devienne plus permissive sans qu'on l'ait voulu. Le travail a
+aussi été offensif : chercher, comme dans un programme de \textit{bug bounty}, comment
+contourner ce qui venait d'être construit.
+
+Ce rapport est organisé en cinq chapitres. Le premier présente l'organisme d'accueil, le point
+de départ du stage, la problématique, les objectifs et la méthode. Le deuxième étudie les
+protections existantes et situe \demo{} par rapport à elles. Le troisième, le plus important,
+expose l'analyse et la conception : besoins, modèle de menace, architecture, et surtout les
+principes --- et leurs raisons --- qui gouvernent chaque décision. Le quatrième décrit la
+réalisation, couche par couche, y compris le côté Windows et le second frontal du moteur pour
+PowerShell. Le cinquième rend compte du travail de sécurité, de la validation et des limites.
+Une conclusion dresse le bilan et ouvre des perspectives.

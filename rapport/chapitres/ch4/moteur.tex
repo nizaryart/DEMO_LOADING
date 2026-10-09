@@ -1,0 +1,115 @@
+% 4.3 — Le moteur et ses familles
+\section{Le moteur et ses familles d'outils}
+\label{sec:moteur-impl}
+
+\subsection{Des parties courtes, chacune avec ses tests}
+Le moteur a été construit en parties successives, d'abord en ombre (il prédisait sans
+décider), puis comme source de la décision. Le tableau~\ref{tab:parties-moteur} les résume.
+
+\begin{table}[htbp]
+\centering
+\caption{Les parties du moteur et ce que chacune a apporté}
+\label{tab:parties-moteur}
+\small
+\begin{tabularx}{\linewidth}{@{}L{1.9cm}Y@{}}
+\toprule
+\textbf{Partie} & \textbf{Apport} \\
+\midrule
+Modèle & Une seule analyse POSIX, partagée par le classifieur et la résolution des cibles. \\
+B & Moteur en ombre : \cmd{rm}, \cmd{rmdir}, \cmd{unlink} et les redirections ; prédiction
+  écrite dans chaque reçu ; 91 tests ; portail : 0 décision changée. \\
+C1 & Outils de fichiers locaux : \cmd{cp}, \cmd{mv}, \cmd{sed -i}, \cmd{perl -i}, formateurs en
+  place, \cmd{tee}, \cmd{ln}, \cmd{install}, \cmd{truncate}, \cmd{shred}, \cmd{dd},
+  \cmd{rsync}, \cmd{tar}, \cmd{unzip}, \cmd{find}\ldots ; 178 tests ; 0 décision changée. \\
+C2a & Clients SQL (\cmd{sqlite3}, \cmd{psql}, \cmd{mysql}) : SQL lu depuis \cmd{-c}, l'entrée
+  standard, les \textit{heredocs} et les fichiers, chaque instruction classée. \\
+S2+M1 & Le moteur décide sous Linux : exactement l'ensemble détruit est capturé en un groupe ;
+  124 décisions revues sur le portail (8 erreurs corrigées, 18 nouvelles captures,
+  86 nouvelles autorisations : rien n'était détruit). \\
+M2.0--M2.1 & Une seule source de vérité ; le moteur sous Windows pour les lignes POSIX
+  (Git Bash). \\
+I1a--c, W0 & Lectures sûres (FIFO, \cmd{/dev/zero}), sortie des \cmd{\$( )} en lecture seule,
+  mot de passe collé d'\cmd{unzip -P}, citations ANSI-C décodées comme bash~5. \\
+M2.2a--f & Les familles d'outils (tableau~\ref{tab:familles}). \\
+M2.3a & Les lignes non lues quittent les anciennes règles (section~\ref{sec:m23a}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Les familles d'outils}
+La partie M2.2 a fait entrer dans le moteur, famille par famille, les outils que l'ancien
+chemin reconnaissait par motifs. Chaque famille apporte une grammaire vérifiée, ses effets
+locaux et distants, ses surfaces, et des arbitrages numérotés.
+
+{\small
+\begin{longtable}{@{}L{2.5cm}L{4.4cm}L{8.0cm}@{}}
+\caption{Les familles d'outils du moteur (partie M2.2)}\label{tab:familles}\\
+\toprule
+\textbf{Famille} & \textbf{Outils} & \textbf{Décisions marquantes} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Famille} & \textbf{Outils} & \textbf{Décisions marquantes} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+git & \cmd{git} (options globales avant la sous-commande) &
+  Perte dans l'arbre de travail capturée ; \textit{push} qui remplace ou supprime une
+  référence du serveur = surface distante ; un déplacement d'historique que le
+  \textit{reflog} ramène est autorisé et nommé (arbitrage c) ; ce qui détruit le
+  \textit{reflog} escalade. \\
+Infrastructure & \cmd{terraform}, \cmd{tofu}, \cmd{kubectl}, \cmd{helm}, \cmd{pulumi},
+  \cmd{cdk} & Les \textit{apply} escaladent (R1) ; \textit{destroy} escalade ; mise à zéro,
+  \textit{drain}, \textit{cordon} sur une surface « disponibilité » ; grammaires vérifiées
+  sur les versions courantes (terraform 1.16.5, tofu 1.13.1, kubectl 1.37.1, helm 4.3.0 et
+  3.16.2, pulumi 3.268.0, cdk 2.1144.0). \\
+Cloud & \cmd{aws}, \cmd{s3cmd}, \cmd{rclone}, \cmd{mc}, \cmd{gcloud}, \cmd{gsutil}, \cmd{az},
+  \cmd{azcopy}, \cmd{railway} & Grammaires tirées des données des outils (index des
+  commandes d'aws v2, arbre de gcloud, table d'az) ; lectures autorisées (R3) ; un envoi qui
+  peut remplacer un objet escalade (R2), sauf option de non-écrasement vérifiée. \\
+Conteneurs & \cmd{docker}, \cmd{podman}, \cmd{docker-compose} &
+  Supprimer conteneur, image, volume ou réseau escalade (\cmd{container\_runtime}) ;
+  \cmd{compose down} comme \cmd{docker rm} (R5) ; \cmd{push} peut remplacer une étiquette. \\
+Entrepôts de données & \cmd{redis-cli}, \cmd{mongosh}, \cmd{dropdb}, \cmd{pg\_restore},
+  \cmd{pg\_dump}, \cmd{mysqladmin}, \cmd{sqlcmd} & Vidages sur \cmd{datastore\_flush} (deny) ;
+  écritures serveur sur \cmd{remote\_database} ; fichiers locaux écrasés capturés. \\
+Envois sortants & \cmd{curl}, \cmd{wget}, \cmd{http}, \cmd{gh}, \cmd{mail}, \cmd{ssh},
+  \cmd{scp}, publication \cmd{npm}/\cmd{cargo}/\cmd{twine}\ldots &
+  Une requête autre que GET/HEAD/OPTIONS change quelque chose (R6) ; une publication
+  escalade (R7) ; \cmd{ssh hôte cmd} exécute du code (R8) ; un courriel envoyé (R9). \\
+PaaS & \cmd{heroku}, \cmd{fly}, \cmd{vercel}, \cmd{netlify}, \cmd{wrangler}, \cmd{firebase} &
+  Détruire une application ou une base : \cmd{paas\_destroy} (deny) ; déploiements et
+  variables : \cmd{saas\_deploy} ; secrets : \cmd{secret\_write}. \\
+SaaS, migrations & \cmd{shopify}, \cmd{wp}, \cmd{stripe}, \cmd{rails}, \cmd{manage.py},
+  \cmd{alembic}, \cmd{prisma}, \cmd{flyway}\ldots & Argent déplacé : \cmd{external\_payment}
+  (deny) ; \textit{rollback}/\textit{reset}/\textit{drop} d'une migration supprime ;
+  \textit{status} et modes qui impriment le SQL : lecture. \\
+Système & 85 outils : \cmd{systemctl}, \cmd{kill}, \cmd{reboot}, comptes, \cmd{mkfs},
+  \cmd{diskpart}, \cmd{vssadmin}, \cmd{iptables}, \cmd{netsh}, \cmd{chmod}, \cmd{icacls},
+  \cmd{reg}\ldots & Arbitrages C1--C10 ; données de récupération du système
+  (\cmd{system\_recovery}) : deny ; \cmd{chmod} dans le projet capturé. \\
+Plus tard & fichiers de démarrage du shell, \cmd{.envrc}, \textit{hooks} git,
+  \cmd{crontab}, \cmd{at}, \cmd{schtasks}, \cmd{systemctl enable}, clés \cmd{Run} &
+  Effet \cmd{LATER} : du code planté pour s'exécuter sans que personne ne le nomme ; ask
+  (D1) ; retirer une planification = DELETE (D4). \\
+Secrets & \cmd{vault} & \cmd{secret\_write} ; jeton révoqué = \cmd{credential\_rotation}. \\
+\end{longtable}
+}
+
+\subsection{Quelques détails qui comptent}
+\begin{itemize}
+  \item \textbf{Un tiret n'est pas un nom de fichier} (I1a). \cmd{X=-rf; rm \$X src} était
+    autorisé : le moteur lisait \cmd{-rf} comme un fichier. Une valeur ou un résultat de
+    \textit{glob} qui commence par un tiret est désormais non compris.
+  \item \textbf{Lire un fichier sans se bloquer} (I1a). Un FIFO lu par \cmd{sqlite3 .read}
+    bloquait le moteur au-delà de son budget, et un lien vers \cmd{/dev/zero} se lisait sans
+    fin. Le moteur ne lit plus que des fichiers réguliers, en mode non bloquant, plafonnés.
+  \item \textbf{Les citations ANSI-C} (W0). Un mot de commande écrit avec des échappements
+    hexadécimaux (\cmd{\$'\textbackslash x72\textbackslash x6d'}, soit \cmd{rm}) était lu comme
+    un outil inconnu et autorisé. Le décodage suit exactement bash~5 ; ce qu'il ne décode pas
+    exactement (\cmd{\textbackslash u}, \cmd{\textbackslash c}, NUL) rend le mot non compris.
+  \item \textbf{Une base SQLite est un fichier} (C2a). Elle est capturée comme un fichier du
+    projet ; une base PostgreSQL ou MySQL est étiquetée \cmd{db:hôte/nom}, sans secret, et
+    n'est capturable que si une URL locale littérale la désigne ; sinon, l'écriture escalade.
+\end{itemize}

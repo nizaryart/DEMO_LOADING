@@ -1,0 +1,31 @@
+% 4.7 — M2.3a
+\section{M2.3a : la fin du pouvoir des anciennes règles}
+\label{sec:m23a}
+
+À la fin de M2.2, le moteur décidait toutes les lignes POSIX qu'il lisait entièrement. Restaient
+les autres : les lignes qu'il ne lisait pas tout à fait, encore confiées aux anciennes règles
+textuelles. Un audit de ces lignes (fixé par \fichier{test\_m22f.py}) a montré le danger : là où
+aucune ancienne règle ne se déclenchait, la ligne était autorisée sans rien capturer. M2.3a,
+dernière partie livrée au commit de référence, applique les arbitrages M1--M5 :
+
+\begin{itemize}
+  \item \textbf{M1} --- un exécuteur de code va au filet, sinon à un point de contrôle, sinon il
+    est autorisé avec une note qui dit qu'aucune capture n'a été faite ;
+  \item \textbf{M3} --- une ligne non lue va au filet, sinon à un point de contrôle (jamais pour un
+    opérande hors projet), sinon elle est escaladée ; un \cmd{psql -c "\$(cat q.sql)"} était
+    autorisé (V19) ;
+  \item une ligne non lue qui agit au-delà des fichiers locaux, ou un téléchargement qui
+    alimente ce qui s'exécute (\cmd{bash <(curl \ldots)}, \cmd{aws s3 cp \ldots{} - | bash}),
+    escalade ;
+  \item \textbf{M4} --- de nouvelles règles pour des outils qui détruisaient sans être vus :
+    \cmd{gzip}, \cmd{bzip2}, \cmd{xz} (qui suppriment l'original), \cmd{sort -o},
+    \cmd{iconv -o}, \cmd{patch}, \cmd{awk -i inplace}, \cmd{7z} (V20), comportements vérifiés
+    sur des fichiers jetables ;
+  \item \textbf{V18, première étape} --- les filets et le point de contrôle disent qu'ils ne
+    couvrent que le projet ;
+  \item \textbf{M5} --- le texte PowerShell garde les anciennes règles jusqu'à C3 ;
+  \item partout, \textbf{l'ancienne règle garde une capture ou une escalade, jamais son ALLOW}.
+\end{itemize}
+
+Bilan de la partie : 17 nouveaux tests ; les lignes figées des parties précédentes qui ont
+bougé sont toutes devenues plus strictes ; sur le portail, 6 lignes bougent, toutes revues.

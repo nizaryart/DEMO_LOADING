@@ -2,55 +2,26 @@
 \chapter{Analyse et conception}
 \label{ch:conception}
 
-\acompleter[chapitre 3 : texte à venir ; les figures ci-dessous sont définitives]
+Ce chapitre est le c\oe ur du rapport. Il fixe les besoins, le modèle de menace et
+l'invariant, puis présente l'architecture --- ce que l'outil lit, voit, refuse, demande et
+enregistre. Il expose ensuite les principes qui gouvernent chaque décision, avec, pour
+chacun, la commande qui casse l'approche naïve et le test qui fige la règle. Il décrit
+enfin la conception du moteur, de la politique et du décideur unique, la répartition entre
+Linux et Windows, et résume les choix d'architecture face à leurs alternatives.
 
-\section{Modèle de menace et invariant}
-\label{sec:menace}
-\acompleter
+\input{chapitres/ch3/besoins}
+\input{chapitres/ch3/menace}
+\input{chapitres/ch3/architecture}
+\input{chapitres/ch3/principes}
+\input{chapitres/ch3/moteur}
+\input{chapitres/ch3/decision}
+\input{chapitres/ch3/deux_os}
+\input{chapitres/ch3/choix}
 
-\section{Architecture d'ensemble}
-\label{sec:architecture}
-
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig1_flux}
-\caption{Le flux d'ensemble : de la commande de l'agent au reçu}
-\label{fig:flux}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig2_vision}
-\caption{Ce que l'outil voit : chaque couche et ce qu'elle couvre, selon l'endroit où la commande agit}
-\label{fig:vision}
-\end{figure}
-
-\section{Conception du moteur}
-\label{sec:moteur}
-
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig3_moteur}
-\caption{L'intérieur du moteur, sur un exemple réel (sortie du moteur au commit \commitref{})}
-\label{fig:moteur}
-\end{figure}
-
-\section{La politique et le décideur unique}
-\label{sec:decision}
-
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig4_decision}
-\caption{La table de décision : où l'effet tombe $\times$ quelle sorte d'effet}
-\label{fig:decision}
-\end{figure}
-
-\section{Deux systèmes, un décideur}
-\label{sec:deux-os}
-
-\begin{figure}[htbp]
-\centering
-\input{figures/tikz/fig5_os}
-\caption{Linux et Windows : un seul décideur, deux filets d'exécution}
-\label{fig:os}
-\end{figure}
+\section*{Conclusion du chapitre}
+L'architecture tient en une phrase : \emph{une seule lecture, une seule politique, un seul
+décideur, et des filets là où la lecture s'arrête}. Les principes qui la gouvernent
+partagent une même exigence --- ne jamais dire plus que ce qui est vrai : pas d'ALLOW pour
+une ligne non lue, pas de REVERSIBLE pour une capture incomplète, pas de « demander » là où
+personne ne verra la question. Le chapitre suivant montre comment ces décisions sont
+devenues du code.

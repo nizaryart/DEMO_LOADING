@@ -1,0 +1,60 @@
+% 4.1 — Environnement
+\section{Environnement de réalisation}
+\label{sec:environnement}
+
+\begin{table}[htbp]
+\centering
+\caption{Environnement et outils}
+\label{tab:env}
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.6cm}Y@{}}
+\toprule
+\textbf{Élément} & \textbf{Choix} \\
+\midrule
+Langage & Python $\geq$ 3.9, bibliothèque standard uniquement (plus \cmd{tomli} avant 3.11) ;
+  aucune dépendance réseau, aucune télémétrie \\
+Dépendances optionnelles & \cmd{winfspy} (montage Windows, avec le pilote WinFsp),
+  \cmd{mitmproxy} (couche réseau) \\
+Systèmes & Linux (x86-64) ; Windows avec PowerShell et Git Bash \\
+Agents intégrés & Claude Code (Bash, PowerShell, édition de fichiers), Codex, Cursor ;
+  piège bash pour le terminal \\
+Tests & \cmd{pytest} ; les mêmes tests sur Linux et Windows, avec des attentes exactes par
+  système quand le comportement diffère \\
+Gestion de versions & git ; un commit par partie, dont le message est le bilan \\
+Distribution & paquet Python (\cmd{pyproject.toml}), scripts \cmd{install.sh} et
+  \cmd{install.ps1}, licence MIT \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{pourquoi}[Pourquoi la bibliothèque standard seulement ?]
+\demo{} s'exécute à chaque commande de l'agent et se place sur le chemin de toutes ses
+actions ; chaque dépendance est du code de plus qui tourne avec les droits du développeur
+et une source de panne au démarrage. Le cœur n'en a aucune. Même \cmd{winfspy}, réellement
+nécessaire au montage Windows, est une dépendance \emph{optionnelle} : son installation
+peut échouer sans WinFsp, et cet échec ne doit pas emporter le reste de l'outil
+(\cmd{pyproject.toml}).
+\end{pourquoi}
+
+\subsection{Organisation du code}
+\begin{terminal}[arborescence (extrait)]
+src/demo_cli/
+  cli.py              # commandes : check, undo, log, verify, doctor, sh, mount...
+  guard.py            # l'orchestrateur : Guard.evaluate, evaluate_file_edit
+  decide.py           # le décideur unique (fonction pure)
+  policy.py           # la politique : surfaces, canaux ask/deny, indices
+  model.py            # l'analyse POSIX unique
+  classify.py         # l'ancien chemin (règles textuelles), en retrait
+  recovery.py         # captures, groupes, restauration
+  checkpoint.py       # points de contrôle (optionnels)
+  receipts.py         # registre chaîné SHA-256
+  syscall_guard.py    # filet Linux (ptrace)
+  fsguard.py          # filet Windows : le jugement
+  fsmount.py          # filet Windows : WinFsp
+  protect.py          # déplacement et verrouillage du projet (Windows)
+  schedule.py         # tâche d'ouverture de session (W-SEC)
+  hooks/              # claude_code.py, codex.py, cursor.py
+  engine/             # simulate, words, invocation, effects, verdict,
+                      # rules*.py (12 familles), *_ops.py, *_data.py
+tests/                # 133 fichiers ; fixtures/ : lignes du portail par partie
+\end{terminal}

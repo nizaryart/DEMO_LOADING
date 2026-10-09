@@ -1,0 +1,46 @@
+% 2.1 — Les agents et leurs points d'extension
+\section{Les agents de code et leurs points d'extension}
+\label{sec:agents}
+
+Les deux agents visés par le projet, Claude Code et Codex, ont la même structure : un
+modèle de langage décide d'une action, puis l'agent l'exécute au moyen d'un \emph{outil}
+--- un outil shell (\cmd{Bash}, ou \cmd{PowerShell} sous Windows), des outils d'édition
+de fichiers, d'autres encore. Entre la décision et l'exécution, chacun offre un point
+d'extension où un programme tiers peut intervenir : un \textit{hook}.
+
+\subsection{Claude Code : le \textit{hook} PreToolUse}
+Claude Code appelle un \textit{hook} \cmd{PreToolUse} « avant l'exécution d'un appel
+d'outil », avec la possibilité de le bloquer~\cite{cc-hooks}. Le \textit{hook} reçoit
+l'appel en JSON et peut répondre par une décision de permission (\cmd{allow}, \cmd{deny},
+\cmd{ask}, \cmd{defer}) accompagnée d'une raison ; il peut aussi \emph{remplacer} les
+arguments de l'outil par un champ \cmd{updatedInput}. Deux précisions de la documentation
+comptent pour la conception : un \textit{hook} qui se tait ne vaut pas approbation --- la
+commande « continue dans le flux de permission normal » --- et un \textit{hook} qui dépasse
+son délai ne bloque pas l'appel~\cite{cc-hooks}. Le même \textit{hook} voit passer les
+outils shell et les outils d'édition de fichiers (\cmd{Edit}, \cmd{Write}).
+
+\subsection{Codex : un \textit{hook} qui ne sait que refuser}
+Codex propose lui aussi un \textit{hook} avant l'utilisation d'un outil. Son schéma déclare
+les trois valeurs \cmd{allow}, \cmd{deny} et \cmd{ask}, mais, en pratique, l'exécution
+rejette tout sauf \cmd{deny} : une réponse \cmd{allow} produit l'erreur
+« \textit{unsupported permissionDecision:allow} » et marque le \textit{hook} en échec, ce
+qui laisse passer la commande. Ce comportement, contraire à la documentation, a été
+établi en faisant tourner l'agent ; l'adaptateur Codex de \demo{} le documente
+(\fichier{hooks/codex.py}). Conséquence : sur Codex, \demo{} ne peut que refuser ou se
+taire, jamais « demander », ni réécrire la commande pour la placer sous un filet.
+
+\subsection{Cursor}
+Cursor expose un \textit{hook} \cmd{beforeShellExecution} configuré dans
+\fichier{.cursor/hooks.json} ; le code de sortie 2 bloque l'action, et les autres échecs du
+\textit{hook} laissent passer la commande par défaut~\cite{cursor-hooks}. L'adaptateur de
+\demo{} demande donc explicitement un comportement « fermé en cas d'échec »
+(\cmd{failClosed}).
+
+\begin{pourquoi}[Ce que ces points d'extension impliquent]
+Un \textit{hook} voit la \emph{commande}, pas son effet. Il reçoit une chaîne de caractères
+et doit répondre vite, avant que l'agent n'attende trop. Tout ce que \demo{} fait avant
+l'exécution --- lire, prédire, copier, décider --- doit tenir dans ce créneau, et ce que les
+agents permettent de répondre diffère de l'un à l'autre. L'architecture devra donc séparer
+la \emph{décision} (commune) de la façon de la \emph{dire} à chaque agent (propre à chaque
+porte).
+\end{pourquoi}

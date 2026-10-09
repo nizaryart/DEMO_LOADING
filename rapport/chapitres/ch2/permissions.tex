@@ -1,0 +1,36 @@
+% 2.2 — Les demandes de permission
+\section{Les demandes de permission}
+\label{sec:permissions}
+
+La protection la plus répandue est la plus simple : avant une action sensible, l'agent
+demande à la personne. Elle a deux faiblesses connues.
+
+\paragraph{L'accoutumance.} Une demande répétée finit par être approuvée sans être lue.
+Anthropic l'écrit à propos de Claude Code : avec le temps, les demandes mènent à une
+« fatigue d'approbation, où les gens cessent de prêter attention à ce qu'ils
+approuvent », et les utilisateurs approuvent 93\,\% des demandes de
+permission~\cite{anthropic-automode}. Le phénomène est documenté bien avant les agents :
+une étude de terrain sur plus de 25 millions d'avertissements de navigateur a mesuré que les
+utilisateurs passaient outre l'avertissement SSL de Chrome dans 70,2\,\% des cas, et plus
+vite pour les erreurs les plus fréquentes~\cite{akhawe-warningland}.
+
+\paragraph{Confirmer n'est pas récupérer.} Une personne qui approuve \cmd{rm -f
+Reports/report\_*.txt} en croyant que l'agent compte des fichiers
+(section~\ref{sec:problematique}) n'a rien gagné à être consultée. Une fois la commande
+passée, la demande n'offre aucun moyen de revenir en arrière.
+
+\paragraph{Le juge automatique.} Pour réduire le nombre de demandes, Claude Code propose un
+mode où un classifieur évalue chaque action avant son exécution et ne laisse passer sans
+demande que ce qu'il juge aligné avec l'intention de l'utilisateur. Ses auteurs donnent
+honnêtement ses limites : un taux de faux négatifs de 17\,\% sur des actions réellement
+excessives, mesuré sur un petit échantillon, et le constat qu'il « ne remplace pas une
+relecture humaine attentive sur une infrastructure à fort enjeu »~\cite{anthropic-automode}.
+
+\begin{pourquoi}[Ce que \demo{} en retient]
+Demander reste utile, mais \emph{seulement} quand la question est rare et qu'elle a un
+sens : quand rien n'a pu être capturé et que la personne peut juger sur la commande
+elle-même. Pour tout ce qui peut être copié avant, mieux vaut copier et ne pas déranger.
+D'où deux choix de \demo{} : récupérer plutôt que demander quand c'est possible, et
+distinguer, pour ce qui ne peut pas l'être, ce qu'on \emph{demande} de ce qu'on
+\emph{refuse} (section~\ref{sec:ask-deny}).
+\end{pourquoi}

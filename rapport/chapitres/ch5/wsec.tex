@@ -1,0 +1,96 @@
+% 5.2 — Cas d'étude : W-SEC
+\section{Cas d'étude : la tâche Windows qui exécutait du code modifiable}
+\label{sec:wsec}
+
+\subsection{Le contexte}
+Sous Windows, le filet est un montage WinFsp qui meurt avec la session. Une tâche planifiée le
+relance à chaque ouverture de session. Le montage doit écrire dans un répertoire verrouillé au
+profit des Administrateurs : la tâche s'exécute donc au niveau « le plus élevé disponible »,
+une élévation accordée une fois, à l'installation, par une invite UAC que l'utilisateur a
+acceptée (\fichier{schedule.py}).
+
+\subsection{La faille}
+Une tâche élevée est une cible de choix : tout ce qu'elle exécute s'exécute avec élévation.
+Or, dans sa forme d'origine, la tâche lançait \cmd{\%LOCALAPPDATA\%\textbackslash
+demo\_cli\textbackslash autostart-<projet>.cmd}, qui appelait \cmd{demo\_cli} trouvé par le
+\cmd{PATH}. Chaque maillon était modifiable par l'utilisateur --- donc par l'agent, qui
+travaille avec ses droits :
+
+\begin{table}[htbp]
+\centering
+\caption{W-SEC : chaque maillon de la chaîne d'exécution, avant et après}
+\label{tab:wsec}
+\small
+\begin{tabularx}{\linewidth}{@{}L{2.6cm}YY@{}}
+\toprule
+\textbf{Maillon} & \textbf{Avant (V1--V4)} & \textbf{Après} \\
+\midrule
+Script lancé & \cmd{.cmd} dans \cmd{\%LOCALAPPDATA\%}, modifiable (V1) &
+  aucun script : la tâche lance directement l'interpréteur \\
+Code exécuté & installation éditable, environnement virtuel utilisateur (V2) &
+  copie figée du runtime dans \cmd{\%ProgramData\%\textbackslash demo\_cli}, verrouillé \\
+Résolution & \cmd{demo\_cli} trouvé par le \cmd{PATH} de l'utilisateur (V3) &
+  interpréteur \emph{de base}, chemin absolu, option \cmd{-I} (pas de \cmd{PYTHONPATH}, pas de
+  site utilisateur, pas le répertoire du script) \\
+Journal & écrit par la tâche élevée dans un dossier utilisateur (V4) &
+  \cmd{logs\textbackslash} sous \cmd{\%ProgramData\%}, écrit par la tâche, lisible par
+  l'utilisateur \\
+La tâche elle-même & enregistrée par \cmd{schtasks} & enregistrée en XML avec un descripteur de
+  sécurité \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Les conséquences étaient concrètes : du code exécuté avec élévation à la prochaine ouverture de
+session, ou immédiatement par \cmd{schtasks /run}, que l'utilisateur peut lancer sans invite ;
+ou, plus discrètement, un \cmd{exit /b 0} ajouté au script pour que le garde ne revienne jamais.
+
+\subsection{La correction}
+La règle retenue (arbitrages R1--R4) tient en une phrase : \emph{rien de ce que l'utilisateur
+peut écrire ne s'exécute avec élévation}.
+\begin{itemize}
+  \item Les fichiers de la tâche vivent dans \cmd{\%ProgramData\%\textbackslash demo\_cli},
+    appartenant aux Administrateurs, verrouillé (SYSTEM et Administrateurs : contrôle total ;
+    Utilisateurs : lecture et exécution). Ils sont écrits pendant l'étape déjà élevée de
+    l'installation. Un dossier qui existe déjà comme lien, ou que l'utilisateur a créé avant,
+    est refusé ou repris avant toute écriture.
+  \item L'action de la tâche est l'interpréteur de base, avec \cmd{-I}, sur un \cmd{run.py}
+    verrouillé, par chemins absolus. Un interpréteur situé dans le profil de l'utilisateur est
+    refusé : il n'y aurait rien de sûr à exécuter.
+  \item La tâche porte un descripteur de sécurité : les utilisateurs peuvent la lire et la
+    lancer, jamais la modifier.
+\end{itemize}
+
+\begin{code}{Le descripteur de sécurité de la tâche (\fichier{schedule.py})}
+# SYSTEM and Administrators full access;
+# Authenticated Users read and execute (run it), never write (change it).
+TASK_SDDL = "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)"
+\end{code}
+
+Lecture du SDDL : \cmd{D:P} est une liste d'accès protégée (sans héritage) ; \cmd{FA} accorde le
+contrôle total à SYSTEM (\cmd{SY}) et aux Administrateurs (\cmd{BA}) ; \cmd{GRGX} accorde lecture
+et exécution aux utilisateurs authentifiés (\cmd{AU}).
+
+Enfin, les répertoires de la tâche ont rejoint le plan de contrôle sous Windows, et
+\cmd{demo\_cli doctor} signale une ancienne tâche, un répertoire inscriptible, un interpréteur
+dans le profil de l'utilisateur ou une copie du runtime périmée.
+
+\subsection{La vérification}
+Les tests (\fichier{test\_wsec.py}) vérifient chaque décision du code sur les deux systèmes ;
+ce qui exige une session Windows élevée (\cmd{schtasks /create}, \cmd{icacls} sur
+\cmd{ProgramData}) a été vérifié sur Windows, en utilisateur normal : écrire dans le runtime
+$\rightarrow$ refusé ; modifier la tâche $\rightarrow$ « Access is denied » ; lancer la tâche
+$\rightarrow$ fonctionne.
+
+\begin{figure}[htbp]
+\centering
+\capture{wsec}{La tâche durcie : refus d'écriture et de modification pour un utilisateur normal}%
+{Sous Windows, en utilisateur normal : \texttt{icacls C:\textbackslash ProgramData\textbackslash demo\_cli} ; une tentative \texttt{echo x > C:\textbackslash ProgramData\textbackslash demo\_cli\textbackslash runtime\textbackslash run.py} refusée ; \texttt{schtasks /change /tn "demo\_cli guard ..." /disable} $\rightarrow$ « Access is denied ».}
+\end{figure}
+
+\begin{pourquoi}[Ce que ce cas enseigne]
+La faille n'était dans aucune règle de décision : elle était dans la \emph{plomberie} qui
+maintient l'outil en vie. Un garde-fou élève forcément quelque chose quelque part ; c'est là
+que la revue doit regarder en premier, avec une seule question : qui peut écrire ce qui
+s'exécute ?
+\end{pourquoi}

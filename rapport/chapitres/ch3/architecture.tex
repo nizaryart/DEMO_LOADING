@@ -1,0 +1,61 @@
+% 3.3 — Architecture d'ensemble
+\section{Architecture d'ensemble}
+\label{sec:architecture}
+
+\subsection{Le flux d'une commande}
+La figure~\ref{fig:flux} suit une commande de l'agent jusqu'au reçu.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig1_flux}
+\caption{Le flux d'ensemble : de la commande de l'agent au reçu}
+\label{fig:flux}
+\end{figure}
+
+\begin{enumerate}
+  \item \textbf{La porte} reçoit l'action : le \textit{hook} PreToolUse de Claude Code (outils
+    \cmd{Bash} et \cmd{PowerShell}), la porte fichier (\cmd{Edit}, \cmd{Write}), le
+    \textit{hook} de Codex ou de Cursor, le piège du shell pour les commandes tapées dans un
+    terminal, ou \cmd{demo\_cli check}. Chaque porte ne fait que traduire : elle passe la
+    commande à l'orchestrateur et traduit la décision dans ce que son agent comprend.
+  \item \textbf{L'orchestrateur} (\fichier{guard.py}, \cmd{Guard.evaluate}) enchaîne des
+    étapes nommées : refus d'une configuration cassée ; prédiction du moteur ; refus de ce
+    qui touche le plan de contrôle ; choix du chemin (moteur, ligne non lue, ancien chemin) ;
+    contexte ; décision ; reçu.
+  \item \textbf{Le moteur} analyse la ligne, la simule sur une vue virtuelle du système de
+    fichiers et produit un \emph{impact} : ce qui est détruit, créé, atteint à distance, non
+    compris, non couvert.
+  \item \textbf{La politique} (\fichier{policy.py}) traduit chaque effet distant en
+    décision, chaque étiquette en surface, et chaque surface en canal « demander » ou
+    « refuser ».
+  \item \textbf{Le décideur} (\fichier{decide.py}), fonction pure sans entrée-sortie, rend la
+    décision. Il ne capture rien lui-même : il reçoit seulement le fait qu'une capture a
+    \emph{réussi}. C'est ce qui l'empêche de mentir.
+  \item \textbf{Les conséquences} : une capture (REVERSIBLE), un filet (SUPERVISED), une
+    question à la personne ou un refus (ESCALATE) --- et, dans tous les cas, un reçu.
+\end{enumerate}
+
+\subsection{Ce que l'outil voit}
+\label{sec:vision}
+La figure~\ref{fig:vision} répond à la question qu'un jury pose en premier : \emph{que
+voit réellement l'outil, et où s'arrête-t-il ?} Elle croise six couches --- lire,
+récupérer, surveiller, refuser, demander, tracer --- avec trois zones où une commande peut
+agir.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig2_vision}
+\caption{Ce que l'outil voit : chaque couche et ce qu'elle couvre, selon l'endroit où la commande agit}
+\label{fig:vision}
+\end{figure}
+
+Trois lectures de cette figure méritent d'être soulignées.
+\begin{itemize}
+  \item \textbf{Seule la lecture voit partout} --- mais seulement ce qu'elle sait lire. Tout
+    le reste du dispositif existe pour ce qu'elle ne sait pas lire.
+  \item \textbf{La récupération et le filet s'arrêtent au projet.} Hors du projet, aucune copie
+    n'est possible, et la décision le dit ; une destruction connue hors projet est escaladée.
+  \item \textbf{Le distant ne se récupère pas, il se décide.} Pour une base ou un dépôt
+    distant, \demo{} ne peut que reconnaître la surface, demander ou refuser, et indiquer où
+    le fournisseur garde son propre historique.
+\end{itemize}
