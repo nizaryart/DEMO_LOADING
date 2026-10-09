@@ -54,115 +54,161 @@ allf = [m for g in GROUPS.values() for m in g] + [f for _, fs, _ in FAM for f in
 assert sorted(allf) == sorted(L), (set(L) - set(allf), set(allf) - set(L))
 assert len(allf) == len(set(allf)) == 80
 
-def mod(name, x, y, w, col, key=False):
-    lw = '1.1pt' if key else '0.5pt'
-    bf = '\\bfseries ' if key else ''
-    return (f'\\node[mod,draw={col},line width={lw},text width={w}cm] at ({x},{y}) '
-            f'{{\\texttt{{{bf}{tex(name)}}}\\hfill{{\\color{{gris}}{fmt(n(name))}}}}};\n')
-
+MAXL = 1800  # échelle commune des barres de taille (cli.py, le plus long, fait 1 783 lignes)
+STEP = 0.52
 out = []
 P = out.append
+
+def chip(x, y, w, label, count, col, key=False, dashed=False):
+    """Un module : liseré de couleur à gauche, barre de taille relative en fond, nombre de lignes."""
+    r = 0 if count is None else min(count / MAXL, 1)
+    fill = f'{col}!10' if key else 'white'
+    dash = ',dashed' if dashed else ''
+    bar = (f'\\fill[{col}!16] ([xshift=1.4pt]path picture bounding box.south west) rectangle '
+           f'($(path picture bounding box.north west)!{r:.3f}!(path picture bounding box.north east)$);'
+           if r else '')
+    stripe = f'\\fill[{col}] (path picture bounding box.south west) rectangle ([xshift=1.4pt]path picture bounding box.north west);'
+    right = '' if count is None else f'\\hfill{{\\color{{gris}}{fmt(count)}}}'
+    bf = '\\bfseries ' if key else ''
+    return (f'\\node[mod,draw={col}!{"85" if key else "45"},line width={"0.9pt" if key else "0.4pt"},fill={fill}{dash},'
+            f'text width={w}cm,path picture={{{bar}{stripe}}}] at ({x},{y}) {{{bf}{label}{right}}};\n')
+
+def chipm(m, x, y, w, col, key=False):
+    return chip(x, y, w, f'\\texttt{{{tex(m)}}}', n(m), col, key)
+
+def column(names, x, y, w, col, keys=()):
+    return ''.join(chipm(m, x, y - i * STEP, w, col, m in keys) for i, m in enumerate(names))
+
+def card(x0, y0, x1, y1, col, num, title, mods=None, lines=None, dashed=False):
+    """Un bloc : corps teinté avec ombre, barre de titre pleine, pastille numérotée ; le total
+    (modules, lignes) sur une seconde ligne de la barre."""
+    d = ',dashed' if dashed else ''
+    hh = 0.46 if mods is None else 0.66
+    s = (f'\\fill[{col}!5,rounded corners=4pt,drop shadow={{opacity=0.18,shadow xshift=0.7pt,shadow yshift=-0.9pt}}] '
+         f'({x0},{y0}) rectangle ({x1},{y1});\n'
+         f'\\fill[{col},rounded corners=4pt] ({x0},{y0}) rectangle ({x1},{y0-hh});\n'
+         f'\\fill[{col}] ({x0},{y0-0.2}) rectangle ({x1},{y0-hh});\n'
+         f'\\draw[{col},line width=0.7pt,rounded corners=4pt{d}] ({x0},{y0}) rectangle ({x1},{y1});\n')
+    tx = x0 + 0.12
+    if num:
+        s += (f'\\node[circle,fill=white,text={col},font=\\sffamily\\tiny\\bfseries,inner sep=0pt,'
+              f'minimum size=3.3mm] at ({x0+0.3},{y0-0.23}) {{{num}}};\n')
+        tx = x0 + 0.52
+    s += f'\\node[anchor=west,text=white,font=\\sffamily\\scriptsize\\bfseries,inner sep=0pt] at ({tx},{y0-0.23}) {{{title}}};\n'
+    if mods is not None:
+        s += (f'\\node[anchor=west,text=white,font=\\sffamily\\tiny,inner sep=0pt] at ({tx},{y0-0.5}) '
+              f'{{{mods} module{"s" if mods > 1 else ""} · {fmt(lines)} lignes}};\n')
+    return s
+
+def sub(x, y, t, col):
+    return f'\\node[font=\\sffamily\\tiny\\bfseries,text={col},anchor=south west,inner sep=0.5pt] at ({x},{y}) {{{t}}};\n'
+
+def tot(names): return sum(n(m) for m in names)
+
 P('% Figure E.1 — La carte complète de demo_cli : les 80 modules, groupés par rôle.\n'
   '% GÉNÉRÉE par notes/gen_carte.py depuis les tailles réelles (lignes par module,\n'
   '% commit de référence). Ne pas modifier à la main : relancer le script.\n')
 P('\\begin{tikzpicture}[x=1cm,y=1cm,\n'
-  '  mod/.style={rectangle,rounded corners=1.2pt,fill=white,inner xsep=2.5pt,inner ysep=1.6pt,\n'
+  '  mod/.style={rectangle,rounded corners=1.2pt,inner xsep=3pt,inner ysep=1.6pt,\n'
   '              font=\\sffamily\\tiny,anchor=north west,minimum height=4.2mm},\n'
-  '  bloc/.style={rounded corners=4pt,inner sep=5pt,line width=0.8pt},\n'
-  '  titrebloc/.style={font=\\sffamily\\scriptsize\\bfseries,anchor=south west,inner sep=1pt},\n'
-  '  liaison/.style={->,line width=1pt,draw=encre!75},\n'
-  '  appel/.style={font=\\ttfamily\\tiny,fill=white,inner sep=1pt,text=encre}]\n')
-COL = {'portes': 'cPorte', 'orch': 'cOrch', 'texte': 'gris', 'coeur': 'cMoteur', 'fam': 'cMoteur',
-       'decider': 'encre', 'recup': 'cRecup', 'filet': 'cFilet', 'outil': 'gris'}
-STEP = 0.52
-def column(key, names, x, y, w, keys=()):
-    s = ''
-    for i, m in enumerate(names):
-        s += mod(m, x, y - i * STEP, w, COL[key], m in keys)
-    return s
-def zone(name, title, x0, y0, x1, y1, col, fill, extra=''):
-    return (f'\\begin{{scope}}[on background layer]\\draw[bloc,draw={col},fill={fill}{extra}] '
-            f'({x0},{y0}) rectangle ({x1},{y1});\\end{{scope}}\n'
-            f'\\node[titrebloc,text={col}] at ({x0+0.05},{y0+0.02}) {{{title}}};\n'
-            f'\\coordinate ({name}-nw) at ({x0},{y0}); \\coordinate ({name}-se) at ({x1},{y1});\n')
+  '  liaison/.style={-{Stealth[length=2.4mm]},line width=1.3pt,draw=encre!80},\n'
+  '  appel/.style={font=\\ttfamily\\tiny,fill=white,draw=encre!35,rounded corners=4pt,\n'
+  '                inner xsep=3pt,inner ysep=1.5pt,text=encre}]\n')
 
-W = 3.15
-SUB = '\\node[font=\\sffamily\\tiny\\bfseries,text={c},anchor=south west] at ({x},{y}) {{{t}}};\n'
-def sub(x, y, t, c): return SUB.format(x=x, y=y, t=t, c=c)
-# ---- Rangée du haut. Les colonnes suivent le trajet d'une commande, de gauche à droite.
-top = 0
 X = {'portes': -0.2, 'orch': 4.05, 'moteur': 8.3, 'decider': 16.95, 'recup': 20.95}
 R = {'portes': 3.35, 'orch': 7.6, 'moteur': 16.25, 'decider': 20.25, 'recup': 24.25}
-BAS = -9.35
-P(zone('portes', '1 --- Portes', X['portes'], top + 0.15, R['portes'], -4.5, 'cPorte', 'cPorte!6'))
-P(column('portes', GROUPS['portes'], 0, top - 0.1, W, keys=('hooks/claude_code.py',)))
-P('\\node[font=\\sffamily\\tiny,text=gris,align=left,anchor=north west,text width=3.2cm] at (0,-3.72)'
+T, C0, BAS, W = 0.8, 0.0, -9.1, 3.15
+
+# 1 Portes
+g = GROUPS['portes']
+P(card(X['portes'], T, R['portes'], -4.4, 'cPorte', 1, 'Portes', len(g), tot(g)))
+P(column(g, 0, C0, W, 'cPorte', keys=('hooks/claude_code.py',)))
+P('\\node[font=\\sffamily\\tiny,text=gris,align=left,anchor=north west,text width=3.2cm] at (0,-3.66)'
   ' {\\textit{piège bash} : \\texttt{guard-shell} (dans \\texttt{cli.py})};\n')
-
-P(zone('orch', '2 --- Orchestration', X['orch'], top + 0.15, R['orch'], -2.3, 'cOrch', 'cOrch!6'))
-P(column('orch', GROUPS['orch'], X['orch'] + 0.2, top - 0.1, W, keys=('guard.py',)))
-P(zone('texte', 'Couche texte (héritée)', X['orch'], -3.0, R['orch'], -4.3, 'gris', 'grisclair'))
-P(column('texte', GROUPS['texte'], X['orch'] + 0.2, -3.25, W))
-
-# Moteur : cœur + familles + C3
-mx = X['moteur']; m0 = top - 0.5
-P(zone('moteur', '3 --- Moteur : comprendre et simuler', mx, top + 0.15, R['moteur'], BAS, 'cMoteur', 'cMoteur!5'))
-P(sub(mx + 0.2, m0 + 0.06, 'cœur', 'cMoteur!70!black'))
-P(column('coeur', GROUPS['coeur'], mx + 0.2, m0, 3.6, keys=('model.py', 'engine/simulate.py', 'engine/rules.py')))
-fx = mx + 4.05
-P(sub(fx, m0 + 0.06, '12 familles, chargées à la demande', 'cMoteur!70!black'))
-for i, (nom, fs, nt) in enumerate(FAM):
-    tot = sum(n(f) for f in fs)
-    P(f'\\node[mod,draw=cMoteur,text width=3.55cm] at ({fx},{m0 - i * STEP}) '
-      f'{{{nom} {{\\color{{gris}}({nt} outil{"s" if nt > 1 else ""})}}\\hfill{{\\color{{gris}}{fmt(tot)}}}}};\n')
-cy = -7.05
-P(f'\\draw[bloc,draw=cMoteur,dashed,fill=white] ({mx+0.15},{cy}) rectangle ({R["moteur"]-0.15},{BAS+0.15});\n')
-P(f'\\node[titrebloc,text=cMoteur!70!black] at ({mx+0.25},{cy+0.02}) {{C3 --- le frontal PowerShell, sur le même \\texttt{{World}}}};\n')
-c3 = ['ps\\_model.py', 'ps\\_tables.py', 'ps\\_bind.py',
-      'ps\\_invocation.py', 'rules\\_powershell.py', 'ps\\_ops.py']
-for i, m in enumerate(c3):
-    xx = mx + 0.35 + (i % 3) * 2.47; yy = cy - 0.2 - (i // 3) * STEP
-    P(f'\\node[mod,draw=cMoteur,dashed,text width=2.32cm] at ({xx},{yy}) {{\\texttt{{{m}}}}};\n')
-P(f'\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at ({mx+0.35},{cy-1.3}) '
-  f'{{Tous dans \\texttt{{engine/}} sauf \\texttt{{ps\\_model.py}} ; avec \\texttt{{engine/ps51\\_bindings.json}} : '
-  f'{{\\cthreecmdlets}} cmdlets et {{\\cthreealias}} alias de PowerShell 5.1.}};\n')
-
-dx = X['decider']
-P(zone('decider', '4 --- Décider', dx, top + 0.15, R['decider'], -1.75, 'encre', 'grisclair'))
-P(column('decider', GROUPS['decider'], dx + 0.15, top - 0.1, 3.0, keys=('decide.py',)))
-rx = X['recup']
-P(zone('recup', '5 --- Récupérer, tracer', rx, top + 0.15, R['recup'], -2.8, 'cRecup', 'cRecup!6'))
-P(column('recup', GROUPS['recup'], rx + 0.15, top - 0.1, 3.0, keys=('receipts.py',)))
-
-# ---- Filets, sous Décider et Récupérer
-ft = -3.75; fy = ft - 0.75
-P(zone('filets', '6 --- Filets d\'exécution', dx, ft, R['recup'], BAS, 'cFilet', 'cFilet!6'))
-P(sub(dx + 0.15, fy + 0.06, 'Linux (ptrace)', 'cFilet'))
-P(column('filet', GROUPS['linux'], dx + 0.15, fy, 3.0, keys=('syscall_guard.py',)))
-P(sub(dx + 0.15, fy - 0.94, 'réseau (HTTP)', 'cFilet'))
-P(column('filet', GROUPS['reseau'], dx + 0.15, fy - 1.0, 3.0))
-P(sub(rx + 0.15, fy + 0.06, 'Windows (WinFsp)', 'cFilet'))
-P(column('filet', GROUPS['windows'], rx + 0.15, fy, 3.0, keys=('fsmount.py',)))
-
-P(zone('outil', '7 --- Installation, diagnostic, affichage', X['portes'], -5.0, R['orch'], BAS, 'gris', 'grisclair'))
-o = GROUPS['outil']
-for i, m in enumerate(o):
-    xx = 0 if i < 4 else 3.95; yy = -5.25 - (i % 4) * STEP
-    P(mod(m, xx, yy, 3.4, 'gris'))
-P(f'\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at (0,-7.45) '
+# 2 Orchestration + couche texte
+g = GROUPS['orch']
+P(card(X['orch'], T, R['orch'], -2.25, 'cOrch', 2, 'Orchestration', len(g), tot(g)))
+P(column(g, X['orch'] + 0.2, C0, W, 'cOrch', keys=('guard.py',)))
+g = GROUPS['texte']
+P(card(X['orch'], -2.55, R['orch'], -4.4, 'gris', None, 'Couche texte (héritée)', len(g), tot(g)))
+P(column(g, X['orch'] + 0.2, -3.35, W, 'gris'))
+# 7 Outillage
+g = GROUPS['outil']
+P(card(X['portes'], -4.7, R['orch'], BAS, 'gris', 7, 'Installation, diagnostic, affichage', len(g), tot(g)))
+for i, m in enumerate(g):
+    P(chipm(m, 0 if i < 4 else 3.95, -5.5 - (i % 4) * STEP, 3.4, 'gris'))
+P('\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at (0,-7.65) '
   '{\\texttt{protection.py} porte le modèle de menace ; \\texttt{doctor} et \\texttt{deps} disent ce '
   'qui manque et la commande qui le corrige ; \\texttt{lifecycle} installe et désinstalle.};\n')
 
-# ---- Liaisons : les appels réels, dans une bande au-dessus des blocs
-yb = 0.68
+# 3 Moteur
+mx = X['moteur']; m0 = -0.3
+fam_files = [f for _, fs, _ in FAM for f in fs]
+P(card(mx, T, R['moteur'], BAS, 'cMoteur', 3, 'Moteur : comprendre et simuler',
+       len(GROUPS['coeur']) + len(fam_files), tot(GROUPS['coeur']) + tot(fam_files)))
+P(sub(mx + 0.2, m0 + 0.04, 'le cœur', 'cMoteur!65!black'))
+P(column(GROUPS['coeur'], mx + 0.2, m0, 3.6, 'cMoteur', keys=('model.py', 'engine/simulate.py', 'engine/rules.py')))
+fx = mx + 4.05
+P(sub(fx, m0 + 0.04, '12 familles, chargées à la demande', 'cMoteur!65!black'))
+for i, (nom, fs, nt) in enumerate(FAM):
+    P(chip(fx, m0 - i * STEP, 3.55, f'{nom} {{\\color{{gris}}({nt} outil{"s" if nt > 1 else ""})}}',
+           tot(fs), 'cMoteur'))
+cy = -6.62
+P(card(mx + 0.15, cy, R['moteur'] - 0.15, BAS + 0.15, 'cMoteur!70!black', 'C3',
+       'Le frontal PowerShell, sur le même \\texttt{World}', dashed=True).replace('minimum size=3.3mm', 'minimum size=3.3mm,inner xsep=1pt'))
+c3 = ['ps\\_model.py', 'ps\\_tables.py', 'ps\\_bind.py', 'ps\\_invocation.py', 'rules\\_powershell.py', 'ps\\_ops.py']
+for i, m in enumerate(c3):
+    P(chip(mx + 0.35 + (i % 3) * 2.47, cy - 0.58 - (i // 3) * STEP, 2.32, f'\\texttt{{{m}}}', None,
+           'cMoteur', dashed=True))
+P(f'\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at ({mx+0.35},{cy-1.62}) '
+  f'{{Tous dans \\texttt{{engine/}} sauf \\texttt{{ps\\_model.py}} ; avec \\texttt{{engine/ps51\\_bindings.json}} : '
+  f'{{\\cthreecmdlets}} cmdlets et {{\\cthreealias}} alias de PowerShell 5.1.}};\n')
+
+# 4 Décider, 5 Récupérer
+dx, rx = X['decider'], X['recup']
+g = GROUPS['decider']
+P(card(dx, T, R['decider'], -1.75, 'encre', 4, 'Décider', len(g), tot(g)))
+P(column(g, dx + 0.15, C0, 3.0, 'encre', keys=('decide.py',)))
+g = GROUPS['recup']
+P(card(rx, T, R['recup'], -2.75, 'cRecup', 5, 'Récupérer, tracer', len(g), tot(g)))
+P(column(g, rx + 0.15, C0, 3.0, 'cRecup', keys=('receipts.py',)))
+
+# 6 Filets
+ft = -3.45; fy = -4.42
+g = GROUPS['linux'] + GROUPS['windows'] + GROUPS['reseau']
+P(card(dx, ft, R['recup'], -8.2, 'cFilet', 6, 'Filets d\'exécution', len(g), tot(g)))
+P(sub(dx + 0.15, fy + 0.04, 'Linux (ptrace)', 'cFilet!80!black'))
+P(column(GROUPS['linux'], dx + 0.15, fy, 3.0, 'cFilet', keys=('syscall_guard.py',)))
+P(sub(dx + 0.15, fy - 0.9, 'réseau (HTTP)', 'cFilet!80!black'))
+P(column(GROUPS['reseau'], dx + 0.15, fy - 0.94, 3.0, 'cFilet'))
+P(sub(rx + 0.15, fy + 0.04, 'Windows (WinFsp)', 'cFilet!80!black'))
+P(column(GROUPS['windows'], rx + 0.15, fy, 3.0, 'cFilet', keys=('fsmount.py',)))
+
+# Légende
+ly = -8.5
+P(f'\\draw[trait,rounded corners=3pt,fill=white] ({dx},{ly}) rectangle ({R["recup"]},{BAS});\n')
+cx = dx + 0.15
+P(chip(cx, ly - 0.09, 1.15, '\\texttt{module}', 900, 'encre'))
+P(f'\\node[font=\\sffamily\\tiny,text=encre,anchor=west] at ({cx+1.4},{ly-0.3}) {{barre : taille relative}};\n')
+P(chip(cx + 3.65, ly - 0.09, 0.75, '\\texttt{clé}', None, 'encre', key=True))
+P(f'\\node[font=\\sffamily\\tiny,text=encre,anchor=west] at ({cx+4.55},{ly-0.3}) {{pièce centrale}};\n')
+P(chip(cx + 6.2, ly - 0.09, 0.45, '\\texttt{C3}', None, 'cMoteur', dashed=True))
+
+# Liaisons : les appels réels, d'une barre de titre à la suivante
+yb = T - 0.33
 def lien(x0, x1, t):
-    return f'\\draw[liaison] ({x0},{yb}) -- node[appel,above=1pt]{{{t}}} ({x1},{yb});\n'
-P(lien(R['portes'] - 0.55, X['orch'] + 0.55, 'evaluate'))
-P(lien(R['orch'] - 0.55, X['moteur'] + 0.55, '\\_engine\\_predict'))
-P(lien(R['moteur'] - 0.55, X['decider'] + 0.55, 'Impact'))
-P(lien(R['decider'] - 0.55, X['recup'] + 0.55, '\\_record'))
-P(f'\\draw[liaison] ({dx+3.12},-1.75) -- node[appel,left=1pt]{{SUPERVISED : sh -g}} ({dx+3.12},{ft});\n')
-P(f'\\draw[liaison] ({rx+1.6},{ft}) -- node[appel,right=1pt,align=left]{{copie avant\\\\destruction}} ({rx+1.6},-2.8);\n')
+    xm = (x0 + x1) / 2
+    return (f'\\draw[liaison] ({x0 + 0.04},{yb}) -- ({x1 - 0.04},{yb});\n'
+            f'\\node[appel] at ({xm},{T + 0.3}) {{{t}}};\n'
+            f'\\draw[encre!35,line width=0.4pt] ({xm},{T + 0.17}) -- ({xm},{yb + 0.06});\n')
+P(lien(R['portes'], X['orch'], 'evaluate'))
+P(lien(R['orch'], X['moteur'], '\\_engine\\_predict'))
+P(lien(R['moteur'], X['decider'], 'Impact'))
+P(lien(R['decider'], X['recup'], '\\_record'))
+P(f'\\draw[liaison] ({dx+3.0},-1.75) -- ({dx+3.0},{ft});\n'
+  f'\\node[appel,anchor=east] at ({dx+2.85},{(ft-1.75)/2}) {{SUPERVISED : sh -g}};\n')
+P(f'\\draw[liaison] ({rx+1.9},{ft}) -- ({rx+1.9},-2.75);\n'
+  f'\\node[appel,anchor=west,align=left] at ({rx+2.05},{(ft-2.75)/2}) {{copie avant\\\\destruction}};\n')
 P('\\end{tikzpicture}\n')
 open(f'{OUT}/figE_carte.tex', 'w').write(''.join(out))
 
