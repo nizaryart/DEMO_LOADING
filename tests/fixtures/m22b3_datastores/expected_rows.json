@@ -236,14 +236,14 @@
   "uncovered": []
  },
  "redis-cli --pipe": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": []
  },
  "redis-cli": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -309,7 +309,7 @@
   "uncovered": []
  },
  "mongosh": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -432,14 +432,14 @@
   "uncovered": []
  },
  "sqlcmd -S db -i script.sql": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": []
  },
  "sqlcmd -S db -Q \"!!rm -rf /\"": {
-  "decision": "SUPERVISED",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

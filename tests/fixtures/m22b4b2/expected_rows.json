@@ -88,7 +88,7 @@
   "uncovered": []
  },
  "gem install rails": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -354,7 +354,7 @@
   "uncovered": []
  },
  "wp --exec='echo 1;' post list": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -680,7 +680,7 @@
   "uncovered": []
  },
  "prisma db execute --file x.sql": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

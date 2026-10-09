@@ -817,3 +817,224 @@ def vault(w, inv, parsed, state, tool) -> None:
         from .vault_ops import vault as run
         return run
     w.untimed(load)(w, inv, parsed, state, tool)
+
+
+# ---- M2.3a (ruling M4): file tools that write or remove, with no rule before
+# Facts: each tool's --help on this machine (gzip 1.13, bzip2 1.0.8, xz 5.8.1,
+# GNU sort 9.7, glibc iconv 2.42, GNU patch 2.8, 7-Zip 25.01; analysis worker
+# A6), and runs on throwaway files (ORCH, 2026-10-09). gawk was not installed:
+# its rule is documentation only (GNU Awk manual, the inplace extension).
+
+# tool -> (family, decompresses by default, always writes to stdout)
+_COMPRESSORS = {
+    "gzip": ("gz", False, False), "gunzip": ("gz", True, False), "zcat": ("gz", True, True),
+    "bzip2": ("bz2", False, False), "bunzip2": ("bz2", True, False), "bzcat": ("bz2", True, True),
+    "xz": ("xz", False, False), "unxz": ("xz", True, False), "xzcat": ("xz", True, True),
+}
+# What decompression strips (gzip(1) / bzip2(1) / xz(1)); .tgz and the like become .tar.
+_UNSUFFIX = {
+    "gz": ((".gz", ""), ("-gz", ""), (".z", ""), ("-z", ""), ("_z", ""), (".Z", ""),
+           (".tgz", ".tar"), (".taz", ".tar")),
+    "bz2": ((".bz2", ""), (".bz", ""), (".tbz2", ".tar"), (".tbz", ".tar")),
+    "xz": ((".xz", ""), (".txz", ".tar"), (".lzma", ""), (".tlz", ".tar")),
+}
+_DEFAULT_SUFFIX = {"gz": ".gz", "bz2": ".bz2", "xz": ".xz"}
+
+
+def _compress_out(fam: str, path: str, decompress: bool, suffix: Optional[str]) -> Optional[str]:
+    """The file a compressor writes for `path`, or None when it refuses.
+    VERIFIED: gzip -d / xz -d skip an unknown suffix; bzip2 -d writes NAME.out;
+    a custom -S suffix must be given again to decompress."""
+    if not decompress:
+        suf = suffix or _DEFAULT_SUFFIX[fam]
+        return None if path.endswith(suf) else path + suf     # "already has the suffix"
+    pairs = ((suffix, ""),) if suffix else _UNSUFFIX[fam]
+    for old, new in pairs:
+        if path.endswith(old) and len(path) > len(old):
+            return path[:-len(old)] + new
+    return path + ".out" if fam == "bz2" else None
+
+
+def compress(w, inv, parsed, state, tool) -> None:
+    """gzip / bzip2 / xz and their un- / -cat names. VERIFIED: the input is
+    REMOVED once its output is written, unless -k; an existing output is
+    refused (no terminal: "not overwritten") unless -f; -c / -t / -l touch no
+    file; a directory is ignored unless gzip -r, which rewrites every file
+    under it."""
+    fam, dec_default, cat = _COMPRESSORS[tool]
+    f = parsed.flags
+    if parsed.unknown_options:
+        w.impact.not_understood(inv.text, f"{tool}: an option demo_cli does not know")
+        return
+    if cat or {"stdout", "test", "list", "help", "version", "license"} & f:
+        return
+    if "files_stdin" in f:
+        w.impact.not_understood(inv.text, f"{tool} --files: the names are in a file")
+        return
+    decompress = (dec_default and "compress" not in f) or "decompress" in f
+    if decompress and "name" in f:
+        w.impact.not_understood(inv.text, f"{tool} -N: the name is inside the archive")
+        return
+    suffix = ([x.value for x in parsed.options.get("suffix", [])][-1:] or [None])[0]
+    for p in w.paths(parsed.operands, state, inv):
+        if p == "-" or w.device(p):
+            continue
+        n = w.node(state, p)
+        if not n.exists:
+            continue
+        if n.is_dir:
+            if "recursive" in f:
+                w.within(state, p, DELETE)
+            continue
+        out = _compress_out(fam, p, decompress, suffix)
+        if out is None:
+            continue
+        o = w.node(state, out)
+        if o.exists and (o.is_dir or "force" not in f):
+            continue
+        w.write(state, out, False)
+        if "keep" not in f:
+            w.remove(state, p)
+
+
+def sort_output(w, inv, parsed, state, tool) -> None:
+    """VERIFIED: sort writes stdout unless -o FILE / --output=FILE, which it
+    overwrites (`sort -o a.txt a.txt` rewrites a.txt in place); -c / -C only
+    check. --compress-program runs a program the line names."""
+    if parsed.unknown_options:
+        w.impact.not_understood(inv.text, "sort: an option demo_cli does not know")
+        return
+    if parsed.options.get("compress_program"):
+        w.impact.not_understood(inv.text, "sort --compress-program runs a program")
+        return
+    if {"check", "help", "version"} & parsed.flags:
+        return
+    for p in w.paths(parsed.options.get("output", [])[-1:], state, inv):
+        w.write(state, p, False)
+
+
+def iconv(w, inv, parsed, state, tool) -> None:
+    """VERIFIED: iconv writes stdout unless -o FILE / --output=FILE; the input
+    files are never changed; -l lists only."""
+    if parsed.unknown_options:
+        w.impact.not_understood(inv.text, "iconv: an option demo_cli does not know")
+        return
+    if {"list", "help", "usage", "version"} & parsed.flags:
+        return
+    for p in w.paths(parsed.options.get("output", [])[-1:], state, inv):
+        w.write(state, p, False)
+
+
+def patch(w, inv, parsed, state, tool) -> None:
+    """VERIFIED: `patch FILE DIFF` rewrites FILE in place; -o FILE writes
+    there instead and leaves the originals; --dry-run changes nothing; -b
+    keeps FILE.orig (the tool's backup: FILE is still destroyed, review C1).
+    With no FILE the targets are named inside the diff: not on the line."""
+    f, o = parsed.flags, parsed.options
+    if parsed.unknown_options:
+        w.impact.not_understood(inv.text, "patch: an option demo_cli does not know")
+        return
+    if {"dry_run", "help", "version"} & f:
+        return
+    if o.get("directory"):
+        w.impact.not_understood(inv.text, "patch -d: the targets are relative to another directory")
+        return
+    for p in w.paths(o.get("reject", [])[-1:], state, inv):
+        w.write(state, p, False)
+    out = o.get("output", [])[-1:]
+    if out:
+        if out[0].value != "-":
+            for p in w.paths(out, state, inv):
+                w.write(state, p, False)
+        return
+    if not parsed.operands:
+        w.impact.not_understood(inv.text, "patch takes its targets from the diff")
+        return
+    suffix = None
+    if "backup" in f:
+        suffix = ([x.value for x in o.get("suffix", [])][-1:] or [".orig"])[0]
+    for p in w.paths(parsed.operands[:1], state, inv):
+        w.edit(state, p, suffix)
+
+
+def awk(w, inv, parsed, state, tool) -> None:
+    """gawk -i inplace rewrites each input file (UNVERIFIED: gawk is not
+    installed here; GNU Awk manual). Its program is code: one that can run a
+    command or write a file (system, a pipe, `print >`), or one read from a
+    file, is a runner's (M1); a literal program without those only prints."""
+    o = parsed.options
+    progs = [x.value for x in o.get("source", [])]
+    ops = list(parsed.operands)
+    if not o.get("file") and not progs and ops:
+        progs.append(ops[0].value if not ops[0].expands else "system(")
+        ops = ops[1:]
+    if parsed.unknown_options or o.get("file") or o.get("load") or {"dump", "pretty", "profile"} & parsed.flags \
+            or any(re.search(r"system|\||>|getline|close", p) for p in progs):
+        w.impact.not_covered(f"{tool} (code)")
+    if not any(x.value in ("inplace", "inplace.awk") for x in o.get("include", [])):
+        return
+    suffix = None
+    for a in o.get("assign", []):
+        if a.value.startswith("INPLACE_SUFFIX="):
+            suffix = a.value.split("=", 1)[1] or None
+    files = [x for x in ops if x.expands or "=" not in x.value]     # var=val operands are assignments
+    for p in w.paths(files, state, inv):
+        w.edit(state, p, suffix)
+
+
+_7Z_READS = frozenset("ltihb")
+
+
+def sevenzip(w, inv, parsed, state, tool) -> None:
+    """7z <command> [<switches>...] <archive> [<files>...]; switches may come
+    anywhere and are glued to their value (-o{dir}, -p{pwd}). VERIFIED (7-Zip
+    25.01): `a` adds the .7z extension to a name without one; -sdel deletes
+    the input files; `x` with no terminal keeps an existing file, -y / -aoa
+    overwrite it; -so writes to stdout."""
+    words, sw, done = [], [], False
+    for x in inv.argv[1:]:
+        if not done and x.value == "--":
+            done = True
+        elif not done and not x.expands and x.value.startswith("-") and x.value != "-":
+            sw.append(x.value)
+        else:
+            words.append(x)
+    if not words or words[0].expands:
+        w.impact.not_understood(inv.text, "7z: the command is not on the line")
+        return
+    cmd, rest = words[0].value, words[1:]
+    if cmd in _7Z_READS or any(s in ("-so", "-h", "--help") for s in sw):
+        return
+    if cmd not in ("a", "u", "d", "rn", "x", "e") or not rest:
+        w.impact.not_understood(inv.text, f"7z {cmd}: not modelled")
+        return
+    if any(s.startswith("-v") or s.startswith("-si") for s in sw):
+        w.impact.not_understood(inv.text, "7z volumes / stdin")
+        return
+    if cmd in ("x", "e"):
+        if any(s in ("-aoa", "-y") for s in sw):
+            w.impact.not_understood(inv.text, "7z overwrites whatever the archive holds")
+        return                                       # VERIFIED: no terminal - nothing overwritten
+    arch, files = rest[0], rest[1:]
+    if arch.expands or arch.value.startswith("@"):
+        w.impact.not_understood(inv.text, "7z: the archive name is not on the line")
+        return
+    name = arch.value
+    if cmd == "a" and not os.path.splitext(os.path.basename(name))[1]:
+        if any(s.startswith("-t") for s in sw):
+            w.impact.not_understood(inv.text, "7z -t: the extension it adds")
+            return
+        name += ".7z"
+    for p in w.paths([Word(arch.raw, name, arch.start, arch.end)], state, inv):
+        if w.node(state, p).exists:
+            w.edit(state, p)                         # members replaced or removed
+        elif cmd in ("a", "u"):
+            w.write(state, p, False)
+    if "-sdel" in sw and cmd in ("a", "u"):
+        if (not files or any(x.value.startswith("@") or re.search(r"[*?]", x.value) for x in files)
+                or any(s.startswith(("-r", "-i", "-x")) for s in sw)):
+            w.impact.not_understood(inv.text, "7z -sdel: which files it deletes")
+            return
+        for p in w.paths(files, state, inv):
+            if w.node(state, p).exists:
+                w.remove(state, p)

@@ -116,6 +116,73 @@ def _nothing_else_acts(c: Classification) -> bool:
 _related = recovery._related
 
 
+def _old_rules_fire(c: Classification) -> bool:
+    """Did the old text rules flag this line (M2.3a: they keep a stricter
+    answer for a line the engine did not fully read, until an engine rule
+    covers the tool - M2.3b retires them one family at a time)?"""
+    return bool(c.needs_recovery or c.nonrecoverable_surface or c.remote_exec)
+
+
+_SQL_CLIENTS = frozenset({"sqlite3", "psql", "mysql", "mariadb"})
+
+
+def _net_blind(impact, command: str) -> bool:
+    """Does this unread line reach past local files, where neither the net nor
+    a checkpoint sees (V18)? Yes when an unread part is a call to a tool of
+    the engine's remote families (cloud, clusters, containers, data stores,
+    services, accounts, SaaS, mail, ssh: engine/rules.LAZY_FAMILIES, runners
+    excepted - their code is local, M1), when such a tool or a download
+    shares the line with what cannot be read (`aws s3 cp s3://b/x.sh - |
+    bash`), or when a runner reads a download (`bash <(curl ...)`).
+    policy.LOCAL_UNREAD lists the remote-family calls that only touch files."""
+    from . import policy
+    from .classify import _WRAPPERS
+    from .engine.rules import LAZY_FAMILIES
+    from .model import parse
+
+    def calls(text):
+        try:
+            cmds = parse(text.replace("\r\n", "\n")).commands
+        except Exception:
+            return
+        for cm in cmds:
+            words = [w.value for w in cm.argv if not w.expands]
+            while words and words[0] in _WRAPPERS:
+                words = words[1:]
+            if words:
+                yield os.path.basename(words[0]), (words[1] if len(words) > 1 else "")
+
+    def remote(tool, sub):
+        # git and the SQL clients have their own exclusions (git_unread /
+        # sql_unread): a checkpoint holds .git and a project's sqlite file.
+        return ((tool in LAZY_FAMILIES and tool not in policy.CODE_RUNNERS
+                 and tool != "git" and tool not in _SQL_CLIENTS
+                 and (tool, sub) not in policy.LOCAL_UNREAD)
+                or tool in policy.FETCHERS)
+
+    if re.search(r"<\([^)]*\b(?:%s)\b" % "|".join(sorted(policy.FETCHERS)), command):
+        return True
+    if any(t in policy.FETCHERS for t, _ in calls(command)):
+        # Download, then run it: `curl -o x.sh URL && bash x.sh`.
+        fetched = {os.path.normcase(p) for p in list(impact.created) + list(impact.creates)}
+        try:
+            cmds = parse(command.replace("\r\n", "\n")).commands
+        except Exception:
+            cmds = []
+        for cm in cmds:
+            words = [w.value for w in cm.argv if not w.expands]
+            while words and words[0] in _WRAPPERS:
+                words = words[1:]
+            if words and (os.path.basename(words[0]) in policy.CODE_RUNNERS or "/" in words[0]):
+                if any(os.path.normcase(os.path.abspath(x)) in fetched for x in words):
+                    return True
+    if not impact.unknown:
+        return False
+    if any(remote(t, sub) for unit, _why in impact.unknown for t, sub in calls(unit)):
+        return True
+    return any(remote(t, sub) for t, sub in calls(command))
+
+
 def _db_targets(impact) -> Tuple[List[recovery.Target], bool]:
     """Capture targets for the engine's capturable databases. ok=False when
     any of them has no literal URL to dump. SQLite is NOT here: a sqlite db
@@ -390,12 +457,12 @@ class _Facts:
     __slots__ = ("target", "entry", "affected_paths", "snap_notes", "group_id",
                  "supervisable", "net_name", "rewrite", "checkpoint_skipped",
                  "checkpoint_taken", "remote_pg", "strategy", "c", "engine_error",
-                 "remote_listed")
+                 "remote_listed", "note")
 
     def __init__(self, target=None, entry=None, affected_paths=None, snap_notes=None,
                  group_id=None, supervisable=False, net_name=None, rewrite=None,
                  checkpoint_skipped=None, checkpoint_taken=False, remote_pg=False,
-                 strategy="snapshot", c=None, engine_error=None, remote_listed=None):
+                 strategy="snapshot", c=None, engine_error=None, remote_listed=None, note=None):
         self.target = target; self.entry = entry; self.affected_paths = affected_paths or []
         self.snap_notes = snap_notes or {}; self.group_id = group_id
         self.supervisable = supervisable; self.net_name = net_name; self.rewrite = rewrite
@@ -403,6 +470,7 @@ class _Facts:
         self.remote_pg = remote_pg; self.strategy = strategy; self.c = c
         self.engine_error = engine_error
         self.remote_listed = remote_listed or []
+        self.note = note                  # M2.3: what was NOT read, said to the person
 
 
 class Guard:
@@ -498,8 +566,14 @@ class Guard:
         prediction, impact = _engine_predict(command, dialect, self.config, explicit_db, db_url)
         refused = self._control_plane_refusal(command, dialect, door, c, impact, prediction, intent, agent_id, session_id)
         if refused: return refused
+        route = None if self._engine_applies(dialect, impact) else self._unread_route(command, dialect, impact)
+        if route == "plain" and _old_rules_fire(c):
+            route = None            # a word with no engine rule that an old rule catches: today's path
         if self._engine_applies(dialect, impact):
             f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
+        elif route is not None:
+            f = self._unread_facts(route, command, dialect, c, impact, target_path, explicit_db,
+                                   db_url, can_supervise, intent, actual_env)
         else:
             engine_error = (prediction or {}).get("error") if dialect == POSIX and impact is None else None
             f = self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url, can_supervise, intent, actual_env, engine_error=engine_error)
@@ -539,6 +613,126 @@ class Guard:
 
     def _engine_applies(self, dialect: str, impact) -> bool:
         return dialect == POSIX and impact is not None and not impact.uncovered and not impact.unknown
+
+    def _unread_route(self, command: str, dialect: str, impact) -> Optional[str]:
+        """M2.3a (rulings M1-M5): which way a POSIX line the engine did not
+        fully read goes, now that the old text rules no longer decide it.
+        None = the old rules still do: PowerShell, a line that names a
+        PowerShell / cmd.exe word (M5, until C3), or an engine that failed.
+          'unknown' - something on the line could not be read (M3)
+          'runner'  - a program that runs code this engine does not read (M1)
+          'plain'   - only words with no rule: they have no effect (the floor)"""
+        from . import policy
+        if dialect != POSIX or impact is None:
+            return None
+        words = {u.split()[0] for u in impact.uncovered}
+        if words & policy.OLD_RULES_KEEP:
+            return None
+        if impact.unknown:
+            return "unknown"
+        if words & policy.CODE_RUNNERS or words & self._started_by_path(command):
+            return "runner"
+        return "plain"
+
+    @staticmethod
+    def _started_by_path(command: str) -> set:
+        """Programs the line starts by a path (`./x.sh`, `bin/run`): code
+        this engine does not read, whatever its name."""
+        from .model import parse
+        try:
+            script = parse(command.replace("\r\n", "\n"))
+        except Exception:
+            return set()
+        out = set()
+        for cm in script.commands:
+            if cm.argv and not cm.argv[0].expands and "/" in cm.argv[0].value:
+                out.add(os.path.basename(cm.argv[0].value))
+        return out
+
+    def _unread_facts(self, route: str, command: str, dialect: str, c: Classification, impact,
+                      target_path: Optional[str], explicit_db: Optional[str],
+                      db_url: Optional[str], can_supervise: bool, intent: Intent,
+                      actual_env: Optional[str]) -> _Facts:
+        """M2.3a. What the engine DID read still decides first: a remote change
+        that escalates, a destroy outside the project, a database nothing can
+        capture - an unread part cannot make those any better. Otherwise the
+        unread part goes to the runtime net, else a checkpoint (never for a
+        line with an operand outside the project: V17), else a runner is
+        ALLOWED with an honest note (M1) and an unread line ESCALATES (M3).
+        Git and SQL lines never go to the net: it cannot capture .git or a
+        database (the old path's exclusions, kept). A line whose unread part
+        acts beyond local files escalates (_net_blind). Where the old rules
+        flag an unread line, they keep their capture or escalation (B0)."""
+        import copy
+        from .engine.verdict import assess
+        from .model import parse
+        a = assess(impact, self.config)
+        old = copy.copy(c)                                 # what the old rules said, before the reset
+        if route == "plain" or a.remote_escalated or a.outside or a.no_capture or a.plane_hits:
+            return self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
+        if old.nonrecoverable_surface or old.remote_exec:
+            # An old rule names a surface no local copy recovers (a payment, a
+            # message), or fetched / generated code (`curl ... | bash`,
+            # `python -c "...os.system..."`): neither the net nor a checkpoint
+            # stands for those - both cover this project only (B0: the old
+            # rules keep a STRICTER answer, never their ALLOW).
+            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
+                                      can_supervise, intent, actual_env)
+        try:
+            tools = {os.path.basename(cm.argv[0].value) for cm in parse(command).commands
+                     if cm.argv and not cm.argv[0].expands}
+        except Exception:
+            tools = set()
+        blind = _net_blind(impact, command)
+        if route == "unknown" and not blind and _old_rules_fire(old):
+            # B0: on a line it cannot read, the old path may keep a CAPTURE or
+            # an escalation (`X=-rf; rm $X src` snapshots src; `DB=app.db;
+            # sqlite3 $DB "DELETE ..."` previews app.db) - it never ALLOWS a
+            # line its rules flag. M3 decides what the old rules do not see.
+            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
+                                      can_supervise, intent, actual_env)
+        c.is_destructive = c.is_mutating = True
+        c.is_sql_mutating = c.is_file_writer = c.remote_exec = False
+        c.nonrecoverable_surface = None
+        c.run_surfaces = []
+        c.destructive_segments = max(old.destructive_segments, 1)   # the classifier's count stays
+        if blind:
+            # A cloud / container / service / SaaS ... call, or a download
+            # feeding what runs: it acts where neither the net nor a
+            # checkpoint sees (V18). It escalates.
+            c.matched_rule = "remote_unread"
+            return _Facts(entry=None, c=c)
+        if "git" in tools:
+            c.matched_rule = "git_unread"                  # the net cannot capture .git
+        elif tools & _SQL_CLIENTS:
+            c.matched_rule, c.action_type = "sql_unread", "sql"
+        else:
+            c.matched_rule = "unread_code" if route == "runner" else "not_understood"
+        _, mismatches, _ = self._context(command, _Facts(), intent, actual_env, None)
+        (supervisable, net_name, rewrite, group_id, entry, checkpoint_skipped,
+         checkpoint_taken) = self._runtime_net_or_checkpoint(
+            c, None, None, command, dialect, can_supervise, mismatches,
+            affected_paths=sorted(impact.destroys))
+        if supervisable or entry is not None:
+            return _Facts(entry=entry, affected_paths=sorted(impact.destroys),
+                          group_id=group_id or (entry or {}).get("group"),
+                          supervisable=supervisable, net_name=net_name, rewrite=rewrite,
+                          checkpoint_skipped=checkpoint_skipped,
+                          checkpoint_taken=checkpoint_taken, c=c)
+        if route == "runner" and _old_rules_fire(old):
+            # No net and no checkpoint, and M1 would ALLOW: the old rules may
+            # keep a STRICTER answer (B0), never their ALLOW. `c` is put back
+            # first: the receipt records it.
+            vars(c).update(vars(old))
+            return self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url,
+                                      can_supervise, intent, actual_env)
+        if route == "runner" and c.matched_rule == "unread_code":
+            f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
+            runners = sorted({u.split()[0] for u in impact.uncovered})
+            f.note = (f"It runs code demo_cli does not read ({', '.join(runners)}); no runtime "
+                      f"net was available, so nothing that code changes is captured or watched.")
+            return f
+        return _Facts(entry=None, checkpoint_skipped=checkpoint_skipped, c=c)
 
     def _engine_facts(self, command: str, dialect: str, c: Classification, impact,
                       target_path: Optional[str], explicit_db: Optional[str],
@@ -935,8 +1129,9 @@ class Guard:
         if f.checkpoint_taken:
             reason = (f"{reason} Recovery is a whole-workspace checkpoint "
                       f"(coarse): the target could not be resolved from the "
-                      f"command text, so everything it could destroy was "
-                      f"preserved. Undo restores the entire tree. The "
+                      f"command text, so the whole project was preserved "
+                      f"(nothing outside the project is captured). "
+                      f"Undo restores the entire tree. The "
                       f"checkpoint is stored inside the project, so a command "
                       f"that deletes the whole project deletes it too.")
         elif f.checkpoint_skipped:
@@ -952,6 +1147,11 @@ class Guard:
             reason = f"{reason} {f.snap_notes['refused']}"
         if f.supervisable and f.group_id:
             reason = f"{reason} Undo with `demo_cli undo {f.group_id}`."
+        if f.note:
+            # An ALLOW decided by the note says only the note: "non-mutating"
+            # would be untrue of code nobody read.
+            reason = (f"Allowed: {f.note[0].lower()}{f.note[1:]}"
+                      if decision.decision == ALLOW else f"{reason} {f.note}")
         if f.remote_listed:
             from . import policy
             names = ", ".join(f.remote_listed[:3])

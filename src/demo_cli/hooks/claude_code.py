@@ -248,12 +248,13 @@ def run_pretooluse(stdin, stdout) -> int:
             orig_disp = command if len(command) <= 200 else command[:200] + "…"
             sys_msg = (
                 "demo_cli will run this under the syscall guard, "
-                f"so each file it destroys is backed up first: {orig_disp}"
+                f"so each file it destroys inside the project is backed up first: {orig_disp}"
             )
             gid = result.group_id or ""
             add_ctx = (
                 f"this command was rewritten by demo_cli and runs as: {result.rewrite}. "
-                f"Each file it destroys is backed up at the moment of destruction; "
+                f"Each file it destroys inside the project is backed up at the moment of "
+                f"destruction (outside it nothing is captured); "
                 f"undo with `demo_cli undo {gid}`."
             )
         else:

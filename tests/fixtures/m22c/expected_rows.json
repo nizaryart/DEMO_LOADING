@@ -531,7 +531,7 @@
   "uncovered": []
  },
  "systemctl $ACTION nginx": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -592,7 +592,7 @@
   "uncovered": []
  },
  "chmod +x a.txt && ./a.txt": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},

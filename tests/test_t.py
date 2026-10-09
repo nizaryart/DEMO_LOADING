@@ -17,7 +17,8 @@ def test_protection_rows_cases():
     assert r1[1] == (
         "ok",
         "protection: claude_code",
-        "runs under the syscall guard (each destroyed file backed up at the moment of destruction); in default mode you are asked first, and the prompt shows the demo_cli sh wrapper",
+        # M2.3a (V18): the net sees this project only
+        "runs under the syscall guard (each file destroyed inside the project backed up at the moment of destruction; outside it nothing is captured); in default mode you are asked first, and the prompt shows the demo_cli sh wrapper",
     )
     # T5 (msg 033) A2.3: the row now matches policy.REMOTE_POLICY.
     assert r1[2] == ("ok", "remote changes", "stopped for review when they can lose data or cannot be recalled; additions are allowed and listed")

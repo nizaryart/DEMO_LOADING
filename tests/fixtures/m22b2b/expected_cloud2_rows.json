@@ -278,7 +278,7 @@
   "uncovered": []
  },
  "gcloud $GROUP instances delete vm1": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

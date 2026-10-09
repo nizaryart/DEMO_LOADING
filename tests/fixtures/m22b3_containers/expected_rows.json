@@ -585,7 +585,7 @@
   "uncovered": []
  },
  "docker $CMD rm c": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

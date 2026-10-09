@@ -115,7 +115,7 @@
   "uncovered": []
  },
  "python3 -c \"import shutil; shutil.rmtree('src')\"": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -124,7 +124,7 @@
   ]
  },
  "python3 -c \"import os; os.remove('a.txt')\"": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -592,7 +592,7 @@
   ]
  },
  "python -c \"print('hello')\"": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -813,7 +813,7 @@
   "uncovered": []
  },
  "python x.py": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -978,7 +978,7 @@
   ]
  },
  "python -c 'import os'": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -1148,7 +1148,7 @@
   "uncovered": []
  },
  "rsync -b --backup-dir=old a.txt b.txt": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},

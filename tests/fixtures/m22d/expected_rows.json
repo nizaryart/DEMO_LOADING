@@ -372,9 +372,9 @@
   "uncovered": []
  },
  "git --exec-path=/tmp/evil status": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
-  "approvable": false,
+  "approvable": true,
   "captured": false,
   "remote": {},
   "uncovered": []

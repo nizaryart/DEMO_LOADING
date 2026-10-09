@@ -465,7 +465,8 @@ def test_mysql_is_marked_unverified():
     from demo_cli.engine.rules_sql import MYSQL_OPTIONS
     from demo_cli.engine.rules import all_rules
     assert {r.id for r in all_rules() if not r.verified} - \
-        {"prettier", "eslint", "black", "isort", "rustfmt", "rsync"} == {"mysql", "mysqladmin", "mail"}  # M2.2b3 (msg 083): mysqladmin shares mysql's documentation-only grammar; M2.2b4a (msg 087): mail / sendmail / swaks (ruling R4)
+        {"prettier", "eslint", "black", "isort", "rustfmt", "rsync",
+         "awk"} == {"mysql", "mysqladmin", "mail"}  # M2.3a: awk's -i inplace is gawk's, not installed where the rule was written  # M2.2b3 (msg 083): mysqladmin shares mysql's documentation-only grammar; M2.2b4a (msg 087): mail / sendmail / swaks (ruling R4)
     assert MYSQL_OPTIONS.attached == {"-p": "password"}, "-p takes a password glued on only"
 
 

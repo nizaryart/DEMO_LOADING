@@ -49,6 +49,9 @@ def test_1_rows(tmp_path: Path):
         with agent_directory(str(proj)):
             r = g.evaluate(cmd, door="agent", can_supervise=True)
 
+        if exp["decision"] == "SUPERVISED":
+            assert ((r.prediction or {}).get("remote") or {}) == exp["remote"], cmd
+            continue        # M2.3a: decided by the runtime net - machine-dependent
         assert r.decision.decision == exp["decision"], cmd
         assert r.classification.nonrecoverable_surface == exp["surface"], cmd
         captured = r.recovery_entry is not None

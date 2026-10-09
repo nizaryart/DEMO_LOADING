@@ -251,8 +251,14 @@ AGENT_SELF_COMMANDS = [
 
 
 @pytest.mark.parametrize("command,neighbour", AGENT_SELF_COMMANDS)
-def test_a1b_an_agent_changing_demo_clis_state_is_denied(proj, command, neighbour):
+def test_a1b_an_agent_changing_demo_clis_state_is_denied(proj, command, neighbour, monkeypatch):
     # B1 (msg 041): proceed is silent; the notice moved to additionalContext/systemMessage.
+    # M2.3a: some neighbours run code (pip, python3 -m ...) and would be rewritten
+    # where a runtime net exists; with none, they proceed on every machine.
+    from demo_cli import mountstate, syscall_guard
+    from demo_cli.mountstate import MountStatus
+    monkeypatch.setattr(syscall_guard, "available", lambda: False)
+    monkeypatch.setattr(mountstate, "status", lambda cfg: MountStatus(recorded=False, running=False))
     assert _claude(proj, neighbour) == "(proceed)", "control"
     assert _claude(proj, command) == "deny"
 

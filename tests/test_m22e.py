@@ -29,7 +29,8 @@ def test_1_the_words_come_from_the_tables():
     covered = (set(LAZY_FAMILIES) | {t for r in RULES for t in r.tools}) - {"git"}
     # M2.2f: the interpreters a rule claims only narrowly (python manage.py)
     # stay out: sending every `python x.py` to guard-shell is M2.3's call
-    runners = {"python", "python3", "py"}
+    runners = {"python", "python3", "py",
+               "awk", "mawk", "nawk"}       # M2.3a: in nearly every typed pipeline; gawk stays
     assert covered - READ_ONLY - SHELLS - runners <= words
     assert not words & runners
     assert set(_WRAPPERS) <= words

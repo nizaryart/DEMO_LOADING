@@ -222,11 +222,15 @@ def decide(
     #    Never silently allowed.
     if supervisable:
         if net == "mount":
+            # V18 (2026-10-09): both nets see this project only - outside it
+            # nothing is captured, and the reason must not claim otherwise.
             reason = ("covered by the demo_cli filesystem mount: each file it "
-                      "destroys is backed up before modification.")
+                      "destroys inside the project is backed up before modification; "
+                      "outside the project nothing is captured.")
         else:
-            reason = ("covered by the syscall guard: each file it destroys is "
-                      "backed up at the moment of destruction.")
+            reason = ("covered by the syscall guard: each file it destroys inside "
+                      "the project is backed up at the moment of destruction; "
+                      "outside the project nothing is captured.")
         return Decision(
             SUPERVISED,
             reason,

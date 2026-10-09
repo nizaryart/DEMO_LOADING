@@ -585,7 +585,7 @@
   "destroys": []
  },
  "git apply x.diff": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "rule": null,
   "surface": null,
   "captured": false,

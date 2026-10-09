@@ -283,7 +283,7 @@
   "uncovered": []
  },
  "terraform fmt -recursive": {
-  "decision": "ALLOW",
+  "decision": "SUPERVISED",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -467,7 +467,7 @@
   "uncovered": []
  },
  "kubectl scale deploy api --replicas=$N": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -1011,8 +1011,8 @@
   "uncovered": []
  },
  "xargs -a ids.txt kubectl -n prod delete pod": {
-  "decision": "ALLOW",
-  "surface": null,
+  "decision": "ESCALATE",
+  "surface": "cluster_resource_delete",
   "captured": false,
   "remote": {
    "cluster:current/prod": "DELETE"

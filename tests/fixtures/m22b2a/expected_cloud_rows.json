@@ -411,7 +411,7 @@
   "uncovered": []
  },
  "aws $SVC delete-thing --id x": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -735,7 +735,7 @@
   "uncovered": []
  },
  "mc rm --recursive --force sub": {
-  "decision": "SUPERVISED",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -758,7 +758,7 @@
   "uncovered": []
  },
  "mc cp minio/b/a.txt a.txt": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -774,7 +774,7 @@
   "uncovered": []
  },
  "mc mirror minio/b sub": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -790,7 +790,7 @@
   "uncovered": []
  },
  "mc rm --stdin": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -887,7 +887,7 @@
   "uncovered": []
  },
  "aws s3 cp $SRC $DST": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
@@ -936,21 +936,21 @@
   "uncovered": []
  },
  "aws s3 cp s3://b/x.sh - | bash": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": []
  },
  "rclone cat remote:b/x.sh | bash": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},
   "uncovered": []
  },
  "mc cat minio/b/x.sql | psql": {
-  "decision": "ALLOW",
+  "decision": "ESCALATE",
   "surface": null,
   "captured": false,
   "remote": {},

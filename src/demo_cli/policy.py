@@ -171,3 +171,44 @@ CONFIRM_ENVIRONMENTS = frozenset({"production"})
 def may_ask(surface) -> bool:
     """Whether a person may approve an escalation on `surface` on the spot."""
     return ESCALATION_CHANNEL.get(surface or "", DENY) == ASK
+
+
+
+# M2.3 (rulings M1-M5, Nizar, 2026-10-08): what a POSIX line the engine does
+# not fully read gets, now that the old text rules no longer decide it.
+#
+# CODE RUNNERS run code this engine does not read (a script, `-c` / `-e`
+# text, a project's scripts). The engine reports them `uncovered` by the
+# words below (the first word of each `uncovered` entry), or as a program
+# started by path (`./x.sh`). They go to the runtime net (SUPERVISED), else
+# a checkpoint, else they are ALLOWED with an honest note: nothing was
+# captured, nothing watched (M1).
+CODE_RUNNERS = frozenset({
+    "python", "python3", "py", "node", "ruby", "perl", "bash", "sh", "zsh", "dash", "ksh",
+    "make", "gmake", "npm", "yarn", "pnpm", "npx", "pytest", "jest", "cargo", "go", "java",
+    "deno", "bun", "uv", "poetry", "tox", "pip", "pip3", "pipx", "gem", "bundle",
+    "apt", "apt-get", "brew", "dnf", "yum", "pacman",
+    "awk", "gawk", "mawk", "nawk",          # a program that writes or runs (engine/resolvers.awk)
+    "source", ".",                          # a script run in the current shell
+})
+# A line the engine marks NOT UNDERSTOOD goes to the runtime net, else a
+# checkpoint, else it ESCALATES (M3). Any other word with no rule has no
+# effect (the floor). PowerShell and cmd.exe text inside a POSIX line keeps
+# the old rules until C3 (M5):
+OLD_RULES_KEEP = frozenset({
+    "powershell", "pwsh", "cmd", "Remove-Item", "REMOVE-ITEM", "ri", "del", "erase", "rd",
+    "Clear-Content", "clc", "Set-Content", "Out-File", "Move-Item", "mi", "move", "Copy-Item",
+    "cpi", "copy", "Rename-Item", "ren", "rni", "New-Item", "ni", "Stop-Service", "spsv",
+    "Remove-Service", "Set-Service", "New-Service", "Restart-Service", "Start-Service",
+    "Get-Item", "Get-Service", "gsv", "Select-Object", "Format-List", "Format-Volume",
+    "Clear-Disk",
+})
+
+# A line demo_cli cannot read that reaches past local files - a cloud /
+# cluster / container / service / SaaS call, or a download feeding what runs
+# - gets neither the net nor a checkpoint: both see this project only (V18).
+# It ESCALATES. The downloaders: what they fetch is code or data nobody read.
+FETCHERS = frozenset({"curl", "wget"})
+# Remote-family calls whose unread part only rewrites local files: the net
+# and a checkpoint DO see those (`terraform fmt -recursive`).
+LOCAL_UNREAD = frozenset({("terraform", "fmt"), ("tofu", "fmt")})

@@ -684,6 +684,197 @@ C1_RULES: Tuple[Rule, ...] = (
 RULES = RULES + C1_RULES
 
 
+# ==========================================================================
+# M2.3a (ruling M4, 2026-10-08): file tools that write or remove and had no
+# rule - with none, "no rule = no effect" hid `gzip a.txt` deleting a.txt
+# (vulnerability V20). Grammars from each tool's --help on the build machine;
+# behaviour checked on throwaway files (see resolvers.compress and below).
+# ==========================================================================
+_GZ_FLAGS = {**_HELP, "-c": "stdout", "--stdout": "stdout", "--to-stdout": "stdout",
+             "-d": "decompress", "--decompress": "decompress", "--uncompress": "decompress",
+             "-f": "force", "--force": "force", "-h": "help", "-k": "keep", "--keep": "keep",
+             "-l": "list", "--list": "list", "-L": "license", "--license": "license",
+             "-n": "no_name", "--no-name": "no_name", "-N": "name", "--name": "name",
+             "-q": "quiet", "--quiet": "quiet", "-r": "recursive", "--recursive": "recursive",
+             "--rsyncable": "rsyncable", "--synchronous": "synchronous", "-t": "test",
+             "--test": "test", "-v": "verbose", "--verbose": "verbose", "-V": "version",
+             "--fast": "level", "--best": "level",
+             **{f"-{d}": "level" for d in "123456789"}}
+_BZ_FLAGS = {**_HELP, "-h": "help", "-d": "decompress", "--decompress": "decompress",
+             "-z": "compress", "--compress": "compress", "-k": "keep", "--keep": "keep",
+             "-f": "force", "--force": "force", "-t": "test", "--test": "test",
+             "-c": "stdout", "--stdout": "stdout", "-q": "quiet", "--quiet": "quiet",
+             "-v": "verbose", "--verbose": "verbose", "-L": "license", "--license": "license",
+             "-V": "version", "-s": "small", "--small": "small", "--fast": "level",
+             "--best": "level", **{f"-{d}": "level" for d in "123456789"}}
+_XZ_FLAGS = {**_HELP, "-h": "help", "-H": "help", "--long-help": "help", "-V": "version",
+             "-z": "compress", "--compress": "compress", "-d": "decompress",
+             "--decompress": "decompress", "--uncompress": "decompress", "-t": "test",
+             "--test": "test", "-l": "list", "--list": "list", "-k": "keep", "--keep": "keep",
+             "-f": "force", "--force": "force", "-c": "stdout", "--stdout": "stdout",
+             "--to-stdout": "stdout", "--no-sync": "no_sync", "--single-stream": "single",
+             "--no-sparse": "no_sparse", "--ignore-check": "ignore_check", "-e": "extreme",
+             "--extreme": "extreme", "--no-adjust": "no_adjust", "-q": "quiet",
+             "--quiet": "quiet", "-v": "verbose", "--verbose": "verbose", "-Q": "no_warn",
+             "--no-warn": "no_warn", "--robot": "robot", "--info-memory": "info",
+             "--files": "files_stdin", "--files0": "files_stdin",
+             **{f"-{d}": "level" for d in "0123456789"}}
+_XZ_VALUES = {"-S": "suffix", "--suffix": "suffix", "-F": "format", "--format": "format",
+              "-C": "check", "--check": "check", "-T": "threads", "--threads": "threads",
+              "--block-size": "block", "--block-list": "block", "--flush-timeout": "flush",
+              "--memlimit-compress": "mem", "--memlimit-decompress": "mem",
+              "--memlimit-mt-decompress": "mem", "-M": "mem", "--memlimit": "mem",
+              "--memory": "mem", "--filters": "filters"}
+
+M4_RULES: Tuple[Rule, ...] = (
+    Rule(id="gzip", tools=("gzip", "gunzip", "zcat"), resolver="compress",
+         options=OptionSpec(flags=_GZ_FLAGS, values={"-S": "suffix", "--suffix": "suffix"}),
+         examples=(
+             ex("gzip a.txt", destroys={"a.txt"}, creates={"a.txt.gz"},
+                note="VERIFIED: the input is removed once a.txt.gz is written"),
+             ex("gzip -k a.txt", creates={"a.txt.gz"}),
+             ex("gzip -c a.txt > /dev/null", note="to stdout"),
+             ex("gzip -t a.txt", note="test only"),
+             ex("touch a.txt.gz; gzip a.txt", creates={"a.txt.gz"},
+                note="VERIFIED: an existing output is not overwritten (no terminal)"),
+             ex("touch a.txt.gz; gzip -f a.txt", destroys={"a.txt"}, creates={"a.txt.gz"}),
+             ex("gzip dir", note="VERIFIED: a directory is ignored"),
+             ex("gzip -r dir", destroys={"dir/"}, note="VERIFIED: -r rewrites every file under it"),
+             ex("gzip -S .zz a.txt", destroys={"a.txt"}, creates={"a.txt.zz"}),
+             ex("gunzip a.txt", note="VERIFIED: unknown suffix - ignored"),
+             ex("gzip -dS .txt a.txt", destroys={"a.txt"}, creates={"a"}),
+             ex("zcat a.txt", note="always to stdout"),
+             ex("gzip missing.txt", note="absent: nothing"),
+             ex("gzip --rm a.txt", unknown=True, note="an option demo_cli does not know"),
+             ex("gzip $(cat list.txt)", destroys={"a.txt"}, creates={"a.txt.gz"}),
+         )),
+    Rule(id="bzip2", tools=("bzip2", "bunzip2", "bzcat"), resolver="compress",
+         options=OptionSpec(flags=_BZ_FLAGS),
+         examples=(
+             ex("bzip2 a.txt", destroys={"a.txt"}, creates={"a.txt.bz2"}),
+             ex("bzip2 -k a.txt", creates={"a.txt.bz2"}),
+             ex("bzip2 -d a.txt", destroys={"a.txt"}, creates={"a.txt.out"},
+                note="VERIFIED: an unknown suffix decompresses to NAME.out"),
+             ex("bzcat a.txt", note="always to stdout"),
+         )),
+    Rule(id="xz", tools=("xz", "unxz", "xzcat"), resolver="compress",
+         options=OptionSpec(flags=_XZ_FLAGS, values=_XZ_VALUES),
+         examples=(
+             ex("xz a.txt", destroys={"a.txt"}, creates={"a.txt.xz"}),
+             ex("xz -T0 -9 a.txt", destroys={"a.txt"}, creates={"a.txt.xz"}),
+             ex("xz -d a.txt", note="VERIFIED: unknown suffix - skipped"),
+             ex("xz -l a.txt", note="lists only"),
+             ex("xz --files=list.txt", unknown=True, note="the names are in a file"),
+         )),
+    Rule(id="sort", tools=("sort",), resolver="sort_output",
+         options=OptionSpec(
+             flags={**_HELP, **{f"-{c}": "key_opt" for c in "bdfgiMhnRrVmsuz"},
+                    "-c": "check", "-C": "check", "--check": "check", "--debug": "debug",
+                    "--ignore-leading-blanks": "key_opt", "--dictionary-order": "key_opt",
+                    "--ignore-case": "key_opt", "--general-numeric-sort": "key_opt",
+                    "--ignore-nonprinting": "key_opt", "--month-sort": "key_opt",
+                    "--human-numeric-sort": "key_opt", "--numeric-sort": "key_opt",
+                    "--random-sort": "key_opt", "--reverse": "key_opt",
+                    "--version-sort": "key_opt", "--merge": "key_opt", "--stable": "key_opt",
+                    "--unique": "key_opt", "--zero-terminated": "key_opt"},
+             values={"-o": "output", "--output": "output", "-k": "key", "--key": "key",
+                     "-t": "sep", "--field-separator": "sep", "-S": "buffer",
+                     "--buffer-size": "buffer", "-T": "tmpdir", "--temporary-directory": "tmpdir",
+                     "--random-source": "random", "--sort": "sort", "--batch-size": "batch",
+                     "--compress-program": "compress_program", "--files0-from": "files0",
+                     "--parallel": "parallel"}),
+         examples=(
+             ex("sort -o a.txt b.txt", destroys={"a.txt"}),
+             ex("sort -o a.txt a.txt", destroys={"a.txt"}, note="VERIFIED: rewritten in place"),
+             ex("sort --output=new.txt a.txt", creates={"new.txt"}),
+             ex("sort -k2 -t, a.txt", note="to stdout"),
+             ex("sort -c -o a.txt a.txt", note="-c only checks"),
+             ex("sort --compress-program=gzip -o new.txt a.txt", unknown=True),
+         )),
+    Rule(id="iconv", tools=("iconv",), resolver="iconv",
+         options=OptionSpec(
+             flags={**_HELP, "-l": "list", "--list": "list", "-c": "omit", "-s": "silent",
+                    "--silent": "silent", "--verbose": "verbose", "-?": "help",
+                    "--usage": "usage", "-V": "version"},
+             values={"-f": "from", "--from-code": "from", "-t": "to", "--to-code": "to",
+                     "-o": "output", "--output": "output"}),
+         examples=(
+             ex("iconv -f latin1 -t utf8 -o a.txt b.txt", destroys={"a.txt"}),
+             ex("iconv -f latin1 -t utf8 a.txt", note="to stdout"),
+             ex("iconv -f latin1 -t utf8 --output=new.txt a.txt", creates={"new.txt"}),
+         )),
+    Rule(id="patch", tools=("patch",), resolver="patch",
+         options=OptionSpec(
+             flags={"--help": "help", "-v": "version", "--version": "version",
+                    "-l": "o", "--ignore-whitespace": "o", "-c": "o", "--context": "o",
+                    "-e": "o", "--ed": "o", "-n": "o", "--normal": "o", "-u": "o",
+                    "--unified": "o", "-N": "o", "--forward": "o", "-R": "o", "--reverse": "o",
+                    "--merge": "o", "-E": "o", "--remove-empty-files": "o", "-Z": "o",
+                    "--set-utc": "o", "-T": "o", "--set-time": "o", "-b": "backup",
+                    "--backup": "backup", "--backup-if-mismatch": "o",
+                    "--no-backup-if-mismatch": "o", "-t": "o", "--batch": "o", "-f": "o",
+                    "--force": "o", "-s": "o", "--quiet": "o", "--silent": "o",
+                    "--verbose": "o", "--dry-run": "dry_run", "--posix": "o", "--binary": "o"},
+             values={"-p": "strip", "--strip": "strip", "-F": "fuzz", "--fuzz": "fuzz",
+                     "-i": "input", "--input": "input", "-o": "output", "--output": "output",
+                     "-r": "reject", "--reject-file": "reject", "-D": "ifdef", "--ifdef": "ifdef",
+                     "-V": "vc", "--version-control": "vc", "-B": "prefix", "--prefix": "prefix",
+                     "-Y": "prefix", "--basename-prefix": "prefix", "-z": "suffix",
+                     "--suffix": "suffix", "-g": "get", "--get": "get", "-d": "directory",
+                     "--directory": "directory", "--quoting-style": "quoting",
+                     "--reject-format": "reject_format", "--read-only": "read_only"}),
+         examples=(
+             ex("patch a.txt q.sql", destroys={"a.txt"}, note="VERIFIED: FILE is rewritten in place"),
+             ex("patch -b a.txt q.sql", destroys={"a.txt"}, creates={"a.txt.orig"}),
+             ex("patch -o new.txt a.txt q.sql", creates={"new.txt"}, note="-o: the original is kept"),
+             ex("patch --dry-run a.txt q.sql", note="changes nothing"),
+             ex("patch -p1 < q.sql", unknown=True, note="the targets are named inside the diff"),
+             ex("patch -p1 -i q.sql", unknown=True),
+         )),
+    Rule(id="awk", tools=("awk", "gawk", "mawk", "nawk"), resolver="awk", verified=False,
+         options=OptionSpec(
+             flags={**_HELP, "-b": "o", "--characters-as-bytes": "o", "-c": "o",
+                    "--traditional": "o", "-C": "o", "--copyright": "o", "-g": "o",
+                    "--gen-pot": "o", "-h": "help", "-L": "o", "--lint": "o", "-M": "o",
+                    "--bignum": "o", "-n": "o", "--non-decimal-data": "o", "-N": "o",
+                    "--use-lc-numeric": "o", "-O": "o", "--optimize": "o", "-P": "o",
+                    "--posix": "o", "-r": "o", "--re-interval": "o", "-s": "o",
+                    "--no-optimize": "o", "-S": "o", "--sandbox": "o", "-t": "o",
+                    "--lint-old": "o", "-V": "version", "--dump-variables": "dump",
+                    "--pretty-print": "pretty", "--profile": "profile", "--debug": "dump"},
+             values={"-f": "file", "--file": "file", "-E": "file", "--exec": "file",
+                     "-v": "assign", "--assign": "assign", "-F": "fs",
+                     "--field-separator": "fs", "-i": "include", "--include": "include",
+                     "-e": "source", "--source": "source", "-l": "load", "--load": "load"},
+             attached={"-d": "dump", "-o": "pretty", "-p": "profile", "-D": "dump"}),
+         examples=(
+             ex("awk -i inplace '{print $1}' a.txt", destroys={"a.txt"}),
+             ex("gawk -i inplace -v INPLACE_SUFFIX=.bak '{print}' a.txt b.txt",
+                destroys={"a.txt", "b.txt"}, creates={"a.txt.bak", "b.txt.bak"}),
+             ex("awk '{print $1}' a.txt", note="a literal program that only prints"),
+             ex("awk '{print > \"out\"}' a.txt", uncovered={"awk (code)"},
+                note="a program that writes or runs: a runner (M1)"),
+             ex("awk 'BEGIN{system(\"rm a.txt\")}'", uncovered={"awk (code)"}),
+             ex("awk -f prog.awk a.txt", uncovered={"awk (code)"}, note="the program is in a file"),
+             ex("awk -i inplace -f prog.awk a.txt", destroys={"a.txt"}, uncovered={"awk (code)"}),
+         )),
+    Rule(id="7z", tools=("7z", "7za", "7zr"), resolver="sevenzip", options=OptionSpec(),
+         examples=(
+             ex("7z a x a.txt", creates={"x.7z"}, note="VERIFIED: the .7z extension is added"),
+             ex("7z a x.7z a.txt -sdel", destroys={"a.txt"}, creates={"x.7z"},
+                note="VERIFIED: -sdel deletes the inputs"),
+             ex("7z a x.7z -sdel", creates={"x.7z"}, unknown=True,
+                note="-sdel with no file named: what it deletes is not on the line"),
+             ex("7z a b.txt a.txt", destroys={"b.txt"}, note="an existing archive is rewritten"),
+             ex("7z x m.zip", note="VERIFIED: no terminal - an existing file is kept"),
+             ex("7z x -y m.zip", unknown=True, note="VERIFIED: -y overwrites"),
+             ex("7z l m.zip", note="lists only"),
+             ex("7z a -so x.7z a.txt > /dev/null", note="to stdout"),
+         )),
+)
+RULES = RULES + M4_RULES
+
+
 
 # ==========================================================================
 # Families loaded only when one of their tools is met (C2a on). A hook call
@@ -787,4 +978,7 @@ def shell_prefilter_words() -> Tuple[str, ...]:
 # Interpreters: a rule claims only a narrow use of them (M2.2f: python
 # manage.py), and sending every `python x.py` typed in a shell to guard-shell
 # (~0.4 s each) is M2.3's decision, made with real numbers.
-_RUNNERS = frozenset({"python", "python3", "py"})
+_RUNNERS = frozenset({"python", "python3", "py",
+                      # M2.3a: awk is in nearly every typed pipeline; gawk, the
+                      # one with -i inplace, still reaches the shell door.
+                      "awk", "mawk", "nawk"})
