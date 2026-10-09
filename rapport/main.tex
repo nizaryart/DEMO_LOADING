@@ -1,0 +1,52 @@
+% =====================================================================
+%  Rapport de Projet de Fin d'Année — demo_cli
+%  ENSA Fès — Génie des Systèmes Communicants et Sécurité Informatique
+%  Compilation : pdflatex + biber (voir README.md)
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage{rapportpfa}
+\addbibresource{references.bib}
+\input{chiffres}
+
+\hypersetup{
+  pdftitle={demo_cli : prédire, récupérer et tracer les commandes des agents de code IA},
+  pdfauthor={Nizar Yartaoui},
+  pdfsubject={Rapport de Projet de Fin d'Année — ENSA Fès, GSCSI},
+}
+
+\begin{document}
+
+% ---------------------------------------------------------------- Pages liminaires
+\pagenumbering{roman}
+\input{front/pagedegarde}
+\input{front/dedicace}
+\input{front/remerciements}
+\input{front/resume}
+\input{front/abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\input{front/abreviations}
+
+% ---------------------------------------------------------------- Corps
+\cleardoublepage
+\pagenumbering{arabic}
+\input{chapitres/introduction}
+\input{chapitres/ch1/ch1}
+\input{chapitres/ch2/ch2}
+\input{chapitres/ch3/ch3}
+\input{chapitres/ch4/ch4}
+\input{chapitres/ch5/ch5}
+\input{chapitres/conclusion}
+
+% ---------------------------------------------------------------- Références, annexes
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliographie et webographie}
+\printbibliography[title={Bibliographie et webographie}]
+
+\appendix
+\input{annexes/annexes}
+
+\end{document}

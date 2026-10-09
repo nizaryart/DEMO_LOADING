@@ -1,0 +1,25 @@
+% Chapitre 1 — Contexte général du projet
+\chapter{Contexte général du projet}
+\label{ch:contexte}
+
+Ce chapitre situe le travail. Il présente l'organisme d'accueil, WePwn, puis le
+point de départ concret du stage : un outil, \demo{}, remis en version bêta. Il pose
+ensuite le problème que cet outil traite --- des agents d'intelligence artificielle
+qui exécutent eux-mêmes des commandes sur la machine d'un développeur ---, fixe les
+objectifs, et décrit la méthode de travail qui a permis de faire évoluer un logiciel
+de sécurité sans jamais le rendre, même un instant, moins sûr.
+
+\input{chapitres/ch1/organisme}
+\input{chapitres/ch1/depart}
+\input{chapitres/ch1/problematique}
+\input{chapitres/ch1/objectifs}
+\input{chapitres/ch1/methodologie}
+\input{chapitres/ch1/planning}
+
+\section*{Conclusion du chapitre}
+Le stage part d'un outil qui existait, qui fonctionnait sur les cas simples et qui
+annonçait lui-même sa limite principale : il lisait les commandes avec des expressions
+régulières. Le problème est réel et documenté par des incidents publics ; les objectifs
+sont mesurables ; la méthode impose qu'aucune décision ne devienne plus permissive sans
+qu'on l'ait voulu. Le chapitre suivant examine ce qui existe déjà pour protéger un
+développeur de son agent, et pourquoi ces protections ne suffisent pas.

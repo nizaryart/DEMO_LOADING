@@ -1,0 +1,64 @@
+% Liste des abréviations et glossaire
+\chapter*{Liste des abréviations et glossaire}
+\addcontentsline{toc}{chapter}{Liste des abréviations et glossaire}
+
+\section*{Abréviations}
+\begin{longtable}{@{}L{3cm}L{11.5cm}@{}}
+\toprule
+\textbf{Sigle} & \textbf{Signification} \\
+\midrule
+\endhead
+ACL & \textit{Access Control List} — liste de contrôle d'accès (Windows/NTFS) \\
+API & \textit{Application Programming Interface} \\
+AST & \textit{Abstract Syntax Tree} — arbre syntaxique abstrait \\
+CLI & \textit{Command-Line Interface} — interface en ligne de commande \\
+CPU & \textit{Central Processing Unit} \\
+ENSAF & École Nationale des Sciences Appliquées de Fès \\
+FS & \textit{File System} — système de fichiers \\
+FUSE & \textit{Filesystem in Userspace} (Linux) \\
+GSCSI & Génie des Systèmes Communicants et Sécurité Informatique \\
+HTTP & \textit{HyperText Transfer Protocol} \\
+IA & Intelligence artificielle \\
+IaC & \textit{Infrastructure as Code} (Terraform, Pulumi\ldots) \\
+LLM & \textit{Large Language Model} — grand modèle de langage \\
+PaaS & \textit{Platform as a Service} \\
+PFA & Projet de Fin d'Année \\
+PITR & \textit{Point-In-Time Recovery} — restauration à un instant donné \\
+POSIX & \textit{Portable Operating System Interface} — ici, le langage des shells \texttt{sh}/\texttt{bash} \\
+SaaS & \textit{Software as a Service} \\
+SDDL & \textit{Security Descriptor Definition Language} (Windows) \\
+SQL & \textit{Structured Query Language} \\
+UAC & \textit{User Account Control} — élévation de privilèges sous Windows \\
+VCS & \textit{Version Control System} — gestion de versions (git) \\
+WSL & \textit{Windows Subsystem for Linux} \\
+\bottomrule
+\end{longtable}
+
+\section*{Glossaire}
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Agent de code IA] Programme fondé sur un LLM qui lit et modifie un projet et exécute
+    des commandes shell pour le compte d'un développeur (Claude Code, Codex\ldots).
+  \item[Porte] Point par lequel une action de l'agent atteint \demo{} avant de s'exécuter :
+    \textit{hook} de l'agent, porte d'édition de fichiers, garde du shell, commande
+    \texttt{demo\_cli check}.
+  \item[Effet] Ce qu'une commande fait au monde, dans un vocabulaire commun : DELETE,
+    OVERWRITE, TRUNCATE, MOVE, CREATE, APPEND, RUN, SEND, LATER\ldots
+  \item[Surface distante] Ce qu'aucune copie locale ne peut restaurer : base de données
+    distante, historique git d'un serveur, ressource cloud, conteneur, message envoyé\ldots
+  \item[Non couvert] (\textit{uncovered}) Un outil que la table de règles ne décrit pas encore.
+  \item[Non compris] (\textit{not understood}) Une partie de ligne que le moteur ne peut pas lire
+    avant l'exécution (valeur inconnue, construction non modélisée).
+  \item[Point de récupération] Copie, prise \emph{avant} l'exécution, de ce que la commande
+    va détruire ; \texttt{demo\_cli undo <id>} la restaure.
+  \item[Filet d'exécution] Mécanisme qui observe la commande \emph{pendant} qu'elle tourne et
+    sauvegarde chaque fichier au moment où il est détruit : garde d'appels système (Linux),
+    montage WinFsp (Windows).
+  \item[Plan de contrôle] Les fichiers de \demo{} lui-même (configuration, registre, réserve
+    de récupération, configuration des \textit{hooks}) : un agent ne peut pas les modifier.
+  \item[Reçu] Entrée du registre décrivant une décision ; chaque reçu contient l'empreinte du
+    précédent (chaîne SHA-256).
+  \item[Portail de décision] Comparaison, sur un corpus de \nbcorpus{} commandes, de chaque
+    décision avant et après une modification.
+  \item[Arbitrage] (\textit{ruling}) Décision écrite et datée qui tranche un cas de politique
+    avant son implémentation.
+\end{description}

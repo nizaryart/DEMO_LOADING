@@ -1,0 +1,50 @@
+% Figure 1 — Le flux d'ensemble : de l'agent au reçu.
+\begin{tikzpicture}[node distance=5mm and 6mm]
+  % --- Rangée du haut : agent -> portes -> moteur
+  \node[douce,text width=26mm] (agent) at (0,0) {Agent de code IA\sous{Claude Code, Codex}};
+  \node[boite,text width=30mm] (edit) at (4.6,0) {Porte fichier\sous{Edit, Write}};
+  \node[boite,text width=30mm,above=2mm of edit] (hook) {\textit{Hook} PreToolUse\sous{Bash, PowerShell}};
+  \node[boite,text width=30mm,below=2mm of edit] (shell) {Garde du shell\sous{piège bash, \texttt{check}}};
+  \node[zone,fit=(hook)(edit)(shell),label={[etiquette]above:portes}] (portes) {};
+  \draw[fleche] (agent.east) -- (portes.west |- agent.east);
+
+  \node[accent,text width=36mm] (sim) at (9.9,0) {Simulation\sous{FS virtuel (\texttt{simulate.py})}};
+  \node[accent,text width=36mm,above=3mm of sim] (parse) {Analyse syntaxique\sous{POSIX \textbar{} PowerShell (C3)}};
+  \node[accent,text width=36mm,below=3mm of sim] (eff) {Effets $\rightarrow$ impact\sous{détruit, crée, distant, inconnu}};
+  \node[zone,draw=wepwnfonce,fit=(parse)(sim)(eff),label={[etiquette,text=wepwnfonce]above:moteur}] (moteur) {};
+  \draw[fleche] (parse) -- (sim);
+  \draw[fleche] (sim) -- (eff);
+  \draw[fleche] (portes.east |- sim.west) -- (moteur.west |- sim.west);
+
+  % --- Politique et décideur
+  \node[boite,text width=36mm] (pol) at (9.9,-3.4) {\texttt{verdict} + \texttt{policy}\sous{effet $\times$ surface}};
+  \node[boite,draw=encre,line width=1.1pt,text width=30mm] (dec) at (4.6,-3.4) {\textbf{\texttt{decide.py}}\sous{le décideur unique}};
+  \draw[fleche] (moteur.south) -- (pol.north);
+  \draw[fleche] (pol.west) -- (dec.east);
+
+  % --- Décisions (colonnes fixes)
+  \foreach \x/\n/\c/\t in {0/o1/dALLOW/ALLOW,
+                          2.6/o2/dREV/{REVERSIBLE\\[-2pt]{\tiny ou DRY\_RUN}},
+                          5.2/o3/dSUP/SUPERVISED,
+                          7.8/o4/dCTX/{CONTEXT\\[-2pt]MISMATCH},
+                          10.4/o5/dASK/{ESCALATE\\[-2pt]{\tiny ask ou deny}}}
+    \node[decision,fill=\c,text width=21mm] (\n) at (\x,-5.4) {\t};
+  \draw[fleche] (dec.south) -- ++(0,-0.45) coordinate (b);
+  \draw[encre!70,line width=0.7pt] (o1.north |- b) -- (o5.north |- b);
+  \foreach \n in {o1,o2,o3,o4,o5} \draw[fleche] (\n.north |- b) -- (\n.north);
+
+  % --- Conséquences
+  \node[douce,text width=21mm] (rec) at (2.6,-7.0) {Point de\\récupération\sous{\texttt{undo <id>}}};
+  \node[douce,text width=21mm] (net) at (5.2,-7.0) {Filet\\d'exécution\sous{ptrace / WinFsp}};
+  \node[douce,text width=21mm] (per) at (9.1,-7.0) {La personne\\tranche\sous{ou refus net}};
+  \draw[fleche,densely dashed] (o2) -- (rec);
+  \draw[fleche,densely dashed] (o3) -- (net);
+  \draw[fleche,densely dashed] (o4.south) -- (o4.south |- per.north);
+  \draw[fleche,densely dashed] (o5.south) -- (o5.south |- per.north);
+
+  % --- Reçu
+  \node[boite,draw=wepwnfonce,line width=0.9pt,minimum width=128mm] (recu) at (5.2,-8.7)
+       {Reçu dans le registre chaîné (SHA-256) --- \emph{chaque} décision en laisse un};
+  \foreach \n in {o1,rec,net} \draw[fleche] (\n.south) -- (\n.south |- recu.north);
+  \draw[fleche] (per.south) -- (per.south |- recu.north);
+\end{tikzpicture}

@@ -1,0 +1,79 @@
+% 1.5 — Méthodologie
+\section{Méthodologie de travail}
+\label{sec:methodologie}
+
+\subsection{Le risque propre à un outil de sécurité}
+Faire évoluer un outil de sécurité comporte un risque particulier : une modification qui
+corrige un cas peut, sans bruit, en autoriser un autre. Un test « vert » ne le révèle pas
+si aucun test ne décrivait le cas devenu permissif. L'audit du 26 septembre l'a montré :
+la suite passait avec 1856 tests réussis alors que 18 défauts confirmés restaient
+atteignables, parce qu'aucun test ne décrivait ces comportements. La méthode adoptée
+répond directement à ce constat.
+
+\subsection{Une partie à la fois}
+Le travail est découpé en \emph{parties} courtes et nommées (A, B, C1, SYS1, M2.2b3,
+W-SEC\ldots). Chaque partie suit le même cycle (figure~\ref{fig:methode}) :
+
+\begin{enumerate}
+  \item \textbf{Plan} : périmètre, cas à couvrir, risques, ce qui ne doit pas bouger.
+  \item \textbf{Arbitrages} : chaque question de politique est tranchée \emph{par écrit}
+    avant d'être codée, avec un identifiant et une date (« ruling R2 : un envoi qui peut
+    remplacer un objet distant est escaladé »). Le code et ses tests citent l'arbitrage.
+  \item \textbf{Prototype} : le code, et des tests qui \emph{échouent sur le code d'avant}.
+    Un test qui passerait aussi sur l'ancien code ne prouve rien sur la correction.
+  \item \textbf{Revue} : relecture adverse et sondes --- des commandes fabriquées pour
+    piéger la nouvelle logique, lancées dans un projet jetable.
+  \item \textbf{Atterrissage} : un commit dont le message est un bilan : ce qui change, les
+    arbitrages appliqués, les tests ajoutés, et le résultat du portail de décision.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig6_methode}
+\caption{La méthode : le cycle d'une partie et les portes à franchir avant l'atterrissage}
+\label{fig:methode}
+\end{figure}
+
+\subsection{Les portes d'un atterrissage}
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Les tests de la partie] Rouges sur le code d'avant, verts après.
+  \item[La suite complète, sous Linux et sous Windows] Les deux systèmes n'ont pas les mêmes
+    chemins (\cmd{C:\textbackslash}, \cmd{/c/} sous Git Bash), ni les mêmes appels système, ni le
+    même shell : un test vert sous Linux ne dit rien de Windows.
+  \item[Le portail de décision] Un corpus de \nbcorpus{} commandes réelles et fabriquées est
+    évalué avant et après la modification ; toute ligne dont la décision, la règle, la
+    cible ou la capture change est listée et doit être justifiée. Les messages de commit en
+    rendent compte (« the 922 gate changes 124 reviewed decisions: 8 fixed misses,
+    18 newly captured, 86 newly allowed »).
+  \item[Aucune décision plus permissive sans arbitrage] Une ligne qui passe d'ESCALATE à ALLOW
+    sans arbitrage explicite bloque l'atterrissage, même si tous les tests passent.
+\end{description}
+
+\begin{pourquoi}[Pourquoi un portail de décision en plus des tests ?]
+Les tests vérifient ce qu'on a pensé à écrire. Le portail vérifie \emph{tout le reste} :
+il ne sait pas quelle décision est juste, mais il voit chaque décision qui change. C'est
+lui qui transforme « la suite passe » en « rien n'a bougé sans qu'on le sache ».
+\end{pourquoi}
+
+\subsection{Le message de commit comme compte rendu}
+Chaque atterrissage laisse un compte rendu lisible directement dans l'historique.
+L'extrait suivant est réel (les lignes « [...] » sont coupées) :
+
+\begin{terminal}[git show -s 3c94414]
+$ git show -s --format=%B 3c94414
+M2.3a: lines the engine does not fully read leave the old text rules
+
+- runners (python, node, npm, make, ./x, source, awk programs that run or
+  write ...) go to the runtime net, else a checkpoint, else ALLOW with a
+  note that nothing was captured (ruling M1)
+- a line the engine cannot read goes to the net, else a checkpoint, else
+  ESCALATE (M3) - unread SQL such as psql -c "$(cat q.sql)" was ALLOWED
+  (V19); where the old rules flag the line they keep their capture or
+  escalation, never an ALLOW
+[...]
+- engine rules for gzip / bzip2 / xz, sort -o, iconv -o, patch,
+  awk -i inplace, 7z: they deleted or overwrote files unseen (M4, V20)
+[...]
+- tests/test_m23a.py (17); row fixtures of earlier parts: every moved row
+  stricter; gate: 6 rows move, reference re-recorded
+\end{terminal}

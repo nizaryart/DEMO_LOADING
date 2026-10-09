@@ -1,0 +1,85 @@
+% 1.2 — Point de départ et contribution
+\section{Point de départ et contribution}
+\label{sec:depart}
+
+\subsection{La version bêta remise au début du stage}
+Le stage ne part pas d'une page blanche. WePwn avait publié \demo{} en version
+\betaversion{} (\betadate{})~\cite{demo-cli-beta}. Cette bêta posait déjà l'idée qui
+reste au c\oe ur du projet, et qu'il faut attribuer à son point d'origine :
+
+\begin{encadre}[L'invariant hérité de la bêta]
+Une action qui modifie quelque chose doit être récupérable \emph{et} conforme au contexte
+déclaré ; sinon elle est escaladée --- jamais autorisée en silence, jamais présentée à
+tort comme « récupérée ».
+\end{encadre}
+
+De cet invariant découlait une posture inhabituelle pour un outil de sécurité :
+\emph{récupérer plutôt que bloquer}. Quand \demo{} peut prouver qu'il a copié la cible
+réelle d'une commande destructrice, il la copie et laisse l'agent continuer ; une
+commande \cmd{demo\_cli undo <id>} remet les fichiers en place. Il ne bloque que ce qui
+ne peut pas être récupéré (un \cmd{terraform destroy}, un \cmd{git push --force}). La bêta
+s'intégrait à Claude Code et à Cursor, savait prévisualiser une requête SQL destructrice
+et laissait de chaque décision un reçu chaîné.
+
+Elle annonçait aussi, honnêtement, ses limites. Son journal des modifications le dit en
+une phrase : l'analyse des commandes shell repose sur des motifs, « un arbre syntaxique
+complet est sur la feuille de route ». Concrètement, le classifieur tenait en
+\betaclassify{} lignes et \betaregex{} expressions régulières. Le tableau~\ref{tab:depart}
+compare cette bêta à l'état du projet au commit de référence \commitref{}.
+
+\begin{table}[htbp]
+\centering
+\caption{De la version bêta à l'état actuel (commit \commitref{}, \datecommitref{})}
+\label{tab:depart}
+\small
+\begin{tabularx}{\linewidth}{@{}L{4.1cm}YY@{}}
+\toprule
+& \textbf{Bêta \betaversion{}} & \textbf{Aujourd'hui} \\
+\midrule
+Code source (Python) & $\approx$ \betalignessrc{} lignes & $\approx$ \lignessrc{} lignes \\
+Tests & $\approx$ \betalignestests{} lignes, 11 fichiers & $\approx$ \lignestests{} lignes,
+  \fichierstests{} fichiers \\
+Lecture d'une commande & \betaregex{} expressions régulières & analyseur POSIX, simulation sur
+  un système de fichiers virtuel, table de \nbregles{} règles (\nboutils{} outils) \\
+Décisions & \betadecisions{} & 6 (+ SUPERVISED), canal « demander / refuser » \\
+Commandes illisibles & motifs, au mieux & « non compris » : filet, point de contrôle ou
+  escalade --- jamais un ALLOW \\
+Pendant l'exécution & rien & garde d'appels système (Linux), montage WinFsp (Windows) \\
+Surfaces distantes & quelques motifs & $\approx$ \nbsurfaces{} surfaces, chacune avec sa
+  règle « ask » ou « deny » \\
+Agents & Claude Code, Cursor & Claude Code (Bash, PowerShell, fichiers), Codex, Cursor,
+  garde du shell \\
+Fichiers de \demo{} & non protégés & plan de contrôle refusé à l'agent \\
+Validation & tests unitaires & tests + exemples de règles + portail de \nbcorpus{}
+  commandes, Linux et Windows \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Ce que le stage a apporté}
+La mission confiée était de reprendre cette bêta, de la poursuivre et d'en reprendre
+l'architecture, en menant de front le développement et le travail offensif. Le dépôt de
+travail conserve l'historique détaillé des \nbcommits{} derniers commits, du 21 septembre
+au 9 octobre 2026 ; il commence par l'import d'une version 1.7.0 déjà largement
+étendue par rapport à la bêta. \acompleter[travaux réalisés entre la bêta de juillet et la
+version 1.7.0 : nature, dates, où en trouver la trace]
+
+Sur la période documentée, la contribution se résume en quatre lignes :
+\begin{enumerate}
+  \item \textbf{Un moteur au lieu de motifs} : une analyse syntaxique unique des lignes POSIX,
+    une simulation de leurs effets et une table de règles écrite comme des données
+    (chapitres~\ref{ch:conception} et~\ref{ch:realisation}).
+  \item \textbf{Une seule politique, un seul décideur} : ce qui était dispersé entre
+    plusieurs modules est réuni dans \fichier{policy.py} et \fichier{decide.py}.
+  \item \textbf{Les deux systèmes} : chaque partie est conçue et vérifiée sous Linux et sous
+    Windows ; le filet d'exécution existe sur les deux.
+  \item \textbf{Le travail offensif} : un audit pinçant 18 défauts, puis une suite de
+    vulnérabilités (V1--V20) trouvées et corrigées, chacune avec un test qui échoue sur le
+    code d'avant (chapitre~\ref{ch:securite}).
+\end{enumerate}
+
+Une part essentielle du rôle a été celle d'\emph{arbitre}. Chaque cas de politique
+délicat --- faut-il autoriser un \cmd{git reset} que le \textit{reflog} sait annuler ?
+demander ou refuser la suppression d'un volume Docker ? --- a fait l'objet d'une décision
+écrite, numérotée et datée avant d'être codée. Les messages de commit et les tests en
+gardent la trace : « ruling (c) », « rulings M1--M5 », « Nizar's table, 2026-10-07 ».

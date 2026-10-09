@@ -1,0 +1,33 @@
+% 1.6 — Planning
+\section{Planning}
+\label{sec:planning}
+
+\subsection{Déroulement du stage}
+Le stage a débuté le \datedebut{} et s'est terminé le \datefin.
+\acompleter[phases du stage, de la prise en main de la bêta à la fin : à confirmer pour le
+diagramme de Gantt d'ensemble]
+
+\subsection{Chronologie des parties documentées}
+L'historique du dépôt de travail permet de dater précisément les parties livrées entre le
+21 septembre et le 9 octobre 2026. La figure~\ref{fig:gantt} les regroupe en cinq phases :
+la reprise et l'audit ; un moteur qui prédit sans encore décider (ses prédictions sont
+seulement écrites dans les reçus, pour être comparées aux décisions existantes) ; le moteur
+qui décide ; l'extension famille par famille de la table de règles ; enfin la sécurité et
+la sortie de l'ancien chemin par expressions régulières. La partie C3 (le moteur
+PowerShell) est \statutCthree{}.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig7_gantt}
+\caption{Chronologie des parties livrées, d'après l'historique git (21 septembre -- 9 octobre 2026)}
+\label{fig:gantt}
+\end{figure}
+
+\begin{pourquoi}[Pourquoi un moteur « en ombre » avant de le laisser décider ?]
+Les parties B à C2a ont livré un moteur qui \emph{ne décidait rien} : il écrivait sa
+prédiction dans chaque reçu, et le portail vérifiait que zéro décision changeait. Pendant
+ce temps, chaque divergence entre la prédiction et la décision existante était un
+signal : soit un défaut du moteur, soit un défaut de l'ancien chemin. Le moteur n'a pris
+la main (partie S2+M1) qu'une fois ces divergences comprises, et ce changement-là a été
+revu ligne par ligne sur le portail.
+\end{pourquoi}

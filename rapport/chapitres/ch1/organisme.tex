@@ -1,0 +1,69 @@
+% 1.1 — L'organisme d'accueil
+\section{L'organisme d'accueil : WePwn}
+\label{sec:wepwn}
+
+\begin{tcolorbox}[enhanced,colback=wepwnclair,colframe=wepwn,boxrule=0pt,leftrule=4pt,arc=0pt,
+                  left=10pt,right=10pt,top=8pt,bottom=8pt]
+\begin{minipage}[c]{0.2\linewidth}
+  \centering\includegraphics[width=0.85\linewidth]{figures/logos/wepwn.png}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.76\linewidth}
+  {\sffamily\Large\bfseries\color{wepwnfonce} WePwn}\par\smallskip
+  {\sffamily\small Sécurité offensive · programmes de \textit{bug bounty} · divulgation
+  coordonnée de vulnérabilités · outils de sécurité}
+\end{minipage}
+\end{tcolorbox}
+
+\subsection{Présentation}
+WePwn est une entreprise marocaine de sécurité offensive. Son activité d'origine est le
+\textit{bug bounty} : une entreprise ouvre un programme, des chercheurs en sécurité
+indépendants testent ses services, et chaque vulnérabilité validée est récompensée. WePwn
+se présente comme la mise en relation entre des entreprises et des chercheurs, afin que
+les premières soient averties des vulnérabilités identifiées chez elles~\cite{wepwn-site}.
+Selon l'organisme, elle a été la première plateforme de \textit{bug bounty} au
+Maroc\footnote{Affirmation de l'organisme d'accueil, reprise telle quelle.}~; les
+programmes qu'elle héberge rémunèrent les chercheurs en dirhams. Un portail dédié permet
+aux chercheurs de rejoindre ces programmes~\cite{wepwn-access}.
+
+Autour de cette activité, WePwn propose un service de divulgation de vulnérabilités géré
+de bout en bout~\cite{wepwn-services} : tri des signalements, évaluation de la sévérité,
+validation, rapport détaillé, conseils de correction et pilotage du programme dans la
+durée. Ce métier --- recevoir des attaques réelles, les reproduire, en mesurer l'impact
+et accompagner la correction --- a naturellement conduit l'entreprise vers un second axe :
+les \emph{pratiques} et les \emph{outils} de sécurité. \demo{} appartient à cet axe.
+
+\subsection{Fiche signalétique}
+
+\begin{table}[htbp]
+\centering
+\caption{Fiche signalétique de WePwn}
+\label{tab:fiche-wepwn}
+\begin{tabularx}{0.92\linewidth}{@{}L{4.2cm}Y@{}}
+\toprule
+Raison sociale & WePwn \\
+Domaine & Cybersécurité --- sécurité offensive \\
+Activités & Programmes de \textit{bug bounty} ; divulgation de vulnérabilités gérée ;
+            pratiques et outils de sécurité \\
+Fondateur & M. Younes Lakhouane \\
+Site web & \url{https://wepwn.ma} \\
+Siège & \acompleter[ville] \\
+Année de création & \acompleter[année] \\
+Effectif & \acompleter \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cadre du stage}
+Le stage s'est déroulé au sein de WePwn, sous l'encadrement professionnel de
+M. Younes Lakhouane, fondateur de l'entreprise, et sous l'encadrement académique de
+Mme K. Chetioui (ENSA de Fès). Il a commencé le \datedebut{}. Le sujet porte sur
+\demo{}, un outil de WePwn publié en source ouverte sous licence
+MIT~\cite{demo-cli-beta}, que l'entreprise destine aux équipes qui confient du travail
+à des agents de code IA.
+
+La double culture de l'entreprise explique la forme du travail demandé : construire
+l'outil \emph{et} l'attaquer. Une partie du stage a consisté à développer et à
+architecturer ; une autre, à chercher comment contourner ce qui venait d'être construit,
+avec les méthodes du \textit{bug bounty} --- lire le code, fabriquer des commandes
+piégées, fouiller les traces. Le chapitre~\ref{ch:securite} rend compte de cette seconde
+partie.

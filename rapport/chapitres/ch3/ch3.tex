@@ -1,0 +1,56 @@
+% Chapitre 3 — Analyse et conception
+\chapter{Analyse et conception}
+\label{ch:conception}
+
+\acompleter[chapitre 3 : texte à venir ; les figures ci-dessous sont définitives]
+
+\section{Modèle de menace et invariant}
+\label{sec:menace}
+\acompleter
+
+\section{Architecture d'ensemble}
+\label{sec:architecture}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig1_flux}
+\caption{Le flux d'ensemble : de la commande de l'agent au reçu}
+\label{fig:flux}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig2_vision}
+\caption{Ce que l'outil voit : chaque couche et ce qu'elle couvre, selon l'endroit où la commande agit}
+\label{fig:vision}
+\end{figure}
+
+\section{Conception du moteur}
+\label{sec:moteur}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig3_moteur}
+\caption{L'intérieur du moteur, sur un exemple réel (sortie du moteur au commit \commitref{})}
+\label{fig:moteur}
+\end{figure}
+
+\section{La politique et le décideur unique}
+\label{sec:decision}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig4_decision}
+\caption{La table de décision : où l'effet tombe $\times$ quelle sorte d'effet}
+\label{fig:decision}
+\end{figure}
+
+\section{Deux systèmes, un décideur}
+\label{sec:deux-os}
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/fig5_os}
+\caption{Linux et Windows : un seul décideur, deux filets d'exécution}
+\label{fig:os}
+\end{figure}

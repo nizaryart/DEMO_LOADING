@@ -1,0 +1,26 @@
+% Figure 6 — La méthode : une partie à la fois, et les portes qu'elle doit franchir.
+\begin{tikzpicture}[
+    etape/.style={accent,text width=24mm,minimum height=15mm,font=\sffamily\small},
+    porte/.style={boite,draw=encre,text width=30mm,font=\sffamily\scriptsize,minimum height=9mm},
+  ]
+  \node[etape] (p) at (0,0) {Plan\sous{périmètre, cas, risques}};
+  \node[etape,right=6mm of p] (r) {Arbitrages\sous{décisions écrites et datées (R1, M3\ldots)}};
+  \node[etape,right=6mm of r] (pr) {Prototype\sous{code + tests qui échouent sur l'ancien code}};
+  \node[etape,right=6mm of pr] (rv) {Revue\sous{lecture adverse, sondes}};
+  \node[etape,right=6mm of rv,fill=wepwn!35] (l) {Atterrissage\sous{un commit, message = bilan}};
+  \foreach \a/\b in {p/r,r/pr,pr/rv,rv/l} \draw[fleche] (\a) -- (\b);
+  \draw[fleche,densely dashed] (rv.north) -- ++(0,0.35) -| node[etiquette,pos=0.25,above]{correction} (pr.north);
+
+  % Portes
+  \node[porte] (g1) at (2.0,-2.8) {Tests de la partie\sous{rouges avant, verts après}};
+  \node[porte,right=4mm of g1] (g2) {Suite complète\sous{Linux \emph{et} Windows}};
+  \node[porte,right=4mm of g2] (g3) {Portail de décision\sous{\nbcorpus{} commandes, avant/après}};
+  \node[porte,right=4mm of g3] (g4) {Aucune décision plus lâche\sous{sans arbitrage explicite}};
+  \node[zone,fit=(g1)(g4),label={[etiquette]below:portes à franchir avant l'atterrissage}] (gz) {};
+  \draw[fleche] (gz.north -| l.south) -- (l.south);
+
+  % Boucle de parties
+  \node[etiquette,text width=120mm,anchor=north] at ([yshift=-7mm]gz.south) {Parties successives (extrait) :
+     A $\cdot$ B $\cdot$ C1 $\cdot$ C2a $\cdot$ SYS1 $\cdot$ S2+M1 $\cdot$ M2.0--M2.1 $\cdot$ T $\cdot$ T5 $\cdot$ B0 $\cdot$ B1 $\cdot$ I1 $\cdot$ W0 $\cdot$
+     M2.2a--f $\cdot$ ASK $\cdot$ W-SEC $\cdot$ V17 $\cdot$ M2.3a $\cdot$ C3};
+\end{tikzpicture}

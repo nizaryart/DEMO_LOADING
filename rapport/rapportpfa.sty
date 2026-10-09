@@ -1,0 +1,194 @@
+% rapportpfa.sty — mise en page du rapport PFA demo_cli
+% Une seule couleur d'accent (le vert WePwn), une paire de polices
+% (Libertinus Serif / Libertinus Sans) et une police à chasse fixe (Inconsolata).
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{rapportpfa}[2026/10/09 Rapport PFA demo_cli]
+
+% ---------------------------------------------------------------- Langue, polices
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[english,french]{babel}
+\RequirePackage{libertinus}
+\RequirePackage[varqu,varl,scaled=0.95]{inconsolata}
+\RequirePackage{microtype}
+\RequirePackage{csquotes}
+\RequirePackage{siunitx}
+\sisetup{locale=FR,group-minimum-digits=4}
+
+% ---------------------------------------------------------------- Page
+\RequirePackage[a4paper,top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm,headheight=15pt]{geometry}
+\RequirePackage{setspace}
+\onehalfspacing
+\setlength{\parskip}{0.35em}
+
+% ---------------------------------------------------------------- Couleurs
+\RequirePackage[table,svgnames]{xcolor}
+\definecolor{wepwn}{HTML}{45B649}      % vert du logo WePwn
+\definecolor{wepwnfonce}{HTML}{2B7A34}  % le même, assombri pour le texte
+\definecolor{wepwnclair}{HTML}{EAF6EA}
+\definecolor{encre}{HTML}{1F2933}
+\definecolor{gris}{HTML}{6B7280}
+\definecolor{grisclair}{HTML}{F3F4F6}
+\definecolor{trait}{HTML}{D1D5DB}
+% Terminal
+\definecolor{termfond}{HTML}{1B1F24}
+\definecolor{termbarre}{HTML}{2D333B}
+\definecolor{termtexte}{HTML}{D7DCE2}
+\definecolor{termprompt}{HTML}{7EE787}
+\definecolor{termcom}{HTML}{8B949E}
+% Décisions (figures et tableaux uniquement, tons sourds)
+\definecolor{dALLOW}{HTML}{3F9C4A}
+\definecolor{dREV}{HTML}{2F6FB0}
+\definecolor{dSUP}{HTML}{2A8C8C}
+\definecolor{dDRY}{HTML}{6C8EBF}
+\definecolor{dASK}{HTML}{C98A1B}
+\definecolor{dDENY}{HTML}{B5443B}
+\definecolor{dCTX}{HTML}{7A5BA6}
+
+% ---------------------------------------------------------------- Titres
+\RequirePackage{titlesec}
+\titleformat{\chapter}[display]
+  {\sffamily\color{encre}}
+  {\color{wepwnfonce}\Large\MakeUppercase{\chaptertitlename}~\thechapter}
+  {0.4em}
+  {\Huge\bfseries}
+  [\vspace{0.3em}{\color{wepwn}\titlerule[1.2pt]}]
+\titleformat{name=\chapter,numberless}[display]
+  {\sffamily\color{encre}}{}{0pt}{\Huge\bfseries}
+  [\vspace{0.3em}{\color{wepwn}\titlerule[1.2pt]}]
+\titlespacing*{\chapter}{0pt}{-1.2em}{2.2em}
+\titleformat{\section}{\sffamily\Large\bfseries\color{encre}}{\color{wepwnfonce}\thesection}{0.8em}{}
+\titleformat{\subsection}{\sffamily\large\bfseries\color{encre}}{\color{wepwnfonce}\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\sffamily\normalsize\bfseries\color{encre}}{}{0em}{}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+
+% ---------------------------------------------------------------- En-têtes
+\RequirePackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.\ #1}{}}
+\fancyhead[L]{\small\sffamily\color{gris}\nouppercase{\leftmark}}
+\fancyhead[R]{\small\sffamily\color{gris}demo\_cli — Rapport de PFA}
+\fancyfoot[C]{\small\sffamily\thepage}
+\renewcommand{\headrule}{{\color{trait}\hrule height 0.4pt}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\sffamily\thepage}\renewcommand{\headrule}{}}
+
+% ---------------------------------------------------------------- Tableaux, figures
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{tabularx}
+\RequirePackage{longtable}
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{float}
+\RequirePackage[font=small,labelfont={bf,sf,color=wepwnfonce},labelsep=period,skip=6pt]{caption}
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+% ---------------------------------------------------------------- TikZ
+\RequirePackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,patterns,shapes.geometric,shapes.misc,fit,backgrounds,calc,decorations.pathreplacing,matrix}
+\tikzset{
+  >={Stealth[length=2.2mm]},
+  every picture/.append style={execute at begin picture={\def\baselinestretch{1.05}}},
+  boite/.style={draw=encre!70,rounded corners=2pt,fill=white,align=center,
+                font=\sffamily\small,minimum height=8mm,inner sep=4pt,line width=0.6pt},
+  accent/.style={boite,draw=wepwnfonce,fill=wepwnclair},
+  douce/.style={boite,draw=trait,fill=grisclair},
+  etiquette/.style={font=\sffamily\scriptsize,text=gris,align=center},
+  fleche/.style={->,draw=encre!70,line width=0.7pt},
+  zone/.style={draw=trait,rounded corners=4pt,inner sep=7pt,dashed},
+  decision/.style={rounded corners=2pt,text=white,font=\sffamily\scriptsize\bfseries,
+                   minimum height=6mm,inner sep=3pt,align=center},
+}
+\RequirePackage{pgfgantt}
+
+% ---------------------------------------------------------------- Encadrés
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,keepspaces=true,
+  breaklines=true,breakatwhitespace=false,
+  postbreak=\mbox{\textcolor{termcom}{$\hookrightarrow$}\space},
+  showstringspaces=false,upquote=true,
+  literate={é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {à}{{\`a}}1 {ç}{{\c{c}}}1
+           {É}{{\'E}}1 {ù}{{\`u}}1 {ô}{{\^o}}1 {î}{{\^i}}1 {—}{{---}}1 {→}{{$\rightarrow$}}1
+           {…}{{\ldots}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1,
+}
+% Terminal : fond sombre, barre de titre, ligne d'invite en vert.
+\lstdefinestyle{terminal}{
+  basicstyle=\ttfamily\small\color{termtexte},
+  moredelim=[l][\color{termprompt}]{\$\ },
+  moredelim=[l][\color{termprompt}]{PS>\ },
+  moredelim=[l][\color{termcom}]{\#\ },
+}
+\newtcblisting{terminal}[1][Terminal]{
+  enhanced,listing only,
+  colback=termfond,colframe=termbarre,boxrule=0.6pt,arc=3pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,
+  title={\ttfamily\footnotesize\color{termtexte}\textcolor[HTML]{FF5F56}{\large\textbullet}\,%
+         \textcolor[HTML]{FFBD2E}{\large\textbullet}\,\textcolor[HTML]{27C93F}{\large\textbullet}\quad #1},
+  coltitle=termtexte,colbacktitle=termbarre,toptitle=1pt,bottomtitle=1pt,
+  listing options={style=terminal},
+}
+% Code source (Python), fond clair.
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\ttfamily\small\color{encre},
+  keywordstyle=\color{wepwnfonce}\bfseries,
+  commentstyle=\color{gris}\itshape,
+  stringstyle=\color[HTML]{A04A2B},
+  numbers=left,numberstyle=\tiny\color{gris},numbersep=6pt,
+}
+\newtcblisting{code}[2][python]{
+  enhanced,breakable,listing only,
+  colback=grisclair,colframe=trait,boxrule=0.5pt,arc=2pt,
+  left=14pt,right=6pt,top=2pt,bottom=2pt,
+  title={\sffamily\footnotesize #2},coltitle=encre,colbacktitle=trait!60,
+  listing options={style=#1},
+}
+% « Pourquoi » : la justification d'un choix.
+\newtcolorbox{pourquoi}[1][Pourquoi ?]{
+  enhanced,breakable,colback=wepwnclair,colframe=wepwnfonce,
+  boxrule=0pt,leftrule=3pt,arc=0pt,left=8pt,right=6pt,top=4pt,bottom=4pt,
+  title={\sffamily\bfseries #1},coltitle=wepwnfonce,colbacktitle=wepwnclair,
+  attach title to upper,after title={\par\smallskip},
+}
+% Encadré neutre (définition, règle, chiffre clé).
+\newtcolorbox{encadre}[1][]{
+  enhanced,colback=grisclair,colframe=trait,boxrule=0.5pt,arc=2pt,
+  left=8pt,right=8pt,top=4pt,bottom=4pt,
+  fonttitle=\sffamily\bfseries,coltitle=encre,colbacktitle=grisclair,title={#1},
+}
+
+% ---------------------------------------------------------------- Marques de travail
+% Tout fait non vérifié reste visible jusqu'à ce que Nizar le fournisse.
+\newcommand{\acompleter}[1][]{\leavevmode{\sffamily\footnotesize\bfseries\color{dDENY}[À COMPLÉTER\ifx\relax#1\relax\else\ : #1\fi]}}
+% Sous-ligne de nœud TikZ, avec un interligne à sa taille.
+\newcommand{\sous}[1]{{\par\scriptsize #1\par}}
+% Pastille de décision, utilisable dans le texte, les tableaux et les figures.
+\newcommand{\puce}[2]{{\setlength{\fboxsep}{1.6pt}\colorbox{#1}{\textcolor{white}{\sffamily\bfseries\scriptsize\strut #2}}}}
+\newcommand{\cmd}[1]{\texttt{#1}}
+\newcommand{\decision}[1]{\textsf{\textbf{#1}}}
+\newcommand{\fichier}[1]{\texttt{\small #1}}
+\newcommand{\demo}{\texttt{demo\_cli}}
+
+% Capture d'écran : l'image si elle existe, sinon un cadre qui dit quoi capturer.
+\newcommand{\capture}[3]{%
+  \IfFileExists{figures/captures/#1.png}%
+    {\includegraphics[width=\linewidth]{figures/captures/#1.png}}%
+    {\fcolorbox{trait}{grisclair}{\parbox[c][4.2cm][c]{0.94\linewidth}{\centering\sffamily\small
+      \textbf{Capture à fournir :} \texttt{figures/captures/#1.png}\\[4pt]
+      \parbox{0.85\linewidth}{\centering\footnotesize #3}}}}%
+  \caption{#2}\label{fig:cap-#1}}
+
+% ---------------------------------------------------------------- Liens, bibliographie
+\RequirePackage[backend=biber,style=numeric,sorting=none,maxbibnames=4]{biblatex}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage{bookmark}
+\RequirePackage{enumitem}
+\setlist{itemsep=0.15em,topsep=0.3em}
+\endinput

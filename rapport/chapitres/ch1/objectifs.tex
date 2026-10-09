@@ -1,0 +1,43 @@
+% 1.4 — Objectifs
+\section{Objectifs du projet}
+\label{sec:objectifs}
+
+Les objectifs découlent de la problématique ; chacun est formulé de façon à pouvoir être
+vérifié dans le code et les tests.
+
+\begin{table}[htbp]
+\centering
+\caption{Objectifs du stage et critère de vérification de chacun}
+\label{tab:objectifs}
+\small
+\begin{tabularx}{\linewidth}{@{}L{0.7cm}L{5.6cm}Y@{}}
+\toprule
+& \textbf{Objectif} & \textbf{Comment on le vérifie} \\
+\midrule
+O1 & \textbf{Prédire} l'effet d'une ligne à partir de sa structure, pas de son texte. &
+  Chaque exemple de la table de règles (\nbexemples{}) est un test qui compare l'impact
+  prédit à l'impact attendu. \\
+O2 & \textbf{Ne jamais autoriser ce qui n'est pas lu.} Une ligne illisible n'obtient pas
+  ALLOW. & Tests M2.3a : une ligne « non comprise » va au filet, à un point de contrôle,
+  sinon elle est escaladée. \\
+O3 & \textbf{Ne jamais revendiquer une récupération non prise.} &
+  Tests des captures partielles (tout ou rien), de V17 (point de contrôle hors projet). \\
+O4 & \textbf{Voir pendant l'exécution} ce que la lecture ne peut pas prédire. &
+  Garde d'appels système (Linux) et montage WinFsp (Windows) testés sur les deux systèmes. \\
+O5 & \textbf{Traiter le distant honnêtement} : distinguer « demander à la personne » et
+  « refuser ». & Table \fichier{policy.ESCALATION\_CHANNEL} ; une surface sans ligne est
+  refusée. \\
+O6 & \textbf{Les deux systèmes} : Linux et Windows, avec les mêmes garanties. &
+  Suite complète passée sur les deux systèmes avant chaque atterrissage. \\
+O7 & \textbf{Ne rien rendre plus permissif sans le vouloir.} &
+  Portail de décision : \nbcorpus{} commandes comparées avant et après chaque partie. \\
+O8 & \textbf{Résister à l'agent} : il ne doit pas pouvoir désarmer l'outil. &
+  Plan de contrôle refusé à toutes les portes ; tâche Windows durcie (W-SEC). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Un objectif est volontairement \emph{absent} : faire de \demo{} une barrière contre un
+adversaire déterminé. L'outil protège contre les \emph{erreurs} d'un agent coopératif ;
+ce modèle de menace, hérité de la bêta et affiché par \cmd{demo\_cli doctor}, est discuté
+à la section~\ref{sec:menace}.

@@ -1,0 +1,50 @@
+% Figure 3 — L'intérieur du moteur, sur un exemple réel (sortie du moteur au commit de référence).
+\begin{tikzpicture}[
+    etape/.style={accent,text width=31mm,minimum height=11mm},
+    ex/.style={douce,text width=82mm,align=left,font=\ttfamily\scriptsize,minimum height=11mm,inner sep=4pt},
+    lien/.style={densely dotted,draw=gris,line width=0.6pt},
+  ]
+  \def\D{1.62}
+  \node[douce,text width=31mm,minimum height=9mm] (l) at (0,0) {Ligne de l'agent};
+  \node[ex,minimum height=9mm] (el) at (6.9,0) {\color{encre}\normalsize\ttfamily X=build; rm -rf \$X \&\& mv a.txt b.txt};
+
+  \node[etape] (p) at (0,-1*\D) {Analyse syntaxique\\{\scriptsize\texttt{model.py}}};
+  \node[ex] (ep) at (6.9,-1*\D) {3 commandes : [X=build] ; [rm -rf \$X] \&\& [mv a.txt b.txt]\\
+     \sffamily mots avec leurs citations, \texttt{\$X} marqué « s'étend »};
+
+  \node[etape] (i) at (0,-2*\D) {Invocations\sous{grammaire de l'outil}};
+  \node[ex] (ei) at (6.9,-2*\D) {rm : options \{force, recursive\}, opérandes [\$X]\\
+     mv : opérandes [a.txt, b.txt]};
+
+  \node[etape] (w) at (0,-3*\D) {Expansion~des~mots\\{\scriptsize\texttt{words.py}}};
+  \node[ex] (ew) at (6.9,-3*\D) {\$X $\rightarrow$ build \sffamily(affectation plus tôt sur la ligne)\\
+     \sffamily inconnu $\Rightarrow$ « non compris », jamais deviné};
+
+  \node[etape] (s) at (0,-4*\D) {Simulation\sous{FS virtuel, \texttt{simulate.py}}};
+  \node[ex] (es) at (6.9,-4*\D) {rm -r : DELETE build/ \sffamily(existe)\\
+     \ttfamily mv : b.txt existe $\rightarrow$ OVERWRITE b.txt \sffamily(origine suivie)};
+
+  \node[etape,draw=encre,line width=0.9pt] (m) at (0,-5*\D) {Impact\\{\scriptsize\texttt{effects.Impact}}};
+  \node[ex,fill=white,draw=wepwnfonce] (em) at (6.9,-5*\D) {destroys = \{build: DELETE, b.txt: OVERWRITE\}\\
+     remote = \{\}\quad unknown = []\quad uncovered = []};
+
+  \foreach \a/\b in {l/p,p/i,i/w,w/s,s/m} \draw[fleche] (\a) -- (\b);
+  \foreach \a/\b in {l/el,p/ep,i/ei,w/ew,s/es,m/em} \draw[lien] (\a) -- (\b);
+
+  % Lecture du système de fichiers réel
+  \node[douce,text width=24mm,font=\sffamily\scriptsize,minimum height=9mm] (fs) at (-3.9,-4*\D) {FS réel\\(lecture seule :\\\texttt{lstat}, \texttt{glob})};
+  \draw[fleche,densely dashed] (fs) -- (s);
+  \node[douce,text width=24mm,font=\sffamily\scriptsize,minimum height=9mm] (rt) at (-3.9,-2*\D) {Table de règles\\(données, chargée\\à la demande)};
+  \draw[fleche,densely dashed] (rt) -- (i);
+
+  % Les cinq rubriques de l'impact
+  \node[decision,fill=dREV,text width=19mm] (c1) at (-2.3,-6.45*\D) {détruit\\[-2pt]{\tiny capturable ?}};
+  \node[decision,fill=dALLOW,text width=19mm] (c2) at (0.2,-6.45*\D) {crée\\[-2pt]{\tiny rien à capturer}};
+  \node[decision,fill=dASK,text width=19mm] (c3) at (2.7,-6.45*\D) {distant\\[-2pt]{\tiny surface + sorte}};
+  \node[decision,fill=dCTX,text width=19mm] (c4) at (5.2,-6.45*\D) {non compris\\[-2pt]{\tiny unknown}};
+  \node[decision,fill=gris,text width=19mm] (c5) at (7.7,-6.45*\D) {non couvert\\[-2pt]{\tiny uncovered}};
+  \draw[fleche] (m.south) -- ++(0,-0.45) coordinate (b);
+  \draw[encre!70,line width=0.7pt] (c1.north |- b) -- (c5.north |- b);
+  \foreach \n in {c1,c2,c3,c4,c5} \draw[fleche] (\n.north |- b) -- (\n.north);
+  \node[etiquette,below=1mm of c3] {$\downarrow$ \texttt{verdict.py} puis \texttt{decide.py} (figure~\ref{fig:decision})};
+\end{tikzpicture}

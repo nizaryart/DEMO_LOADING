@@ -1,0 +1,45 @@
+% chiffres.tex — TOUS les chiffres du rapport, au même endroit.
+% Quand le projet avance, on met à jour ce fichier, pas les chapitres.
+% Source de chaque valeur en commentaire. État : commit 3c94414 (2026-10-09).
+
+% ---- Référence
+\newcommand{\commitref}{\texttt{3c94414}}
+\newcommand{\datecommitref}{9 octobre 2026}
+
+% ---- Point de départ : WePwn/demo_cli v0.4.0-beta.8 (19/07/2026)
+\newcommand{\betaversion}{0.4.0-beta.8}
+\newcommand{\betadate}{19 juillet 2026}
+\newcommand{\betalignessrc}{\num{3700}}      % wc -l src (≈ 3 674)
+\newcommand{\betalignestests}{\num{1600}}    % wc -l tests (≈ 1 578)
+\newcommand{\betaregex}{9}                   % re.compile dans classify.py
+\newcommand{\betaclassify}{340}              % lignes de classify.py
+\newcommand{\betadecisions}{5}
+
+% ---- Aujourd'hui (commit de référence)
+\newcommand{\lignessrc}{\num{33700}}         % wc -l src/**/*.py (33 753)
+\newcommand{\lignestests}{\num{28700}}       % wc -l tests/**/*.py (28 678)
+\newcommand{\fichierstests}{133}             % tests/test_*.py
+\newcommand{\fonctionstests}{\num{1714}}     % def test_ (avant paramétrisation)
+\newcommand{\nbregles}{71}                   % engine.rules.all_rules()
+\newcommand{\nbexemples}{763}                % exemples de règles = tests
+\newcommand{\nboutils}{212}                  % noms d'outils couverts
+\newcommand{\nbfamilles}{12}                 % familles chargées à la demande
+\newcommand{\nbnonverifiees}{9}              % règles verified=False
+\newcommand{\nbsurfaces}{40}                 % lignes de policy.ESCALATION_CHANNEL (≈)
+\newcommand{\nbcommits}{50}                  % git log, 21/09 → 09/10/2026
+\newcommand{\nbcorpus}{922}                  % commandes du portail de décision
+
+% ---- Tests (chiffres officiels à fournir : Linux et Windows)
+\newcommand{\testslinux}{\acompleter[nombre de tests Linux]}
+\newcommand{\testswindows}{\acompleter[nombre de tests Windows]}
+
+% ---- Fouille des registres (brief C3, rapport d'analyse A4)
+\newcommand{\nbregistres}{107}
+\newcommand{\nbrecus}{\num{23196}}
+
+% ---- C3 : « en cours de finalisation » ou « livré »
+\newcommand{\statutCthree}{en cours de finalisation}
+
+% ---- Stage
+\newcommand{\datedebut}{15 juin 2026}
+\newcommand{\datefin}{\acompleter[date de fin]}

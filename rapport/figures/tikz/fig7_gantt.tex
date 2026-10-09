@@ -1,0 +1,38 @@
+% Figure 7 — Chronologie des parties livrées, d'après l'historique git (21/09 -> 09/10/2026).
+% Une barre = les jours où les commits de la partie ont atterri.
+\begin{ganttchart}[
+    x unit=5.2mm, y unit chart=5.2mm, y unit title=5.5mm,
+    time slot format=isodate, vgrid={*1{draw=trait,dotted}},
+    title/.style={fill=grisclair,draw=trait},
+    title label font=\sffamily\scriptsize,
+    bar/.style={fill=wepwn!70,draw=wepwnfonce},
+    bar height=0.55, bar label font=\sffamily\scriptsize,
+    group/.style={fill=encre!80,draw=encre}, group label font=\sffamily\scriptsize\bfseries,
+    group right shift=0, group top shift=0.55, group height=0.25, group peaks height=0.12,
+    milestone/.style={fill=dASK,draw=dASK!70!black}, milestone label font=\sffamily\scriptsize,
+    link/.style={-latex,draw=gris},
+  ]{2026-09-21}{2026-10-11}
+  \gantttitle{septembre 2026}{10} \gantttitle{octobre 2026}{11} \\
+  \gantttitlelist{21,...,30}{1}\gantttitlelist{1,...,11}{1} \\
+  \ganttgroup{Reprise et audit}{2026-09-21}{2026-09-27} \\
+  \ganttbar{Import v1.7.0, outillage}{2026-09-21}{2026-09-22} \\
+  \ganttbar{Audit 26/09 : 18 défauts}{2026-09-26}{2026-09-27} \\
+  \ganttbar{Modèle de commande}{2026-09-27}{2026-09-27} \\
+  \ganttgroup{Moteur (prédiction seule)}{2026-09-28}{2026-09-29} \\
+  \ganttbar{A, B, C1, C2a}{2026-09-28}{2026-09-28} \\
+  \ganttbar{SYS1 : filets reliés}{2026-09-29}{2026-09-29} \\
+  \ganttgroup{Le moteur décide}{2026-10-02}{2026-10-06} \\
+  \ganttbar{S2+M1, M2.0+M2.1}{2026-10-02}{2026-10-02} \\
+  \ganttbar{T, T5 : une politique}{2026-10-03}{2026-10-04} \\
+  \ganttbar{B0, B1, B1b}{2026-10-05}{2026-10-06} \\
+  \ganttbar{I1a--c, W0}{2026-10-06}{2026-10-06} \\
+  \ganttgroup{Familles d'outils (M2.2)}{2026-10-06}{2026-10-08} \\
+  \ganttbar{git, infra, cloud}{2026-10-06}{2026-10-07} \\
+  \ganttbar{conteneurs, données, ASK}{2026-10-07}{2026-10-07} \\
+  \ganttbar{envois, PaaS, SaaS}{2026-10-07}{2026-10-07} \\
+  \ganttbar{système, LATER, préfiltre}{2026-10-08}{2026-10-08} \\
+  \ganttgroup{Sécurité et sortie de l'ancien chemin}{2026-10-08}{2026-10-09} \\
+  \ganttbar{W-SEC, V17}{2026-10-08}{2026-10-08} \\
+  \ganttbar{M2.3a}{2026-10-09}{2026-10-09} \\
+  \ganttbar[bar/.style={fill=white,draw=wepwnfonce,dashed}]{C3 (PowerShell)}{2026-10-09}{2026-10-11}
+\end{ganttchart}

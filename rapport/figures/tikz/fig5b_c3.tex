@@ -1,0 +1,19 @@
+% Figure 5b — C3 : deux frontaux, un seul moteur (d'après le brief C3).
+\begin{tikzpicture}[
+    pas/.style={boite,text width=20mm,font=\sffamily\scriptsize,minimum height=11mm},
+    part/.style={accent,text width=16mm,font=\sffamily\scriptsize,minimum height=11mm},
+  ]
+  \node[douce,text width=15mm,font=\sffamily\scriptsize] (lp) at (0,0.9) {Ligne POSIX};
+  \node[douce,text width=15mm,font=\sffamily\scriptsize] (lw) at (0,-0.9) {Ligne PowerShell};
+  \node[pas] (pp) at (2.5,0.9) {Analyseur POSIX\sous{\texttt{model.py}}};
+  \node[pas,dashed] (pw) at (2.5,-0.9) {Analyseur PS\\+ lieur de\\paramètres\sous{C3, \statutCthree}};
+  \node[part] (inv) at (5.0,0) {Invocations};
+  \node[part,right=3mm of inv] (sim) {Simulation\sous{FS virtuel}};
+  \node[part,right=3mm of sim] (eff) {Effets\sous{DELETE, MOVE\ldots}};
+  \node[part,right=3mm of eff] (pol) {\texttt{verdict} / \texttt{policy}};
+  \node[boite,draw=encre,line width=1pt,text width=17mm,font=\sffamily\scriptsize,right=3mm of pol,minimum height=11mm] (dec) {\textbf{\texttt{decide}}\sous{décision + reçu}};
+  \draw[fleche] (lp) -- (pp); \draw[fleche] (lw) -- (pw);
+  \draw[fleche] (pp.east) -- (inv.west); \draw[fleche] (pw.east) -- (inv.west);
+  \foreach \a/\b in {inv/sim,sim/eff,eff/pol,pol/dec} \draw[fleche] (\a) -- (\b);
+  \node[zone,draw=wepwnfonce,fit=(inv)(pol),label={[etiquette,text=wepwnfonce]above:partagé par les deux dialectes}] {};
+\end{tikzpicture}

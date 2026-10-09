@@ -1,0 +1,38 @@
+% Figure 5 — Linux et Windows : un seul décideur, deux filets d'exécution.
+\begin{tikzpicture}[
+    col/.style={boite,text width=57mm,font=\sffamily\footnotesize},
+    titre/.style={font=\sffamily\bfseries\small,text=encre},
+  ]
+  % Partie commune
+  \node[accent,text width=72mm,minimum height=10mm] (eng) at (0,0)
+     {Moteur partagé : simulation, effets, impact\sous{même table de règles, même \texttt{policy.py}}};
+  \node[boite,draw=encre,line width=1.1pt,text width=72mm,below=4mm of eng] (dec)
+     {\textbf{\texttt{decide.py}} --- un seul décideur\sous{mêmes garanties sur les deux systèmes}};
+  \draw[fleche] (eng) -- (dec);
+
+  % Frontaux
+  \node[boite,text width=40mm] (fp) at (-4.75,1.9) {Frontal POSIX\sous{\texttt{model.py} ; Git Bash : \texttt{/c/x} $\rightarrow$ \texttt{C:\textbackslash x}}};
+  \node[boite,text width=40mm,dashed] (fw) at (4.75,1.9) {Frontal PowerShell (C3)\sous{lieur de paramètres ; \statutCthree}};
+  \draw[fleche] (fp.south) |- (eng.west);
+  \draw[fleche] (fw.south) |- (eng.east);
+
+  % Colonnes OS
+  \node[titre] (tl) at (-4.75,-2.9) {Linux};
+  \node[titre] (tw) at (4.75,-2.9) {Windows};
+  \node[col,below=2mm of tl] (l1) {Agents : Claude Code (Bash), Codex,\\piège bash (\texttt{BASH\_ENV}, \texttt{trap DEBUG})};
+  \node[col,below=2mm of l1,fill=wepwnclair,draw=wepwnfonce] (l2) {\textbf{Garde d'appels système}\sous{\texttt{ptrace} : arrêt à l'entrée de \texttt{unlink}, \texttt{rename},\\\texttt{open(O\_TRUNC)}\ldots{} ; copie \emph{puis} laisse faire}};
+  \node[col,below=2mm of l2] (l3) {Activation : réécriture par le \textit{hook}\\\texttt{demo\_cli sh -g <id> <cmd>} (sans \texttt{allow})};
+  \node[col,below=2mm of l3] (l4) {Plan de contrôle : appel annulé\\(\texttt{orig\_rax = -1}) + reçu ESCALATE};
+
+  \node[col,below=2mm of tw] (w1) {Agents : Claude Code (Bash \& PowerShell),\\Codex (PowerShell)};
+  \node[col,below=2mm of w1,fill=wepwnclair,draw=wepwnfonce] (w2) {\textbf{Montage WinFsp}\sous{système de fichiers en espace utilisateur : \texttt{rename}\\(remplacement), \texttt{cleanup}(DELETE), \texttt{set\_file\_size}}};
+  \node[col,below=2mm of w2] (w3) {Activation : le projet \emph{est} le montage\\(\texttt{C:\textbackslash p} $\rightarrow$ données dans \texttt{C:\textbackslash p.real} verrouillé)};
+  \node[col,below=2mm of w3] (w4) {Remontage à l'ouverture de session :\\tâche élevée durcie (W-SEC)};
+
+  \draw[fleche] (dec.south) -- ++(0,-0.5) -| (l1.north);
+  \draw[fleche] (dec.south) -- ++(0,-0.5) -| (w1.north);
+
+  \node[zone,fit=(tl)(l1)(l4)] (zl) {};
+  \node[zone,fit=(tw)(w1)(w4)] (zw) {};
+  \node[etiquette,text width=120mm,anchor=north] at ([yshift=-2mm]0,0 |- zw.south) {Les deux filets couvrent le \emph{projet} seulement, et la raison de la décision le dit.};
+\end{tikzpicture}

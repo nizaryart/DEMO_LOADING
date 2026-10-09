@@ -1,0 +1,74 @@
+% 1.3 — Problématique
+\section{Problématique : des agents qui exécutent des commandes}
+\label{sec:problematique}
+
+\subsection{Un agent n'écrit plus seulement du code, il l'exécute}
+Un agent de code IA comme Claude Code ou Codex ne se contente pas de proposer du texte.
+Il lit le projet, modifie des fichiers, et surtout lance des commandes dans un shell ---
+\cmd{bash} sous Linux, PowerShell sous Windows --- pour compiler, tester, nettoyer, migrer
+une base, déployer. Chaque commande s'exécute avec les droits du développeur, sur sa
+machine, souvent à côté de données qui n'existent nulle part ailleurs. L'agent se trompe
+parfois ; une erreur dans une commande destructrice n'est pas une suggestion maladroite,
+c'est une perte de données.
+
+\subsection{Trois incidents publics}
+Le risque n'est pas théorique. Trois cas documentés illustrent trois formes du problème.
+
+\begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
+  \item[Une base de production supprimée (Replit, juillet 2025)]
+    Au cours d'une expérience de plusieurs jours, l'agent de Replit a exécuté des commandes
+    qui ont effacé la base de données de production d'un utilisateur, alors qu'il avait reçu
+    la consigne de ne rien modifier sans accord explicite ; il a ensuite affirmé à tort que
+    la restauration était impossible~\cite{oecd-replit,eweek-replit}.
+    \emph{Leçon : une consigne n'est pas une protection, et l'agent n'est pas une source
+    fiable sur ce qui peut être récupéré.}
+  \item[Des fichiers écrasés par des déplacements (Gemini CLI, juillet 2025)]
+    L'agent a cru avoir créé un dossier dont la création avait échoué, puis y a « déplacé »
+    les fichiers de l'utilisateur ; chaque déplacement vers un nom inexistant a écrasé le
+    précédent, et tous les fichiers sauf un ont été perdus~\cite{aiid-gemini,gh-gemini}.
+    \emph{Leçon : aucune commande de la séquence ne « ressemble » à une suppression ; seul
+    un raisonnement sur l'état du système de fichiers révèle la perte.}
+  \item[Des fichiers supprimés en voulant les compter (Claude Code, juillet 2026)]
+    Chargé de compter des fichiers de rapport, un agent a lancé une commande qui les a
+    supprimés ; l'utilisateur en a récupéré une partie avec un outil de récupération de
+    données~\cite{gh-claude-76626}. La bêta de \demo{} cite ce cas comme motivation.
+    \emph{Leçon : demander une confirmation ne suffit pas quand la personne fait confiance
+    à l'intention annoncée ; ce qui manquait, c'était une copie prise avant.}
+\end{description}
+
+\subsection{Pourquoi le problème est difficile}
+Juger une commande \emph{avant} qu'elle s'exécute paraît simple : repérer \cmd{rm}, et se
+méfier. En réalité le langage du shell rend cette lecture trompeuse. Le
+tableau~\ref{tab:regex-pieges} montre quatre lignes, tirées des tests du projet, où une
+lecture naïve --- par motifs, ou par un analyseur trop confiant --- se trompe dans un sens
+ou dans l'autre.
+
+\begin{table}[htbp]
+\centering
+\caption{Lignes où une lecture naïve se trompe (extraits de \fichier{tests/test\_command\_model.py} et des commits I1a, W0)}
+\label{tab:regex-pieges}
+\small
+\begin{tabularx}{\linewidth}{@{}L{5.2cm}YY@{}}
+\toprule
+\textbf{Ligne} & \textbf{Lecture naïve} & \textbf{Ce que fait le shell} \\
+\midrule
+\cmd{ls \# ; rm -rf x} & un \cmd{rm -rf} & rien : tout ce qui suit \cmd{\#} est un commentaire \\
+\cmd{echo \$(date; rm -rf x) >/dev/null} & un \cmd{echo} & exécute \cmd{rm -rf x} dans la substitution \\
+\cmd{bash -o pipefail -c "rm app.db"} & une option inconnue, rien à juger & supprime \cmd{app.db} \\
+\cmd{X=-rf; rm \$X src} & un \cmd{rm} sans option & un \cmd{rm -rf src} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+À cela s'ajoutent les enveloppes (\cmd{sudo}, \cmd{xargs}, \cmd{timeout}), les commandes
+lancées par du code que l'outil ne lit pas (\cmd{python script.py}), les effets à distance
+(une base, un dépôt git distant, un bucket) qu'aucune copie locale ne restaure, et un
+second langage, PowerShell, où les arguments se lient aux paramètres par position.
+
+\subsection{Énoncé du problème}
+\begin{encadre}[Problématique]
+Comment, avant qu'une commande écrite par un agent ne s'exécute, en prédire l'effet assez
+exactement pour laisser passer ce qui est sans danger, rendre récupérable ce qui peut
+l'être, et arrêter ou soumettre à une personne le reste --- sans jamais revendiquer une
+protection qu'on n'a pas prise, et de la même manière sous Linux et sous Windows ?
+\end{encadre}
