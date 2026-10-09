@@ -36,12 +36,12 @@ ne considérer un résultat comme acquis que lorsqu'un test a montré qu'il pouv
 
 \section*{Perspectives}
 \begin{itemize}
-  \item \textbf{C3, le moteur PowerShell} (\statutCthree ; tables de liaison prêtes :
+  \item \textbf{C3, le moteur PowerShell} (\statutCthree{} ; tables de liaison générées :
     \cthreecmdlets{} cmdlets, \cthreealias{} alias) : fermer V12 et terminer la symétrie de
     l'architecture --- deux dialectes, un moteur, un décideur, deux filets.
-  \item \textbf{Au-delà du projet} (V18, deuxième étape) : que le filet Linux enregistre les
-    suppressions hors du projet, sans les bloquer, puis décider d'éventuels blocages sur données
-    mesurées.
+  \item \textbf{Au-delà du projet} (V18, deuxième étape) : le filet Linux enregistre désormais
+    chaque fichier détruit hors du projet, un reçu par fichier, sans sauvegarde ni blocage
+    (en relecture) ; d'éventuels blocages seront décidés sur données mesurées.
   \item \textbf{Vitesse du filet Linux} : passer de ptrace à seccomp avec notification, et étendre
     le filet aux commandes tapées par la personne et aux processus qui survivent à la commande
     (V14).

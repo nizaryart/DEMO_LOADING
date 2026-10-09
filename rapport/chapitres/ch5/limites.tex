@@ -12,7 +12,8 @@ connues, et la plupart sont dites dans la raison même des décisions.
   \item \textbf{Le filet Linux est un prototype.} ptrace sur x86-64 seulement, un arrêt par appel
     système ; la cible de production désignée par le code est seccomp avec notification.
   \item \textbf{Les filets voient le projet, et seulement lui.} Hors du projet, une destruction par
-    du code non lu n'est ni capturée ni encore enregistrée (V18, deuxième étape).
+    du code non lu n'est pas capturée ; son enregistrement par le filet Linux est en relecture
+    (V18, deuxième étape).
   \item \textbf{Un exécuteur de code sans filet est autorisé} avec une note qui dit qu'aucune
     capture n'a été faite (arbitrage M1) --- sauf le code en ligne qui lance d'autres programmes
     et les installations de paquets, qui escaladent (Rb2).

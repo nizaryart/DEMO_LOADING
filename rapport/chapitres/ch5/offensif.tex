@@ -77,11 +77,12 @@ V20 & Outils de fichiers destructeurs non vus : \cmd{gzip a.txt}, \cmd{xz}, \cmd
   \cmd{sort -o}, \cmd{iconv -o}, \cmd{patch}, \cmd{awk -i inplace}, \cmd{7z \ldots{} -sdel}
   $\rightarrow$ ALLOW. & Haute & Sondes & M2.3a \\
 V21 & Un exécuteur de code auquel on passait un fichier hors du projet (\cmd{python x.py
-  /etc/hostname}) perdait le filet, disponible pourtant pour \cmd{python x.py}, et devenait ALLOW. &
-  --- & Sondes & M2.3b (\cmd{ad7ab16}) \\
+  /etc/hostname}) perdait le filet, disponible pourtant pour \cmd{python x.py}, et devenait ALLOW. La note affichée restait honnête. &
+  Moyenne & Sondes & M2.3b (\cmd{ad7ab16}) \\
 V22 & La suppression d'un lien symbolique du projet était capturée, mais \cmd{undo} le
   restaurait comme un \emph{fichier ordinaire} : la restauration utilisait l'entrée de groupe qui
-  enveloppe une cible unique, au lieu de l'entrée interne qui garde le lien. & --- & Revue
+  enveloppe une cible unique, au lieu de l'entrée interne qui garde le lien. Pas de perte de
+  données. & Moyenne & Revue
   red-team (R3) & V22 (\cmd{7d2a2aa}) \\
 --- & \cmd{source ./x.sh} vu comme sans effet ; code téléchargé exécuté par
   \cmd{bash <(curl \ldots)} ou \cmd{aws s3 cp \ldots{} - | bash} autorisé. & --- & Sondes & M2.3a \\
@@ -95,6 +96,13 @@ Deux points ont été vérifiés et ne sont \emph{pas} des failles : un utilisat
 pas modifier la tâche élevée elle-même (V5, « Access is denied ») ; \cmd{Move-Item} et
 \cmd{Rename-Item} refusent d'écraser une destination existante (vérifié sur PowerShell 5.1) ---
 seul \cmd{Copy-Item} écrase, ce qui relève de V12.
+
+Un point est un \emph{risque préventif} plutôt qu'une faille active. \textbf{V16} (gravité élevée
+s'il s'était réalisé) : en retirant le pouvoir de décision aux anciennes règles, M2.3 risquait de
+perdre le refus du point de contrôle pour une commande visant un fichier hors du projet
+(\cmd{/etc}, \cmd{\textasciitilde/.ssh}) ; elle aurait reçu une copie du seul projet, présentée à
+tort comme réversible. M2.3a et M2.3b ont conservé ce refus, épinglé par les tests de V17 et de
+V21.
 
 {\small
 \begin{longtable}{@{}L{1.8cm}L{8.2cm}L{4.6cm}@{}}
@@ -113,8 +121,8 @@ V12 & PowerShell non analysé : \cmd{iex "Remove-Item a.txt"}, \cmd{Write-Output
   a.txt)"} autorisés, \cmd{Copy-Item a b} écrase en silence, \cmd{Set-Content a.txt hi} escalade
   inutilement. Seul le montage les couvre aujourd'hui. & C3 (\statutCthree) \\
 V18 (2) & Une destruction hors du projet par du code non lu n'est ni capturée ni enregistrée
-  par le filet. & Le filet l'enregistre (sans bloquer) ; liste de blocage seulement sur données
-  mesurées \\
+  par le filet. & En relecture après le commit de référence : le filet Linux enregistre chaque
+  fichier détruit hors du projet (un reçu par fichier, sans sauvegarde ni blocage) \\
 V14 & Les commandes tapées par la personne et les processus qui survivent à la commande sont
   hors du filet Linux. & Plus tard \\
 V7--V9 & Montage Windows : ne refuse pas lui-même les fichiers de \demo{} (les portes le

@@ -45,14 +45,31 @@ Trois mécanismes étaient envisageables :
     projet avant qu'elle n'ait lieu. De plus, un montage FUSE suppose de placer le projet
     derrière un point de montage servi par un démon permanent, alors que ptrace ne s'attache
     qu'à la commande concernée.
-  \item \textbf{seccomp avec notification} : plus rapide, car seuls les appels filtrés
-    réveillent le superviseur. Le code le désigne comme la cible de production du filet ; le
-    prototype actuel utilise ptrace, qui donne la main à l'entrée de chaque appel et permet de
-    lire les registres et la mémoire du processus suivi. \acompleter[confirmer la raison du choix de ptrace pour le prototype]
-  \item \textbf{ptrace} : retenu. Ses limites sont assumées et rappelées au
-    chapitre~\ref{ch:securite} : architecture x86-64, coût d'un arrêt par appel système, et
-    pas de vision au-delà du projet.
+  \item \textbf{seccomp avec notification} : un filtre BPF installé dans le processus ne réveille
+    le superviseur que pour les appels filtrés ; c'est plus rapide (environ 9 fois sur des
+    boucles qui lancent beaucoup de processus, d'après nos mesures). Mais il demande Linux 5.0
+    au moins (5.5 pour laisser l'appel continuer), un filtre à installer avant l'\cmd{exec} du
+    processus (avec \cmd{no\_new\_privs}), et la lecture des arguments dans la mémoire du
+    processus par \cmd{/proc/<pid>/mem}. Surtout, un autre thread du processus peut modifier les
+    arguments entre leur lecture par le superviseur et l'exécution de l'appel : la page de
+    manuel met en garde contre l'usage de ce mécanisme pour une politique de
+    sécurité~\cite{man-seccomp-unotify}.
+  \item \textbf{ptrace} : retenu pour le prototype. ptrace peut \emph{modifier} l'appel, pas
+    seulement l'observer : le garde s'arrête à l'entrée de l'appel, lit les arguments dans les
+    registres du processus, sauvegarde le fichier, puis laisse passer l'appel --- ou l'annule en
+    remplaçant son numéro par une valeur invalide. Il est disponible partout sans prérequis (ni
+    noyau récent, ni filtre BPF à compiler), suit les processus enfants (\cmd{fork},
+    \cmd{clone}, \cmd{exec}) par de simples options, et tient en quelques dizaines de lignes de
+    Python (\cmd{ctypes}). Pour un prototype qui devait d'abord prouver la \emph{justesse} ---
+    sauvegarder exactement le bon fichier ---, c'était le choix sûr. Ses limites sont assumées et
+    rappelées au chapitre~\ref{ch:securite} : architecture x86-64, coût d'un arrêt par appel
+    système, et pas de vision au-delà du projet.
 \end{itemize}
+
+\begin{pourquoi}[seccomp : l'étape suivante, pas le point de départ]
+seccomp avec notification remplacera ptrace pour la vitesse. ptrace reste alors la
+\emph{référence fonctionnelle} : le nouveau filet sera testé contre lui, fichier par fichier.
+\end{pourquoi}
 
 \paragraph{Activation.} Le filet doit s'exécuter \emph{à la place} de la commande. Le
 \textit{hook} Claude Code réécrit donc la commande en \cmd{demo\_cli sh -g <id> <commande>}
