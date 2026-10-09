@@ -1092,10 +1092,14 @@ def _writable(rp: str, target: str) -> None:
 
 def restore_entry(entry: dict) -> bool:
     kind = entry.get("kind", "sqlite")
+    members = entry.get("entries")
+    if members:
+        # The members, whatever the wrapper says: snapshot_set labels a
+        # one-target set with its target's kind, but only the member holds
+        # what that target needs (a symlink's `link`) - restoring the wrapper
+        # brought a deleted link back as a regular file (V22).
+        return all(restore_entry(m) for m in reversed(members))
     if kind in ("group", "set"):
-        members = entry.get("entries")
-        if members:
-            return all(restore_entry(m) for m in reversed(members))
         return False
     rp, target = entry.get("recovery_point"), entry.get("target")
     if kind in ("sqlite", "file"):
