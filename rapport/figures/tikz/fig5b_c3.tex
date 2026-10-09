@@ -1,4 +1,4 @@
-% Figure 5b — C3 : deux frontaux, un seul moteur (d'après le brief C3).
+% Figure 5b — C3 : deux frontaux, un seul moteur.
 \begin{tikzpicture}[
     pas/.style={boite,text width=20mm,font=\sffamily\scriptsize,minimum height=11mm},
     part/.style={accent,text width=16mm,font=\sffamily\scriptsize,minimum height=11mm},
@@ -6,7 +6,7 @@
   \node[douce,text width=15mm,font=\sffamily\scriptsize] (lp) at (0,0.9) {Ligne POSIX};
   \node[douce,text width=15mm,font=\sffamily\scriptsize] (lw) at (0,-0.9) {Ligne PowerShell};
   \node[pas] (pp) at (2.5,0.9) {Analyseur POSIX\sous{\texttt{model.py}}};
-  \node[pas,dashed] (pw) at (2.5,-0.9) {Analyseur PS\\+ lieur de\\paramètres\sous{C3, \statutCthree}};
+  \node[pas] (pw) at (2.5,-0.9) {Analyseur PS\\+ lieur de\\paramètres\sous{C3}};
   \node[part] (inv) at (5.0,0) {Invocations};
   \node[part,right=3mm of inv] (sim) {Simulation\sous{FS virtuel}};
   \node[part,right=3mm of sim] (eff) {Effets\sous{DELETE, MOVE\ldots}};

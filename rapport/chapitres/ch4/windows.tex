@@ -19,7 +19,8 @@ Portes & \textit{hook} Claude Code (Bash, fichiers), Codex, Cursor, piège bash 
   \textit{hook} Claude Code (Bash/Git Bash, PowerShell, fichiers), Codex (PowerShell) \\
 Lecture POSIX & moteur & même moteur ; chemins \cmd{/c/x} traduits en
   \cmd{C:\textbackslash x} \\
-Lecture PowerShell & --- & anciennes règles textuelles, puis C3 (\statutCthree) \\
+Lecture PowerShell & --- & C3, même moteur ; les anciennes règles ne gardent que leurs captures et
+  escalades \\
 Politique, décideur, reçus, \cmd{undo} & communs & communs \\
 Filet d'exécution & garde d'appels système (ptrace), activé par réécriture &
   montage WinFsp : le projet \emph{est} le montage, aucune réécriture \\
@@ -43,38 +44,35 @@ exactement ce qui a été jugé}.
 Sous Windows, les agents écrivent du PowerShell. Jusqu'à C3, le moteur ne le lit pas : une ligne
 PowerShell, ou une ligne POSIX qui contient un mot PowerShell ou \cmd{cmd.exe}, est jugée par
 une poignée d'expressions régulières (\cmd{ps\_remove\_item}, \cmd{ps\_set\_content}\ldots ;
-arbitrage M5). Le coût est mesurable (tableau~\ref{tab:ps-avant}) : des destructions passent,
-une écriture banale escalade. Seul le montage WinFsp couvre aujourd'hui ces cas.
+arbitrage M5). Le coût était mesurable (tableau~\ref{tab:ps-avant}) : des destructions passaient,
+une écriture banale escaladait, et seul le montage WinFsp couvrait ces cas. C3 les lit
+(colonne « Avec C3 »).
 
 \begin{table}[htbp]
 \centering
-\caption{Lignes PowerShell et décision de l'ancien chemin (vérifié au commit \commitref{})}
+\caption{Lignes PowerShell : l'ancien chemin et C3 (le projet contient a.txt et b.txt)}
 \label{tab:ps-avant}
 \small
-\begin{tabularx}{\linewidth}{@{}L{5.4cm}L{2.4cm}Y@{}}
+\begin{tabularx}{\linewidth}{@{}L{4.4cm}L{3.9cm}Y@{}}
 \toprule
-\textbf{Ligne} & \textbf{Décision} & \textbf{Ce qui se passe réellement} \\
+\textbf{Ligne} & \textbf{Ancien chemin} & \textbf{Avec C3} \\
 \midrule
-\cmd{iex "Remove-Item a.txt"} & ALLOW & le motif voit une chaîne, pas une suppression \\
-\cmd{Write-Output "\$(Remove-Item a.txt)"} & ALLOW & suppression cachée dans une
-  sous-expression \\
-\cmd{Copy-Item a.txt b.txt} (b.txt existe) & ALLOW & \cmd{Copy-Item} écrase sans \cmd{-Force}
-  (vérifié sur PowerShell 5.1) \\
-\cmd{Set-Content a.txt hi} & ESCALATE & escalade inutile : le motif ne distingue pas le
-  \cmd{-Path} positionnel du \cmd{-Value} \\
+\cmd{iex "Remove-Item a.txt"} & ALLOW (le motif voit une chaîne) & REVERSIBLE : la chaîne
+  littérale est analysée, a.txt est copié avant \\
+\cmd{Write-Output "\$(Remove-Item a.txt)"} & ALLOW (suppression cachée) & REVERSIBLE : la
+  sous-expression est analysée \\
+\cmd{Copy-Item a.txt b.txt} & ALLOW (écrase sans \cmd{-Force}) & REVERSIBLE : b.txt, la
+  destination écrasée, est copié avant \\
+\cmd{Set-Content a.txt hi} & ESCALATE (inutile) & REVERSIBLE : a.txt lié à \cmd{-Path}
+  (position 0), hi à \cmd{-Value} \\
+\cmd{"a.txt" | Remove-Item} & ALLOW (la cible arrive par le tube) & REVERSIBLE : la valeur se
+  lie au paramètre de \textit{pipeline} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{C3 : le second frontal du moteur}
 \label{sec:c3}
-
-\begin{encadre}[Statut]
-C3 n'est pas intégré au commit de référence \commitref{} : il est en conception. Les décisions
-PS1--PS5 sont proposées, et les tables de liaison sont générées depuis PowerShell 5.1
-(\cthreecmdlets{} cmdlets, \cthreealias{} alias). Il n'y a pas encore de chiffres de validation.
-Cette section présente sa conception ; ce qu'elle décrit est le comportement visé.
-\end{encadre}
 
 \subsection{L'idée : un frontal, pas un second garde-fou}
 Une expression régulière lit des caractères ; PowerShell \emph{lie des paramètres}. Seul un
@@ -142,12 +140,33 @@ sûr » --- valent pour les deux dialectes.
     comme \cmd{python x.py}.
 \end{description}
 
-\subsection{Validation prévue}
+Une ligne \cmd{cmd /c \ldots} n'est pas du PowerShell : elle garde les règles textuelles
+(arbitrage PS3). Les anciennes règles PowerShell restent en place, mais ne gardent que leurs
+captures et leurs escalades, jamais leur ALLOW : la réponse la plus stricte l'emporte. C3 ne lit
+pas les chaînes construites à l'exécution, les classes, les fonctions, les modules ni les
+scripts \cmd{.ps1}, qui sont des exécuteurs de code.
+
+\subsection{Les arbitrages PS1--PS5}
+\begin{itemize}
+  \item \textbf{PS1} --- un analyseur PowerShell écrit en Python, dans le processus du
+    \textit{hook} ; l'analyseur de PowerShell lui-même sert d'oracle dans les tests sous Windows.
+  \item \textbf{PS2} --- les tables du lieur de paramètres sont générées depuis le PowerShell
+    installé (5.1.19041 : \cthreecmdlets{} cmdlets, \cthreealias{} alias), pas écrites à la main.
+  \item \textbf{PS3} --- \cmd{cmd /c \ldots} garde les règles textuelles.
+  \item \textbf{PS4} --- \cmd{-WhatIf} n'a aucun effet : PowerShell décrit l'action sans la
+    faire.
+  \item \textbf{PS5} --- une livraison en étapes : (a) analyseur, lieur, cmdlets de fichiers et
+    lectures, branchement au moteur ; (b) \textit{pipelines}, \cmd{\$( )}, blocs de script,
+    \cmd{iex}, \cmd{-EncodedCommand}, \cmd{\&}, \cmd{-File} ; (c) retrait des règles textuelles
+    PowerShell, en perspective.
+\end{itemize}
+
+\subsection{Validation}
 Chaque règle de cmdlet porte ses exemples, exécutés comme tests ; les lignes PowerShell réelles
 trouvées dans les registres sont figées avec leur décision attendue ; chaque trou de V12 a un
-test qui échoue avant C3 ; le portail de décision (qui contient des lignes PowerShell) et un
-portail Windows vérifient qu'aucune décision ne devient plus permissive ; enfin, sous Windows,
-l'analyse de C3 est comparée, sur un corpus de lignes réelles, à l'arbre syntaxique produit par
-l'analyseur de PowerShell lui-même, utilisé comme \emph{oracle}. Les anciennes règles
-PowerShell restent en place jusqu'à ce que les décisions de C3 les égalent ou les dépassent
-sur chaque ligne du portail.
+test qui échoue sur le code d'avant C3 et passe après. Sous Windows, l'analyse de C3 est
+comparée, sur un corpus de lignes réelles, à l'arbre syntaxique produit par l'analyseur de
+PowerShell lui-même. Le portail de \nbcorpus{} commandes et le portail Windows ont été rejoués :
+chaque ligne qui bouge est plus stricte ou arbitrée. Les anciennes règles PowerShell restent en
+place jusqu'à ce que les décisions de C3 les égalent ou les dépassent sur chaque ligne du
+portail.

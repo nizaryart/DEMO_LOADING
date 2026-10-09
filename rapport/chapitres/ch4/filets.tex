@@ -74,8 +74,24 @@ jugement de la plomberie. Les captures sont écrites sur le disque réel, hors d
 \end{figure}
 
 \subsection{Ce que les deux filets ne voient pas}
-Les deux filets couvrent le projet, et seulement lui. Une destruction hors du projet par du
-code non lu n'est ni capturée ni, pour l'instant, enregistrée par le filet (V18, deuxième
-étape, ouverte) ; la raison de la décision le dit (« outside the project nothing is
-captured »). Les surfaces distantes leur sont invisibles : c'est pourquoi une ligne non lue
+Les deux filets sauvegardent le projet, et seulement lui. Une destruction hors du projet par du
+code non lu n'est pas sauvegardée ; le filet Linux l'\emph{enregistre} : un reçu par fichier,
+sans sauvegarde ni blocage (V18, deuxième étape, \commitVdixhuit). Les répertoires
+temporaires, \cmd{/proc}, \cmd{/sys}, \cmd{/dev}, les fichiers non réguliers et ceux que la
+commande a créés elle-même sont ignorés, et une exécution est plafonnée à 100 reçus. La raison
+de la décision le dit : « outside the project each destroyed file is recorded, not backed up ».
+Le montage Windows ne voit que le projet.
+
+\begin{terminal}[un script détruit un fichier dans le projet et un autre hors du projet]
+$ demo_cli sh -g bbbb2222 "python3 nettoie.py"
+demo_cli [syscall] REVERSIBLE: unlink ~/projet/notes.txt  (undo: demo_cli undo bbbb2222)
+demo_cli [syscall] RECORDED (outside the project, not backed up): unlink ~/ailleurs/config.txt
+fini
+\end{terminal}
+
+Le registre contient alors deux reçus : REVERSIBLE (\cmd{sys\_unlink}) avec un point de
+récupération pour le fichier du projet, et ALLOW (\cmd{sys\_outside\_unlink}) sans point de
+récupération pour le fichier extérieur --- « recorded, not backed up, cannot be undone ».
+
+Les surfaces distantes leur sont invisibles : c'est pourquoi une ligne non lue
 qui atteint le cloud, un conteneur ou un service escalade au lieu d'aller au filet.

@@ -12,7 +12,8 @@ la ligne et une simulation de ses effets ont remplacé les expressions réguliè
 à expressions régulières ne décide plus aucune ligne POSIX ; une seule politique et un seul
 décideur rendent les mêmes réponses à toutes les portes et sur les deux
 systèmes ; un garde d'appels système sous Linux et un montage WinFsp sous Windows couvrent ce
-que la lecture ne peut pas prédire.
+que la lecture ne peut pas prédire. Depuis C3, les deux dialectes passent par le même moteur et le même
+décideur.
 
 Au-delà des fonctionnalités, le stage a produit une manière de travailler adaptée à un logiciel
 de sécurité : des parties courtes, des arbitrages écrits avant le code, des tests qui échouent
@@ -36,12 +37,11 @@ ne considérer un résultat comme acquis que lorsqu'un test a montré qu'il pouv
 
 \section*{Perspectives}
 \begin{itemize}
-  \item \textbf{C3, le moteur PowerShell} (\statutCthree{} ; tables de liaison générées :
-    \cthreecmdlets{} cmdlets, \cthreealias{} alias) : fermer V12 et terminer la symétrie de
-    l'architecture --- deux dialectes, un moteur, un décideur, deux filets.
-  \item \textbf{Au-delà du projet} (V18, deuxième étape) : le filet Linux enregistre désormais
-    chaque fichier détruit hors du projet, un reçu par fichier, sans sauvegarde ni blocage
-    (en relecture) ; d'éventuels blocages seront décidés sur données mesurées.
+  \item \textbf{PowerShell} : étendre la grammaire PowerShell lue par C3 (classes, fonctions,
+    modules) et retirer les dernières règles textuelles PowerShell une fois leurs décisions
+    égalées sur chaque ligne du portail.
+  \item \textbf{Au-delà du projet} : décider d'éventuels blocages hors du projet à partir des
+    reçus que le filet Linux enregistre désormais (V18, troisième étape).
   \item \textbf{Vitesse du filet Linux} : passer de ptrace à seccomp avec notification, et étendre
     le filet aux commandes tapées par la personne et aux processus qui survivent à la commande
     (V14).

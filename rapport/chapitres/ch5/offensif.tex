@@ -84,6 +84,12 @@ V22 & La suppression d'un lien symbolique du projet était capturée, mais \cmd{
   enveloppe une cible unique, au lieu de l'entrée interne qui garde le lien. Pas de perte de
   données. & Moyenne & Revue
   red-team (R3) & V22 (\cmd{7d2a2aa}) \\
+V12 & PowerShell non analysé : \cmd{iex "Remove-Item a.txt"}, \cmd{Write-Output "\$(Remove-Item
+  a.txt)"} et \cmd{"a.txt" | Remove-Item} autorisés, \cmd{Copy-Item a b} écrasait en silence,
+  \cmd{Set-Content a.txt hi} escaladait inutilement. & Haute & Fouille des registres & C3 \\
+V18 (2) & Une destruction hors du projet par du code non lu n'était ni sauvegardée ni
+  enregistrée par le filet. & Moyenne & Revue de code (M2.3a) & V18 (\commitVdixhuit) : le filet
+  Linux enregistre chaque fichier détruit hors du projet \\
 --- & \cmd{source ./x.sh} vu comme sans effet ; code téléchargé exécuté par
   \cmd{bash <(curl \ldots)} ou \cmd{aws s3 cp \ldots{} - | bash} autorisé. & --- & Sondes & M2.3a \\
 --- & \cmd{undo} impossible sur un fichier passé en \cmd{chmod 444}/\cmd{000} ; plantage du
@@ -117,12 +123,6 @@ V21.
 \endhead
 \bottomrule
 \endfoot
-V12 & PowerShell non analysé : \cmd{iex "Remove-Item a.txt"}, \cmd{Write-Output "\$(Remove-Item
-  a.txt)"} autorisés, \cmd{Copy-Item a b} écrase en silence, \cmd{Set-Content a.txt hi} escalade
-  inutilement. Seul le montage les couvre aujourd'hui. & C3 (\statutCthree) \\
-V18 (2) & Une destruction hors du projet par du code non lu n'est ni capturée ni enregistrée
-  par le filet. & En relecture après le commit de référence : le filet Linux enregistre chaque
-  fichier détruit hors du projet (un reçu par fichier, sans sauvegarde ni blocage) \\
 V14 & Les commandes tapées par la personne et les processus qui survivent à la commande sont
   hors du filet Linux. & Plus tard \\
 V7--V9 & Montage Windows : ne refuse pas lui-même les fichiers de \demo{} (les portes le

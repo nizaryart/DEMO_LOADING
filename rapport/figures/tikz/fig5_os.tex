@@ -12,7 +12,7 @@
 
   % Frontaux
   \node[boite,text width=40mm] (fp) at (-4.75,1.9) {Frontal POSIX\sous{\texttt{model.py} ; Git Bash : \texttt{/c/x} $\rightarrow$ \texttt{C:\textbackslash x}}};
-  \node[boite,text width=40mm,dashed] (fw) at (4.75,1.9) {Frontal PowerShell (C3)\sous{lieur de paramètres ; \statutCthree}};
+  \node[boite,text width=40mm] (fw) at (4.75,1.9) {Frontal PowerShell (C3)\sous{analyseur + lieur de paramètres}};
   \draw[fleche] (fp.south) |- (eng.west);
   \draw[fleche] (fw.south) |- (eng.east);
 
@@ -34,5 +34,5 @@
 
   \node[zone,fit=(tl)(l1)(l4)] (zl) {};
   \node[zone,fit=(tw)(w1)(w4)] (zw) {};
-  \node[etiquette,text width=120mm,anchor=north] at ([yshift=-2mm]0,0 |- zw.south) {Les deux filets couvrent le \emph{projet} seulement, et la raison de la décision le dit.};
+  \node[etiquette,text width=120mm,anchor=north] at ([yshift=-2mm]0,0 |- zw.south) {Les deux filets sauvegardent le \emph{projet} seulement ; hors projet, le filet Linux enregistre sans sauvegarder. La raison de la décision le dit.};
 \end{tikzpicture}
