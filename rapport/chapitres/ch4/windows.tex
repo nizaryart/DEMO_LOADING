@@ -91,6 +91,49 @@ sûr » --- valent pour les deux dialectes.
 \label{fig:c3}
 \end{figure}
 
+\subsection{Organisation du code}
+C3 ajoute un frontal et un exécuteur PowerShell sur le \cmd{World} existant de la simulation ; il
+n'ajoute ni décideur, ni politique, ni second vocabulaire d'effets.
+
+\begin{table}[htbp]
+\centering
+\caption{Les modules de C3}
+\label{tab:c3-modules}
+\small
+\begin{tabularx}{\linewidth}{@{}L{4.6cm}Y@{}}
+\toprule
+\textbf{Module} & \textbf{Rôle} \\
+\midrule
+\fichier{ps\_model.py} & Analyseur lexical et syntaxique : script, instructions,
+  \textit{pipelines}, commandes (nom, paramètres, arguments, redirections, positions dans la
+  source), chaînes littérales et extensibles, \textit{here-strings}, blocs de script,
+  sous-expressions, affectations. Tout ce qui sort de la grammaire est marqué non compris, avec
+  sa raison. \\
+\fichier{engine/ps51\_bindings.json}, \fichier{engine/ps\_tables.py} & Les tables générées
+  (PS2) : cmdlets, alias, jeux de paramètres, positions, commutateurs, entrée de
+  \textit{pipeline}, alias de paramètres, paramètres communs ; chargées à la demande. \\
+\fichier{engine/ps\_bind.py} & Le lieur : alias $\rightarrow$ cmdlet, \cmd{-Nom} et
+  \cmd{-Nom:valeur}, plus court préfixe non ambigu, liaison positionnelle par jeu de paramètres,
+  liaison de \textit{pipeline} par valeur puis par nom de propriété. \\
+\fichier{engine/ps\_invocation.py} & L'invocation PowerShell, pendant de l'invocation POSIX :
+  texte, profondeur, séparateur, sous-expressions exécutées d'abord, charge (\cmd{iex},
+  \cmd{-Command}, \cmd{-EncodedCommand}), redirections, paramètres liés. \\
+\fichier{engine/rules\_powershell.py} & Les règles des cmdlets \emph{comme des données}, avec
+  leurs exemples : une famille de plus, chargée à la demande. \\
+\fichier{engine/ps\_ops.py} & L'exécuteur PowerShell sur le \cmd{World} : instructions,
+  \textit{pipelines}, blocs de script là où ils s'exécutent, \cmd{iex} littéral,
+  \cmd{-EncodedCommand}, exécuteurs \cmd{\&} et \cmd{-File}, redirections. Il appelle les mêmes
+  opérations que les outils POSIX (supprimer, remplacer, écrire, copier, déplacer, créer). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Dans l'orchestrateur, les trois portes qui ne laissaient passer que le POSIX --- la prédiction du
+moteur, le choix du chemin moteur, le routage des lignes non lues --- acceptent aussi
+PowerShell, et une étape de fusion applique la règle « le plus strict gagne » entre la réponse de
+C3 et celle des anciennes règles PowerShell. Une ligne POSIX qui contient
+\cmd{powershell -Command "\ldots"} passe sa charge au frontal PowerShell.
+
 \subsection{Fonctionnement}
 \begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
   \item[Analyse lexicale et syntaxique]
@@ -98,14 +141,16 @@ sûr » --- valent pour les deux dialectes.
     s'étendent, échappement et continuation par l'accent grave, \textit{here-strings}
     \cmd{@'\ldots'@} et \cmd{@"\ldots"@}, \textit{pipelines}, séparateurs \cmd{;},
     sous-expressions \cmd{\$(\ldots)}, blocs de script \cmd{\{\ldots\}}, opérateur d'appel
-    \cmd{\&}, redirections, variables \cmd{\$env:} et affectations sur la même ligne.
+    \cmd{\&}, redirections (\cmd{>} écrase, \cmd{>>} ajoute, \cmd{2>}, \cmd{*>},
+    \cmd{> \$null}), variables \cmd{\$env:} et affectations sur la même ligne.
   \item[Lieur de paramètres]
     Le cœur de C3. Pour chaque cmdlet, il connaît les \emph{jeux de paramètres}, les paramètres
     \emph{positionnels} et leur position, les alias de la cmdlet et de chaque paramètre, les
     paramètres commutateurs, et ceux qui acceptent une entrée de \textit{pipeline} (par valeur
     ou par nom de propriété). Il résout les abréviations comme PowerShell : le plus court
     préfixe non ambigu (\cmd{-Rec} $\rightarrow$ \cmd{-Recurse}, \cmd{-Dest} $\rightarrow$
-    \cmd{-Destination}). Ces tables sont \emph{générées} à partir du PowerShell installé
+    \cmd{-Destination}). Un préfixe ambigu, un paramètre inconnu ou un jeu de paramètres
+    qu'aucune liaison ne satisfait rendent la commande non couverte. Ces tables sont \emph{générées} à partir du PowerShell installé
     (\cmd{Get-Command}, métadonnées des paramètres, \cmd{Get-Alias}), et chaque fait de liaison
     a été vérifié sur PowerShell 5.1. Ainsi \cmd{Set-Content a.txt hi} lie \cmd{a.txt} à
     \cmd{-Path} (position 0) et \cmd{hi} à \cmd{-Value} (position 1).
@@ -113,12 +158,14 @@ sûr » --- valent pour les deux dialectes.
     \cmd{Remove-Item} et ses alias $\rightarrow$ DELETE, récursif avec \cmd{-Recurse} ;
     \cmd{-Path} développe les jokers, \cmd{-LiteralPath} jamais. \cmd{Clear-Content}
     $\rightarrow$ TRUNCATE. \cmd{Set-Content} et \cmd{Out-File} $\rightarrow$ OVERWRITE d'un
-    fichier existant, CREATE sinon ; \cmd{-Append} et \cmd{Add-Content} ajoutent seulement ;
-    \cmd{-NoClobber} refuse. \cmd{Copy-Item} $\rightarrow$ OVERWRITE de la destination si elle
+    fichier existant, CREATE sinon ; \cmd{-Append}, \cmd{Add-Content} et \cmd{>>} ajoutent
+    seulement (APPEND) ; avec \cmd{-NoClobber} sur un fichier existant, la cmdlet échoue sans
+    effet. \cmd{Copy-Item} $\rightarrow$ OVERWRITE de la destination si elle
     existe ; \cmd{Move-Item} et \cmd{Rename-Item} $\rightarrow$ MOVE, et refusent une
     destination existante sans \cmd{-Force}. \cmd{New-Item} $\rightarrow$ CREATE, ou OVERWRITE
-    avec \cmd{-Force}. Les lectures (\cmd{Get-ChildItem}, \cmd{Get-Content},
-    \cmd{Select-Object}\ldots) n'ont pas d'effet. Avec \cmd{-WhatIf}, PowerShell ne fait que
+    avec \cmd{-Force} sur un fichier existant. Les lectures (\cmd{Get-ChildItem},
+    \cmd{Get-Item}, \cmd{Get-Content}, \cmd{Select-Object}, \cmd{Format-*}, \cmd{Test-Path},
+    \cmd{Measure-Object}, \cmd{Sort-Object}, \cmd{Where-Object}\ldots) n'ont pas d'effet. Avec \cmd{-WhatIf}, PowerShell ne fait que
     décrire l'action : aucun effet.
   \item[\textit{Pipelines}]
     Une valeur littérale envoyée dans une cmdlet se lie à son paramètre de \textit{pipeline}
@@ -129,22 +176,32 @@ sûr » --- valent pour les deux dialectes.
     Une sous-expression est analysée et ses effets comptent ; un bloc de script est analysé là
     où il s'exécute (\cmd{ForEach-Object \{\ldots\}}). \cmd{Invoke-Expression} (\cmd{iex}) avec
     une chaîne \emph{littérale} est analysé comme une ligne à part entière --- l'équivalent de
-    \cmd{eval} ou \cmd{bash -c} --- et \cmd{powershell.exe -EncodedCommand} est décodé (UTF-16LE)
-    puis analysé. Une chaîne construite à l'exécution ne peut pas être lue : elle est non
-    comprise.
+    \cmd{eval} ou \cmd{bash -c} ---, de même que \cmd{powershell -Command "<littéral>"} ;
+    \cmd{powershell.exe -EncodedCommand} est décodé (base64, UTF-16LE) puis analysé. Une chaîne
+    construite à l'exécution (\cmd{iex \$var}) ne peut pas être lue : elle est non comprise.
   \item[Rien n'est deviné]
     Une construction hors de la grammaire modélisée, une variable de valeur inconnue, une
     cmdlet ou un paramètre inconnus rendent la ligne non comprise ou non couverte, exactement
     comme en POSIX : filet WinFsp, sinon point de contrôle, sinon escalade. Un script lancé par
-    \cmd{-File script.ps1} ou \cmd{\& .\textbackslash x.ps1} est un exécuteur de code, traité
-    comme \cmd{python x.py}.
+    \cmd{-File script.ps1}, \cmd{\& .\textbackslash x.ps1} ou \cmd{. .\textbackslash x.ps1} est un
+    exécuteur de code, traité comme \cmd{python x.py}.
+  \item[Des choix plus stricts]
+    Les chemins d'un autre fournisseur que le système de fichiers (\cmd{HKLM:}, \cmd{HKCU:},
+    \cmd{Env:}, \cmd{Variable:}, \cmd{Function:}, \cmd{Alias:}, \cmd{Cert:}, \cmd{WSMan:}) sont
+    non compris, jamais pris pour des fichiers ; \cmd{-Include}, \cmd{-Exclude} et
+    \cmd{-Filter} aussi ; une ligne PowerShell qui lance \cmd{bash -c} ou \cmd{wsl} aussi.
+    \cmd{-Confirm} est traité comme une exécution normale, l'outil n'étant pas interactif.
 \end{description}
 
 Une ligne \cmd{cmd /c \ldots} n'est pas du PowerShell : elle garde les règles textuelles
 (arbitrage PS3). Les anciennes règles PowerShell restent en place, mais ne gardent que leurs
 captures et leurs escalades, jamais leur ALLOW : la réponse la plus stricte l'emporte. C3 ne lit
-pas les chaînes construites à l'exécution, les classes, les fonctions, les modules ni les
-scripts \cmd{.ps1}, qui sont des exécuteurs de code.
+pas les chaînes construites à l'exécution, les classes, les fonctions (\cmd{param()},
+\cmd{begin/process/end}), \cmd{switch}, \cmd{try}, la décomposition de paramètres (\cmd{@x}),
+\cmd{--\%}, les appels de membres dynamiques ni les modules ; les scripts \cmd{.ps1} sont des
+exécuteurs de code. Sous Windows, ces lignes vont au montage WinFsp, sinon à un point de
+contrôle, sinon elles escaladent ; sous Linux, les mêmes lignes reçoivent les réponses Linux :
+le moteur est indépendant du système, seul le filet diffère.
 
 \subsection{Les arbitrages PS1--PS5}
 \begin{itemize}
@@ -166,7 +223,10 @@ Chaque règle de cmdlet porte ses exemples, exécutés comme tests ; les lignes 
 trouvées dans les registres sont figées avec leur décision attendue ; chaque trou de V12 a un
 test qui échoue sur le code d'avant C3 et passe après. Sous Windows, l'analyse de C3 est
 comparée, sur un corpus de lignes réelles, à l'arbre syntaxique produit par l'analyseur de
-PowerShell lui-même. Le portail de \nbcorpus{} commandes et le portail Windows ont été rejoués :
+PowerShell lui-même : une seule exécution de \cmd{powershell.exe} analyse tout le corpus avec
+\cmd{[System.Management.Automation.Language.Parser]::ParseInput} et donne, pour chaque élément de
+\textit{pipeline}, le nom de la commande, ses paramètres et ses arguments. L'analyse et la
+simulation d'une ligne PowerShell tiennent dans le budget de 10\,ms du moteur. Le portail de \nbcorpus{} commandes et le portail Windows ont été rejoués :
 chaque ligne qui bouge est plus stricte ou arbitrée. Les anciennes règles PowerShell restent en
 place jusqu'à ce que les décisions de C3 les égalent ou les dépassent sur chaque ligne du
 portail.
