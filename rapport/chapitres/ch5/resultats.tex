@@ -23,6 +23,8 @@ Suite complète, Windows & \testswindows \\
 Portail de décision (\nbcorpus{} commandes) & Windows : 0 ligne différente ; Linux : une
   seule ligne, qui dépend des fichiers présents sur la machine \\
 Corpus élargi (validation de M2.3b) & \nbcorpuslarge{} commandes rejouées avant et après \\
+Couverture sur 88 incidents réels (red-team \#008) & de 75\,\% à 90\,\% des enregistrements, de 44\,\% à 81\,\% des
+  commandes uniques \\
 Temps du moteur sur les \nbexemples{} exemples (Linux) & médiane 0,29\,ms ; 95\,\% sous
   0,79\,ms ; maximum 1,30\,ms (budget : 10\,ms CPU) \\
 \bottomrule
@@ -39,8 +41,3 @@ sûreté. Les indicateurs qui comptent sont qualitatifs et vérifiables : chaque
 corrigée a un test qui échoue sans sa correction ; aucune partie n'a rendu une décision plus
 permissive sans arbitrage ; et chaque décision affiche ce qu'elle n'a pas couvert.
 
-\begin{figure}[htbp]
-\centering
-\capture{tests}{La suite de tests passant sous Linux et sous Windows}%
-{Deux terminaux côte à côte : \texttt{python -m pytest -q} sous Linux et sous Windows (PowerShell), avec la dernière ligne « N passed, M skipped ».}
-\end{figure}

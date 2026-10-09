@@ -45,6 +45,20 @@ Les conséquences étaient concrètes : du code exécuté avec élévation à la
 session, ou immédiatement par \cmd{schtasks /run}, que l'utilisateur peut lancer sans invite ;
 ou, plus discrètement, un \cmd{exit /b 0} ajouté au script pour que le garde ne revienne jamais.
 
+\subsection{Trois conceptions écartées}
+Avant la solution retenue, trois façons d'empêcher l'agent de toucher au garde ont été essayées
+sous Windows, puis abandonnées :
+\begin{enumerate}
+  \item faire tourner l'agent à un \textbf{niveau d'intégrité bas} : l'accès au profil de
+    l'utilisateur, au cache \cmd{npm} et à \cmd{\%TEMP\%} était cassé ;
+  \item lui donner un \textbf{jeton restreint} : il ne pouvait plus atteindre la station de
+    fenêtres sans modifier dangereusement des ACL de toute la machine ;
+  \item le faire tourner sous un \textbf{compte local dédié} : identifiants, profils et
+    configuration git/SSH séparés --- le flux de travail du développeur était cassé.
+\end{enumerate}
+La conception retenue renverse le problème : au lieu d'enfermer l'agent, elle verrouille le
+garde lui-même.
+
 \subsection{La correction}
 La règle retenue (arbitrages R1--R4) tient en une phrase : \emph{rien de ce que l'utilisateur
 peut écrire ne s'exécute avec élévation}.

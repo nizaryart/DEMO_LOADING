@@ -23,6 +23,9 @@ connues, et la plupart sont dites dans la raison même des décisions.
   \item \textbf{Ce que C3 ne lit pas.} Une construction PowerShell hors de la grammaire de C3
     (chaîne construite à l'exécution, classe, fonction) est non comprise : filet WinFsp, sinon
     point de contrôle, sinon escalade ; un script \cmd{.ps1} est un exécuteur de code.
+  \item \textbf{Le délai du \textit{hook}.} Si un \textit{hook} dépasse le délai de l'agent, celui-ci
+    l'interrompt et exécute la commande sans protection : c'est une frontière du modèle de
+    \textit{hook}, atténuée en gardant le \textit{hook} rapide (budget du moteur).
   \item \textbf{Codex ne sait que refuser} : pas de question, pas de filet par réécriture (V15).
   \item \textbf{Le distant ne se récupère pas.} Pour une base, un dépôt ou un service distant,
     \demo{} reconnaît, demande ou refuse, et indique où le fournisseur garde son historique ;

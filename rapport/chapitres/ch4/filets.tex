@@ -60,6 +60,17 @@ Sous Windows, le filet est un système de fichiers. La mise en place (\cmd{demo\
     \cmd{projet.real}, exécuté avec élévation ;
   \item enregistre une tâche d'ouverture de session pour le remonter après un redémarrage.
 \end{enumerate}
+La figure~\ref{fig:cap-windows-setup} montre ces étapes sur un projet réel, puis leur exact
+inverse : \cmd{demo\_cli teardown} arrête le montage, retire la tâche, remet les fichiers à leur
+place et retire les \textit{hooks}, en laissant la configuration et les reçus comme trace d'audit.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/captures/windows-setup.png}
+\caption{Sous Windows : \cmd{demo\_cli setup} protège un projet (déplacement, verrouillage, tâche,
+montage), puis \cmd{demo\_cli teardown} défait chaque étape}
+\label{fig:cap-windows-setup}
+\end{figure}
 Le montage a été construit en deux étapes qui prennent \emph{les mêmes décisions} : une
 première version en mémoire, pour prouver l'interception, la capture et la restauration sans
 risquer de corrompre de vrais fichiers ; puis la version passe-plat, sur laquelle on peut
@@ -69,7 +80,7 @@ jugement de la plomberie. Les captures sont écrites sur le disque réel, hors d
 
 \begin{figure}[htbp]
 \centering
-\capture{windows-montage}{Le projet monté par WinFsp sous Windows, et une capture faite par le montage}%
+\capture{windows-montage}{Le montage actif (\cmd{doctor}) : un \cmd{Remove-Item} tapé dans le projet est capturé par le montage, qui ne lit aucune commande (entrée « delete a.txt » du journal de récupération)}%
 {Sous Windows : \texttt{demo\_cli setup} sur un projet, puis l'Explorateur ou \texttt{Get-Item C:\textbackslash projet} montrant le point de montage, et \texttt{demo\_cli log} après un \texttt{Remove-Item} lancé par l'agent.}
 \end{figure}
 

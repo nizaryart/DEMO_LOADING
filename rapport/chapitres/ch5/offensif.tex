@@ -39,6 +39,86 @@ comportements --- puis corrigés en trois tours. Ils se rangent en trois niveaux
     modification.
 \end{itemize}
 
+\subsection{La batterie red-team}
+Les notes de red-team tenues pendant le stage classent chaque constat en trois catégories, qui
+découlent directement du modèle de menace (section~\ref{sec:menace}) :
+\begin{itemize}
+  \item \textbf{défaut dans le périmètre} (\textit{in-scope flaw}) : l'agent commet une erreur
+    honnête et le garde la manque --- c'est un défaut à corriger ;
+  \item \textbf{frontière} (\textit{boundary}) : une limite documentée de ce que le \textit{hook}
+    peut voir ;
+  \item \textbf{évasion} (\textit{evasion}) : un obscurcissement délibéré, hors du périmètre par
+    conception.
+\end{itemize}
+
+{\small
+\begin{longtable}{@{}L{0.9cm}L{6.3cm}L{2.4cm}L{5.0cm}@{}}
+\caption{La batterie red-team \#001--\#010 et son issue}\label{tab:redteam}\\
+\toprule
+\textbf{\#} & \textbf{Constat} & \textbf{Catégorie} & \textbf{Issue} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Constat} & \textbf{Catégorie} & \textbf{Issue} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+001 & Les commandes tapées dans le mode \cmd{!} de Claude Code n'atteignaient pas le
+  \textit{hook} (elles s'exécutent dans le shell de l'utilisateur) & Frontière &
+  Couvertes par le garde du shell (piège \cmd{DEBUG} injecté par \cmd{BASH\_ENV}) ; les commandes
+  tapées dans d'autres shells restent hors du filet Linux (V14) \\
+002 & Des commandes obscurcies (Bashfuscator) cachent les mots destructeurs à un classifieur
+  textuel & Évasion & Hors périmètre de la lecture statique ; le filet d'exécution voit les vrais
+  appels système \\
+003 & \cmd{source fichier.txt} exécute des commandes que le \textit{hook} ne voit pas &
+  Frontière & Traité comme du code non lu : filet, sinon point de contrôle, sinon ALLOW avec une
+  note honnête \\
+004 & \textbf{Faux REVERSIBLE} : une suppression avec une expansion non résolue ne capturait que
+  la partie résolue et déclarait toute la ligne réversible & Défaut & Corrigé : une capture
+  partielle est refusée et la ligne escalade \\
+005 & Redirections et verbes qui écrasent (\cmd{> fichier}, \cmd{tee}, \cmd{cp} sur un fichier)
+  détruisaient sans déclencher de règle & Défaut & Corrigé : lus par le moteur ; créer un
+  nouveau fichier reste autorisé \\
+006 & Un préfixe de variable d'environnement (\cmd{X=1 rm app.db}) contournait la règle
+  \cmd{rm} ancrée & Défaut & Corrigé \\
+007 & Trous de couverture : \cmd{mkfs}, \cmd{git checkout -- .}, \cmd{git restore .},
+  \cmd{git stash clear}, \cmd{Remove-Item} sans \cmd{-Force} & Défaut & Corrigé \\
+008 & Mesure sur 88 incidents réels : couverture de 75\,\% par enregistrement et 44\,\% des
+  commandes uniques & Mesure & Portée à 90\,\% et 81\,\% après les corrections \\
+009 & La destruction validée est rare dans les données réelles ; deux trous : les écritures SaaS
+  qu'aucune copie locale n'annule, et \cmd{git stash pop} jugé sûr & Frontière + défaut &
+  Écritures SaaS escaladées comme surfaces non récupérables ; \cmd{git stash pop} corrigé \\
+010 & Essais en direct du mode \cmd{!} : l'enveloppe \cmd{eval '<cmd>'} prise pour une
+  exécution distante, une redirection vers un nouveau fichier prise pour une destruction, chaque
+  commande capturée deux fois & Défaut $\times$ 3 & Corrigés \\
+\end{longtable}
+}
+
+Au fil des parties, d'autres défauts ont été trouvés et corrigés ; quelques-uns méritent une
+ligne :
+\begin{itemize}
+  \item \textbf{Garde Windows éteint en silence} : \cmd{Out-File} de PowerShell écrit en UTF-8 avec
+    BOM, la configuration ne se lisait plus et le garde laissait tout passer. Une configuration
+    illisible escalade désormais, avec un message qui dit comment la réparer.
+  \item \textbf{Montage WinFsp} : confusion entre suppression de fichier et de répertoire,
+    renommage sur un fichier existant non capturé, descripteurs non fermés, restauration écrite
+    au-delà du montage, verrous de plages d'octets à travers le montage, point de montage périmé
+    après un redémarrage.
+  \item \textbf{Intégrité de \cmd{undo}} : une suppression récursive restaurée comme un répertoire
+    vide (Linux), une restauration qui échouait sur un parent manquant (Windows), des lignes
+    déchirées dans l'index de récupération en écriture concurrente (corrigé par un verrou
+    inter-processus).
+  \item \textbf{Points de contrôle} : un calcul de taille qui ignorait \fichier{.git} et
+    permettait de dépasser la limite de 256\,Mo ; des copies complètes de bases de plusieurs Go
+    qui figeaient la machine (liste d'exclusion partagée et limites strictes).
+  \item \textbf{Installation} : un filtre \cmd{Bash|PowerShell} comparé comme une chaîne entière
+    déclenchait le \textit{hook} deux fois par commande ; la désinstallation retirait les
+    \textit{hooks} d'autres outils.
+  \item \textbf{Faux positifs} : un mot comme « drop » dans un message de commit déclenchait les
+    règles SQL ; un aperçu de \cmd{cd x \&\& rm -rf a b} montrait le mauvais répertoire.
+\end{itemize}
+
 \subsection{Les vulnérabilités du stage}
 Le journal des vulnérabilités (V1--V22) distingue ce qui est corrigé, ce qui a été vérifié et
 n'est pas une faille, et ce qui reste ouvert.
