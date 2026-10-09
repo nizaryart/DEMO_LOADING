@@ -1,0 +1,268 @@
+% Annexe E — L'architecture complète.
+% Les figures E.1 et E.2 sont générées par notes/gen_carte.py depuis le code ; les tailles sont
+% celles du commit de référence, comme tous les chiffres du rapport (chiffres.tex).
+\chapter{L'architecture complète}
+\label{ann:architecture}
+
+Les sections~\ref{sec:architecture} à~\ref{sec:windows} montrent \demo{} par ses idées : le flux,
+le moteur, la décision, les filets. Cette annexe le montre en entier, tel qu'il est écrit. Chaque
+boîte de la carte est un fichier réel, chaque nombre est son nombre de lignes, et la carte est
+produite par un script qui lit le code (\fichier{notes/gen\_carte.py}) : il échoue si un seul
+module n'est rangé nulle part. Elle ne peut donc ni oublier un fichier ni en inventer un.
+
+\begin{table}[htbp]
+\centering
+\caption{\demo{} en chiffres, au commit de référence \commitref{}}
+\label{tab:archi-chiffres}
+\small
+\begin{tabularx}{\linewidth}{@{}L{6.4cm}Y@{}}
+\toprule
+\textbf{Mesure} & \textbf{Valeur} \\
+\midrule
+Modules Python & \nbmodules{}, pour $\approx$ \lignessrc{} lignes \\
+Fonctions et méthodes / classes & \nbfonctions{} / \nbclasses{} \\
+Liens d'import entre modules du paquet & \nbimports{} \\
+Sous-commandes de la ligne de commande & \nbsouscommandes{} \\
+Table de règles & \nbregles{} règles, \nbexemples{} exemples-tests, \nboutils{} outils,
+  \nbfamilles{} familles \\
+Dépendance obligatoire & une seule : \cmd{tomli}, et seulement avant Python 3.11 \\
+Dépendances optionnelles & \cmd{winfspy} (montage Windows), \cmd{mitmproxy} (garde de sortie
+  HTTP) \\
+Tests & \lignestests{} lignes, \fichierstests{} fichiers, \fonctionstests{} fonctions de test \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La dépendance unique est un choix : un garde-fou s'installe sur la machine du développeur, à
+côté de l'agent, et chaque paquet tiers est une surface de plus à surveiller. Tout le reste ---
+l'analyse du shell, la simulation, le hachage du registre, ptrace --- repose sur la bibliothèque
+standard de Python. Les deux dépendances optionnelles le sont pour une raison donnée dans
+\fichier{pyproject.toml} : si \cmd{winfspy} était obligatoire, une machine sans WinFsp perdrait
+\emph{tout} \demo{}, y compris les couches qui n'en ont pas besoin.
+
+\section{La carte}
+La figure~\ref{fig:carte} se lit de gauche à droite, dans l'ordre où une commande la traverse :
+les portes reçoivent la commande, l'orchestrateur appelle le moteur, le moteur rend un impact, le
+décideur tranche, le reçu est écrit. Les flèches portent le nom des appels réels. En bas à
+droite, les filets d'exécution, où va une commande supervisée ; à gauche, l'outillage qui
+installe, diagnostique et affiche. Les modules en gras sont les pièces centrales de chaque couche.
+
+\begin{sidewaysfigure}
+\centering
+\resizebox{\textheight}{!}{\input{figures/tikz/figE_carte}}
+\caption{La carte complète de \demo{} : les \nbmodules{} modules, groupés par rôle, avec leur
+nombre de lignes au commit \commitref{}. Les familles du moteur sont regroupées (un fichier de
+règles, un fichier d'opérations, parfois un fichier de données générées) ; le détail est au
+tableau~\ref{tab:familles}. C3, en tirets, est décrit à la section~\ref{sec:c3}.}
+\label{fig:carte}
+\end{sidewaysfigure}
+
+\section{Où sont les lignes}
+La figure~\ref{fig:couches} répond à une question simple : où est passé l'effort ? Le moteur porte
+43\,\% du code, et les trois cinquièmes du moteur sont dans ses familles ---
+la connaissance de ce que font \nboutils{} outils, écrite comme des données et vérifiée par
+leurs exemples. Le décideur, lui, tient en quelques centaines de lignes : c'est voulu. Une
+décision doit pouvoir se relire en entier ; ce qui est long, c'est de \emph{savoir} ce qu'une
+commande fait, pas de décider quoi en faire.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/figE_couches}
+\caption{Lignes de code par couche, au commit \commitref{} (même découpage que la
+figure~\ref{fig:carte})}
+\label{fig:couches}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Les \nbfamilles{} familles du moteur, chargées à la demande}
+\label{tab:familles}
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.3cm}Yrr@{}}
+\toprule
+\textbf{Famille} & \textbf{Exemples d'outils} & \textbf{Outils} & \textbf{Lignes} \\
+\midrule
+Système & \cmd{systemctl}, \cmd{crontab}, \cmd{chmod}, \cmd{useradd}, \cmd{reg}, \cmd{schtasks} & 92 & \num{1419} \\
+Clients SQL & \cmd{sqlite3}, \cmd{psql}, \cmd{mysql}, \cmd{mariadb} & 4 & \num{1412} \\
+Envoi & \cmd{curl}, \cmd{gh}, \cmd{ssh}, \cmd{scp}, \cmd{npm}, \cmd{cargo}, \cmd{sendmail} & 19 & \num{1097} \\
+Infrastructure & \cmd{terraform}, \cmd{tofu}, \cmd{kubectl}, \cmd{helm}, \cmd{pulumi}, \cmd{cdk} & 6 & 926 \\
+Cloud AWS, S3 & \cmd{aws}, \cmd{s3cmd}, \cmd{rclone}, \cmd{mc} & 4 & 920 \\
+Cloud Google, Azure & \cmd{gcloud}, \cmd{gsutil}, \cmd{az}, \cmd{azcopy}, \cmd{railway} & 5 & 777 \\
+git & \cmd{git} & 1 & 615 \\
+Bases de données & \cmd{redis-cli}, \cmd{mongosh}, \cmd{dropdb}, \cmd{pg\_restore}, \cmd{sqlcmd} & 8 & 552 \\
+SaaS, migrations & \cmd{shopify}, \cmd{wp}, \cmd{stripe}, \cmd{alembic}, \cmd{prisma}, \cmd{flyway} & 15 & 507 \\
+PaaS & \cmd{heroku}, \cmd{fly}, \cmd{vercel}, \cmd{netlify}, \cmd{wrangler}, \cmd{firebase} & 8 & 338 \\
+Conteneurs & \cmd{docker}, \cmd{podman}, \cmd{docker-compose} & 3 & 295 \\
+Vault & \cmd{vault} & 1 & 144 \\
+\midrule
+\multicolumn{2}{@{}l}{Règles du cœur (\cmd{rm}, \cmd{mv}, \cmd{cp}, \cmd{sed}, \cmd{tar}, \cmd{find}, \cmd{rsync}\ldots)} & 48 & --- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Une famille n'est importée que lorsqu'une ligne nomme l'un de ses outils
+(\cmd{LAZY\_FAMILIES} dans \fichier{engine/rules.py}) : un appel du \textit{hook} qui ne
+rencontre que \cmd{ls} et \cmd{rm} ne paie ni les grammaires de \cmd{aws}, ni les
+\num{1419} lignes de la famille système. C'est ce qui permet au moteur de grossir famille par
+famille sans sortir de son budget de temps. Les tables les plus longues (sous-commandes de
+\cmd{gh}, de \cmd{npm}, de \cmd{stripe}, de \cmd{vault}\ldots) ne sont pas écrites à la main :
+elles sont générées depuis les fichiers des outils eux-mêmes, et le fichier généré le dit.
+
+\section{Le trajet d'une commande dans le code}
+La figure~\ref{fig:flux} du chapitre~3 montre le flux comme une idée. La
+figure~\ref{fig:trajet} montre le même flux comme du code : les fonctions réelles, dans l'ordre
+où \cmd{Guard.evaluate} les appelle, pour une commande Bash reçue par le \textit{hook} de
+Claude Code. Les autres portes (Codex, Cursor, le piège bash, \cmd{demo\_cli check}) entrent à
+l'étape~2 par la même fonction : il n'y a qu'un chemin de décision.
+
+\begin{figure}[htbp]
+\centering
+\input{figures/tikz/figE_trajet}
+\caption{Le trajet d'une commande dans le code, du \textit{hook} au reçu (fonctions réelles de
+\fichier{guard.py} et des modules qu'il appelle)}
+\label{fig:trajet}
+\end{figure}
+
+\section{Les dépendances vont dans un seul sens}
+La carte a été vérifiée sur les \nbimports{} liens d'import réels du paquet. Trois propriétés
+en ressortent, et elles ne doivent rien au hasard :
+\begin{itemize}
+  \item \textbf{Le décideur n'importe presque rien.} \fichier{decide.py} importe
+    \fichier{policy.py} et le type de classification, et rien d'autre : aucun accès au disque,
+    au réseau ou au registre. C'est ce qui le rend pur, testable en isolation, et incapable de
+    « mentir » sur une capture : il ne peut que lire le fait qu'on lui donne.
+  \item \textbf{Le moteur ne connaît pas l'orchestrateur.} Aucun module de \fichier{engine/}
+    n'importe \fichier{guard.py} ni une porte. Le moteur peut donc être exercé seul : les
+    \nbexemples{} exemples de la table le traversent directement dans les tests, et le
+    préfiltre du piège shell est généré depuis sa table de règles.
+  \item \textbf{La politique est à un seul endroit.} \fichier{decide.py},
+    \fichier{engine/verdict.py}, \fichier{guard.py} et le \textit{hook} de Claude Code lisent
+    \fichier{policy.py} pour toute question sur une surface distante. Changer la décision d'une
+    surface, c'est changer une ligne, une fois.
+\end{itemize}
+
+\section{Carte des modules}
+Le tableau~\ref{tab:modules} donne le rôle de chaque module hors familles (les familles sont au
+tableau~\ref{tab:familles}), dans l'ordre de la carte.
+
+\begingroup
+\small\linespread{1.0}\selectfont
+\setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
+\begin{longtable}{@{}L{4.1cm}r@{\hspace{8pt}}L{9.85cm}@{}}
+\caption{Carte des modules : rôle et taille (lignes, commit \commitref{})}
+\label{tab:modules}\\
+\toprule
+\textbf{Module} & \textbf{Lignes} & \textbf{Rôle} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Module} & \textbf{Lignes} & \textbf{Rôle} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{\footnotesize\itshape suite page suivante}\\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{3}{@{}l}{\textcolor{cPorte}{\sffamily\bfseries 1 --- Portes}} \\
+\fichier{hooks/claude\_code.py} & 415 & \textit{Hook} PreToolUse de Claude Code : lit l'appel
+  d'outil, appelle le garde, répond allow, ask ou deny, ou réécrit la commande vers
+  \cmd{demo\_cli sh -g}. \\
+\fichier{hooks/codex.py} & 524 & \textit{Hook} de Codex : la même décision, exprimée par refus
+  seul. \\
+\fichier{hooks/cursor.py} & 187 & \textit{Hook} \cmd{beforeShellExecution} de Cursor, fermé en
+  cas d'échec. \\
+\fichier{hooks/\_\_init\_\_.py} & 174 & Le socle commun des intégrations. \\
+\fichier{cli.py} & \num{1783} & La ligne de commande : \nbsouscommandes{} sous-commandes
+  (\cmd{check}, \cmd{undo}, \cmd{verify}, \cmd{sh}, \cmd{setup}\ldots) et le piège bash
+  (\cmd{guard-shell}). Aucune logique de sécurité : elle analyse, appelle, affiche. \\
+\fichier{\_\_main\_\_.py} & 5 & \cmd{python -m demo\_cli}. \\
+\fichier{guarded.py} & 451 & \cmd{demo\_cli guarded} : lance l'agent avec toutes les couches
+  qui peuvent l'être, et dit lesquelles manquent. \\
+\multicolumn{3}{@{}l}{\textcolor{cOrch}{\sffamily\bfseries 2 --- Orchestration}} \\
+\fichier{guard.py} & \num{1461} & L'orchestrateur : \cmd{Guard.evaluate} enchaîne les étapes
+  nommées (figure~\ref{fig:trajet}) ; \cmd{evaluate\_file\_edit} pour la porte fichier. \\
+\fichier{config.py} & 661 & \fichier{.demo\_cli.toml} : mode (observation ou application),
+  cibles déclarées, espace de travail propre au projet. \\
+\fichier{context.py} & 266 & Le contexte : empreinte, environnement (déclaré d'abord, deviné en
+  dernier), comparaison avec l'intention déclarée. \\
+\fichier{approval.py} & 24 & L'autorisation structurelle : un jeton signé par une clé que
+  l'agent ne détient pas. \\
+\multicolumn{3}{@{}l}{\textcolor{gris}{\sffamily\bfseries Couche texte (héritée)}} \\
+\fichier{classify.py} & \num{1339} & La lecture historique du texte d'une commande, gardée pour
+  le chemin hérité ; elle porte aussi les constantes de dialecte. \\
+\fichier{targets.py} & \num{1477} & La cible réelle d'une commande (fichier, SQLite,
+  PostgreSQL), sans jamais de cible par défaut. \\
+\multicolumn{3}{@{}l}{\textcolor{cMoteur!80!black}{\sffamily\bfseries 3 --- Moteur : le cœur}} \\
+\fichier{model.py} & 845 & L'analyse POSIX unique : mots et citations, substitutions
+  imbriquées, \textit{heredocs}, enveloppes. \\
+\fichier{engine/\_\_init\_\_.py} & 98 & Le point d'entrée : \cmd{predict}, son budget de temps,
+  la prédiction écrite dans le reçu. \\
+\fichier{engine/invocation.py} & 182 & De l'analyse aux invocations : une par commande qui
+  s'exécute, avec ses enveloppes et ses scripts imbriqués. \\
+\fichier{engine/words.py} & 214 & L'expansion des mots comme bash, sur les mots ; l'inconnu est
+  levé, jamais deviné. \\
+\fichier{engine/outputs.py} & 304 & Ce qu'impriment quelques lectures, pour lire
+  \cmd{rm \$(cat liste.txt)}. \\
+\fichier{engine/rules.py} & \num{1030} & La table de règles comme données ; le chargement des
+  familles ; le préfiltre du piège shell. \\
+\fichier{engine/grammars.py} & 760 & Les grammaires d'options générées depuis l'aide des outils.
+  \\
+\fichier{engine/resolvers.py} & \num{1065} & Les outils qu'un gabarit ne peut pas exprimer
+  (\cmd{cp}, \cmd{sed}, \cmd{tar}, \cmd{rsync}, \cmd{find}, \cmd{dd}\ldots). \\
+\fichier{engine/simulate.py} & \num{1110} & La simulation sur un système de fichiers virtuel :
+  ensembles d'états, origine du contenu, budget. \\
+\fichier{engine/effects.py} & 111 & Le vocabulaire des effets
+  (tableau~\ref{tab:effets}). \\
+\fichier{engine/deferred.py} & 128 & Les lieux où du code s'exécute plus tard sans être nommé
+  (profil du shell, \textit{hooks} git, tâches planifiées). \\
+\multicolumn{3}{@{}l}{\textcolor{encre}{\sffamily\bfseries 4 --- Décider}} \\
+\fichier{engine/verdict.py} & 113 & Le jugement d'un impact, dans l'ordre convenu. \\
+\fichier{policy.py} & 238 & La politique unique : décision par surface, canal ask ou deny,
+  indices de récupération. \\
+\fichier{decide.py} & 251 & Le décideur unique, pur, à l'ordre de branches fixe. \\
+\multicolumn{3}{@{}l}{\textcolor{cRecup}{\sffamily\bfseries 5 --- Récupérer, tracer}} \\
+\fichier{recovery.py} & \num{1139} & Les captures tout-ou-rien, les groupes, la restauration
+  (\cmd{undo}). \\
+\fichier{checkpoint.py} & 213 & Le point de contrôle de tout le projet, optionnel et borné. \\
+\fichier{preview.py} & 146 & L'aperçu SQL (DRY\_RUN) : lignes touchées et échantillon. \\
+\fichier{diff.py} & 190 & Ce qui a changé depuis le dernier point de récupération. \\
+\fichier{receipts.py} & 903 & Le registre chaîné : ajout sous verrou, vérification de la
+  chaîne, liens entre chaînes. \\
+\multicolumn{3}{@{}l}{\textcolor{cFilet}{\sffamily\bfseries 6 --- Filets d'exécution}} \\
+\fichier{syscall\_guard.py} & 528 & Linux : le garde ptrace (section~\ref{sec:filets}). \\
+\fichier{fsguard.py} & 234 & Windows : le jugement --- quelles opérations de fichier
+  détruisent. \\
+\fichier{fsmount.py} & \num{1095} & Windows : le système de fichiers WinFsp et son montage. \\
+\fichier{fspassthrough.py} & 473 & Windows : le passe-plat sur les fichiers réels. \\
+\fichier{fsreport.py} & 177 & Dire à l'agent ce que le montage a capturé. \\
+\fichier{mountstate.py} & 172 & Le montage tourne-t-il \emph{vraiment} ? (« installé mais
+  inerte ») \\
+\fichier{protect.py} & 953 & Déplacer le projet vers \cmd{.real}, le verrouiller --- et
+  l'inverse. \\
+\fichier{schedule.py} & 408 & La tâche d'ouverture de session durcie
+  (section~\ref{sec:wsec}). \\
+\fichier{egress.py} & 665 & Le garde de sortie : les écritures vers des API SaaS, vues au
+  niveau du réseau. \\
+\fichier{egress\_addon.py} & 20 & Le chargeur de ce garde pour \cmd{mitmproxy}. \\
+\multicolumn{3}{@{}l}{\textcolor{gris}{\sffamily\bfseries 7 --- Installation, diagnostic, affichage}} \\
+\fichier{doctor.py} & 532 & Le diagnostic : \textit{hooks}, montage, tâche, dépendances. \\
+\fichier{deps.py} & 296 & Ce qui manque, et la commande exacte qui le corrige. \\
+\fichier{protection.py} & 115 & Le modèle de menace, et l'état des protections actives. \\
+\fichier{lifecycle.py} & 628 & \cmd{setup} et \cmd{teardown}, étape par étape. \\
+\fichier{render.py} & 611 & L'affichage : couleurs des décisions, \cmd{NO\_COLOR}. \\
+\fichier{completion.py} & 401 & La complétion pour bash, zsh, fish et PowerShell. \\
+\fichier{\_\_init\_\_.py} & 40 & L'API publique et l'invariant. \\
+\fichier{version.py} & 23 & La version, à un seul endroit. \\
+\end{longtable}
+\endgroup
+
+\begin{pourquoi}[Ce que la carte raconte]
+\demo{} est parti d'une bêta de \betalignessrc{} lignes : une classification par expressions
+régulières et cinq décisions. La carte montre ce qu'il a fallu construire autour pour tenir
+une seule promesse --- « une action qui modifie doit être récupérable et correspondre au
+contexte déclaré » : un analyseur, un simulateur, \nboutils{} outils décrits comme des données,
+un décideur unique, deux filets d'exécution, un registre dont toute retouche se voit, et l'outillage qui
+installe tout cela proprement sur deux systèmes. Chaque boîte répond à une question précise ;
+aucune n'est là pour faire nombre.
+\end{pourquoi}

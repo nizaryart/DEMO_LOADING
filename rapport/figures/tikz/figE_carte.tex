@@ -1,0 +1,119 @@
+% Figure E.1 — La carte complète de demo_cli : les 80 modules, groupés par rôle.
+% GÉNÉRÉE par notes/gen_carte.py depuis les tailles réelles (lignes par module,
+% commit de référence). Ne pas modifier à la main : relancer le script.
+\begin{tikzpicture}[x=1cm,y=1cm,
+  mod/.style={rectangle,rounded corners=1.2pt,fill=white,inner xsep=2.5pt,inner ysep=1.6pt,
+              font=\sffamily\tiny,anchor=north west,minimum height=4.2mm},
+  bloc/.style={rounded corners=4pt,inner sep=5pt,line width=0.8pt},
+  titrebloc/.style={font=\sffamily\scriptsize\bfseries,anchor=south west,inner sep=1pt},
+  liaison/.style={->,line width=1pt,draw=encre!75},
+  appel/.style={font=\ttfamily\tiny,fill=white,inner sep=1pt,text=encre}]
+\begin{scope}[on background layer]\draw[bloc,draw=cPorte,fill=cPorte!6] (-0.2,0.15) rectangle (3.35,-4.5);\end{scope}
+\node[titrebloc,text=cPorte] at (-0.15000000000000002,0.16999999999999998) {1 --- Portes};
+\coordinate (portes-nw) at (-0.2,0.15); \coordinate (portes-se) at (3.35,-4.5);
+\node[mod,draw=cPorte,line width=1.1pt,text width=3.15cm] at (0,-0.1) {\texttt{\bfseries hooks/claude\_code.py}\hfill{\color{gris}\num{415}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-0.62) {\texttt{hooks/codex.py}\hfill{\color{gris}\num{524}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-1.1400000000000001) {\texttt{hooks/cursor.py}\hfill{\color{gris}\num{187}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-1.6600000000000001) {\texttt{hooks/\_\_init\_\_.py}\hfill{\color{gris}\num{174}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-2.18) {\texttt{cli.py}\hfill{\color{gris}\num{1783}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-2.7) {\texttt{\_\_main\_\_.py}\hfill{\color{gris}\num{5}}};
+\node[mod,draw=cPorte,line width=0.5pt,text width=3.15cm] at (0,-3.22) {\texttt{guarded.py}\hfill{\color{gris}\num{451}}};
+\node[font=\sffamily\tiny,text=gris,align=left,anchor=north west,text width=3.2cm] at (0,-3.72) {\textit{piège bash} : \texttt{guard-shell} (dans \texttt{cli.py})};
+\begin{scope}[on background layer]\draw[bloc,draw=cOrch,fill=cOrch!6] (4.05,0.15) rectangle (7.6,-2.3);\end{scope}
+\node[titrebloc,text=cOrch] at (4.1,0.16999999999999998) {2 --- Orchestration};
+\coordinate (orch-nw) at (4.05,0.15); \coordinate (orch-se) at (7.6,-2.3);
+\node[mod,draw=cOrch,line width=1.1pt,text width=3.15cm] at (4.25,-0.1) {\texttt{\bfseries guard.py}\hfill{\color{gris}\num{1461}}};
+\node[mod,draw=cOrch,line width=0.5pt,text width=3.15cm] at (4.25,-0.62) {\texttt{config.py}\hfill{\color{gris}\num{661}}};
+\node[mod,draw=cOrch,line width=0.5pt,text width=3.15cm] at (4.25,-1.1400000000000001) {\texttt{context.py}\hfill{\color{gris}\num{266}}};
+\node[mod,draw=cOrch,line width=0.5pt,text width=3.15cm] at (4.25,-1.6600000000000001) {\texttt{approval.py}\hfill{\color{gris}\num{24}}};
+\begin{scope}[on background layer]\draw[bloc,draw=gris,fill=grisclair] (4.05,-3.0) rectangle (7.6,-4.3);\end{scope}
+\node[titrebloc,text=gris] at (4.1,-2.98) {Couche texte (héritée)};
+\coordinate (texte-nw) at (4.05,-3.0); \coordinate (texte-se) at (7.6,-4.3);
+\node[mod,draw=gris,line width=0.5pt,text width=3.15cm] at (4.25,-3.25) {\texttt{classify.py}\hfill{\color{gris}\num{1339}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.15cm] at (4.25,-3.77) {\texttt{targets.py}\hfill{\color{gris}\num{1477}}};
+\begin{scope}[on background layer]\draw[bloc,draw=cMoteur,fill=cMoteur!5] (8.3,0.15) rectangle (16.25,-9.35);\end{scope}
+\node[titrebloc,text=cMoteur] at (8.350000000000001,0.16999999999999998) {3 --- Moteur : comprendre et simuler};
+\coordinate (moteur-nw) at (8.3,0.15); \coordinate (moteur-se) at (16.25,-9.35);
+\node[font=\sffamily\tiny\bfseries,text=cMoteur!70!black,anchor=south west] at (8.5,-0.44) {cœur};
+\node[mod,draw=cMoteur,line width=1.1pt,text width=3.6cm] at (8.5,-0.5) {\texttt{\bfseries model.py}\hfill{\color{gris}\num{845}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-1.02) {\texttt{engine/\_\_init\_\_.py}\hfill{\color{gris}\num{98}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-1.54) {\texttt{engine/invocation.py}\hfill{\color{gris}\num{182}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-2.06) {\texttt{engine/words.py}\hfill{\color{gris}\num{214}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-2.58) {\texttt{engine/outputs.py}\hfill{\color{gris}\num{304}}};
+\node[mod,draw=cMoteur,line width=1.1pt,text width=3.6cm] at (8.5,-3.1) {\texttt{\bfseries engine/rules.py}\hfill{\color{gris}\num{1030}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-3.62) {\texttt{engine/grammars.py}\hfill{\color{gris}\num{760}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-4.140000000000001) {\texttt{engine/resolvers.py}\hfill{\color{gris}\num{1065}}};
+\node[mod,draw=cMoteur,line width=1.1pt,text width=3.6cm] at (8.5,-4.66) {\texttt{\bfseries engine/simulate.py}\hfill{\color{gris}\num{1110}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-5.18) {\texttt{engine/effects.py}\hfill{\color{gris}\num{111}}};
+\node[mod,draw=cMoteur,line width=0.5pt,text width=3.6cm] at (8.5,-5.7) {\texttt{engine/deferred.py}\hfill{\color{gris}\num{128}}};
+\node[font=\sffamily\tiny\bfseries,text=cMoteur!70!black,anchor=south west] at (12.350000000000001,-0.44) {12 familles, chargées à la demande};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-0.5) {système {\color{gris}(92 outils)}\hfill{\color{gris}\num{1419}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-1.02) {envoi {\color{gris}(19 outils)}\hfill{\color{gris}\num{1097}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-1.54) {SaaS, migrations {\color{gris}(15 outils)}\hfill{\color{gris}\num{507}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-2.06) {PaaS {\color{gris}(8 outils)}\hfill{\color{gris}\num{338}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-2.58) {bases de données {\color{gris}(8 outils)}\hfill{\color{gris}\num{552}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-3.1) {infrastructure {\color{gris}(6 outils)}\hfill{\color{gris}\num{926}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-3.62) {cloud Google, Azure {\color{gris}(5 outils)}\hfill{\color{gris}\num{777}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-4.140000000000001) {cloud AWS, S3 {\color{gris}(4 outils)}\hfill{\color{gris}\num{920}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-4.66) {clients SQL {\color{gris}(4 outils)}\hfill{\color{gris}\num{1412}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-5.18) {conteneurs {\color{gris}(3 outils)}\hfill{\color{gris}\num{295}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-5.7) {git {\color{gris}(1 outil)}\hfill{\color{gris}\num{615}}};
+\node[mod,draw=cMoteur,text width=3.55cm] at (12.350000000000001,-6.220000000000001) {Vault {\color{gris}(1 outil)}\hfill{\color{gris}\num{144}}};
+\draw[bloc,draw=cMoteur,dashed,fill=white] (8.450000000000001,-7.05) rectangle (16.1,-9.2);
+\node[titrebloc,text=cMoteur!70!black] at (8.55,-7.03) {C3 --- le frontal PowerShell, sur le même \texttt{World}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (8.65,-7.25) {\texttt{ps\_model.py}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (11.120000000000001,-7.25) {\texttt{ps\_tables.py}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (13.59,-7.25) {\texttt{ps\_bind.py}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (8.65,-7.77) {\texttt{ps\_invocation.py}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (11.120000000000001,-7.77) {\texttt{rules\_powershell.py}};
+\node[mod,draw=cMoteur,dashed,text width=2.32cm] at (13.59,-7.77) {\texttt{ps\_ops.py}};
+\node[font=\sffamily\tiny,text=gris,anchor=north west,text width=7.3cm] at (8.65,-8.35) {Tous dans \texttt{engine/} sauf \texttt{ps\_model.py} ; avec \texttt{engine/ps51\_bindings.json} : {\cthreecmdlets} cmdlets et {\cthreealias} alias de PowerShell 5.1.};
+\begin{scope}[on background layer]\draw[bloc,draw=encre,fill=grisclair] (16.95,0.15) rectangle (20.25,-1.75);\end{scope}
+\node[titrebloc,text=encre] at (17.0,0.16999999999999998) {4 --- Décider};
+\coordinate (decider-nw) at (16.95,0.15); \coordinate (decider-se) at (20.25,-1.75);
+\node[mod,draw=encre,line width=0.5pt,text width=3.0cm] at (17.099999999999998,-0.1) {\texttt{engine/verdict.py}\hfill{\color{gris}\num{113}}};
+\node[mod,draw=encre,line width=0.5pt,text width=3.0cm] at (17.099999999999998,-0.62) {\texttt{policy.py}\hfill{\color{gris}\num{238}}};
+\node[mod,draw=encre,line width=1.1pt,text width=3.0cm] at (17.099999999999998,-1.1400000000000001) {\texttt{\bfseries decide.py}\hfill{\color{gris}\num{251}}};
+\begin{scope}[on background layer]\draw[bloc,draw=cRecup,fill=cRecup!6] (20.95,0.15) rectangle (24.25,-2.8);\end{scope}
+\node[titrebloc,text=cRecup] at (21.0,0.16999999999999998) {5 --- Récupérer, tracer};
+\coordinate (recup-nw) at (20.95,0.15); \coordinate (recup-se) at (24.25,-2.8);
+\node[mod,draw=cRecup,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-0.1) {\texttt{recovery.py}\hfill{\color{gris}\num{1139}}};
+\node[mod,draw=cRecup,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-0.62) {\texttt{checkpoint.py}\hfill{\color{gris}\num{213}}};
+\node[mod,draw=cRecup,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-1.1400000000000001) {\texttt{preview.py}\hfill{\color{gris}\num{146}}};
+\node[mod,draw=cRecup,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-1.6600000000000001) {\texttt{diff.py}\hfill{\color{gris}\num{190}}};
+\node[mod,draw=cRecup,line width=1.1pt,text width=3.0cm] at (21.099999999999998,-2.18) {\texttt{\bfseries receipts.py}\hfill{\color{gris}\num{903}}};
+\begin{scope}[on background layer]\draw[bloc,draw=cFilet,fill=cFilet!6] (16.95,-3.75) rectangle (24.25,-9.35);\end{scope}
+\node[titrebloc,text=cFilet] at (17.0,-3.73) {6 --- Filets d'exécution};
+\coordinate (filets-nw) at (16.95,-3.75); \coordinate (filets-se) at (24.25,-9.35);
+\node[font=\sffamily\tiny\bfseries,text=cFilet,anchor=south west] at (17.099999999999998,-4.44) {Linux (ptrace)};
+\node[mod,draw=cFilet,line width=1.1pt,text width=3.0cm] at (17.099999999999998,-4.5) {\texttt{\bfseries syscall\_guard.py}\hfill{\color{gris}\num{528}}};
+\node[font=\sffamily\tiny\bfseries,text=cFilet,anchor=south west] at (17.099999999999998,-5.4399999999999995) {réseau (HTTP)};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (17.099999999999998,-5.5) {\texttt{egress.py}\hfill{\color{gris}\num{665}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (17.099999999999998,-6.02) {\texttt{egress\_addon.py}\hfill{\color{gris}\num{20}}};
+\node[font=\sffamily\tiny\bfseries,text=cFilet,anchor=south west] at (21.099999999999998,-4.44) {Windows (WinFsp)};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-4.5) {\texttt{fsguard.py}\hfill{\color{gris}\num{234}}};
+\node[mod,draw=cFilet,line width=1.1pt,text width=3.0cm] at (21.099999999999998,-5.02) {\texttt{\bfseries fsmount.py}\hfill{\color{gris}\num{1095}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-5.54) {\texttt{fspassthrough.py}\hfill{\color{gris}\num{473}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-6.0600000000000005) {\texttt{fsreport.py}\hfill{\color{gris}\num{177}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-6.58) {\texttt{mountstate.py}\hfill{\color{gris}\num{172}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-7.1) {\texttt{protect.py}\hfill{\color{gris}\num{953}}};
+\node[mod,draw=cFilet,line width=0.5pt,text width=3.0cm] at (21.099999999999998,-7.62) {\texttt{schedule.py}\hfill{\color{gris}\num{408}}};
+\begin{scope}[on background layer]\draw[bloc,draw=gris,fill=grisclair] (-0.2,-5.0) rectangle (7.6,-9.35);\end{scope}
+\node[titrebloc,text=gris] at (-0.15000000000000002,-4.98) {7 --- Installation, diagnostic, affichage};
+\coordinate (outil-nw) at (-0.2,-5.0); \coordinate (outil-se) at (7.6,-9.35);
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (0,-5.25) {\texttt{doctor.py}\hfill{\color{gris}\num{532}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (0,-5.77) {\texttt{deps.py}\hfill{\color{gris}\num{296}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (0,-6.29) {\texttt{protection.py}\hfill{\color{gris}\num{115}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (0,-6.8100000000000005) {\texttt{lifecycle.py}\hfill{\color{gris}\num{628}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (3.95,-5.25) {\texttt{render.py}\hfill{\color{gris}\num{611}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (3.95,-5.77) {\texttt{completion.py}\hfill{\color{gris}\num{401}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (3.95,-6.29) {\texttt{\_\_init\_\_.py}\hfill{\color{gris}\num{40}}};
+\node[mod,draw=gris,line width=0.5pt,text width=3.4cm] at (3.95,-6.8100000000000005) {\texttt{version.py}\hfill{\color{gris}\num{23}}};
+\node[font=\sffamily\tiny,text=gris,anchor=north west,text width=7.3cm] at (0,-7.45) {\texttt{protection.py} porte le modèle de menace ; \texttt{doctor} et \texttt{deps} disent ce qui manque et la commande qui le corrige ; \texttt{lifecycle} installe et désinstalle.};
+\draw[liaison] (2.8,0.68) -- node[appel,above=1pt]{evaluate} (4.6,0.68);
+\draw[liaison] (7.05,0.68) -- node[appel,above=1pt]{\_engine\_predict} (8.850000000000001,0.68);
+\draw[liaison] (15.7,0.68) -- node[appel,above=1pt]{Impact} (17.5,0.68);
+\draw[liaison] (19.7,0.68) -- node[appel,above=1pt]{\_record} (21.5,0.68);
+\draw[liaison] (20.07,-1.75) -- node[appel,left=1pt]{SUPERVISED : sh -g} (20.07,-3.75);
+\draw[liaison] (22.55,-3.75) -- node[appel,right=1pt,align=left]{copie avant\\destruction} (22.55,-2.8);
+\end{tikzpicture}

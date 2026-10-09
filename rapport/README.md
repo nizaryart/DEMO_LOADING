@@ -34,13 +34,19 @@ latexmk -c -outdir=build                # nettoyer les fichiers intermédiaires
 | `figures/captures/` | captures d'écran ; tant qu'un fichier manque, un cadre indique quoi capturer |
 | `references.bib` | sources consultées (aucune citation inventée) |
 | `notes/analyse_code.md` | notes d'analyse du code source (commit 3c94414) |
+| `annexes/architecture.tex` | annexe E : l'architecture complète (carte des 80 modules, lignes par couche, trajet d'une commande, carte des modules) |
+| `notes/gen_carte.py` | génère `figures/tikz/figE_carte.tex` et `figE_couches.tex` depuis le code (voir ci-dessous) |
 
 ## Conventions
 
 - `\acompleter[...]` marque en rouge tout fait que l'auteur doit fournir ; le rapport
   final n'en contient plus aucun (`grep -rn acompleter chapitres front`).
-- `\statutCthree` (dans `chiffres.tex`) vaut « en cours de finalisation » ; passer à
-  « livré » quand C3 a atterri.
+- `\statutCthree` (dans `chiffres.tex`) vaut « livré ».
+- La carte de l'annexe E se régénère depuis le code quand le commit de référence change :
+  `git -C .. archive <commit> src | tar -x -C /tmp/ref` puis
+  `python3 notes/gen_carte.py /tmp/ref/src/demo_cli figures/tikz` (le script échoue si un
+  module n'est rangé dans aucun groupe). Les tailles du tableau E.3 et les chiffres
+  `\nbmodules`, `\nbfonctions`… sont à mettre à jour avec.
 - Commandes et sorties : environnement `terminal` (sorties réelles uniquement).
 - Justifications : environnement `pourquoi`.
 - Décisions dans le texte : `\puce{dREV}{REVERSIBLE}`, `\puce{dASK}{ESCALATE}`…

@@ -1,0 +1,31 @@
+% Figure E.3 — Le trajet d'une commande dans le code : les fonctions réelles, dans l'ordre
+% où Guard.evaluate les appelle (guard.py, commit de référence).
+\begin{tikzpicture}[x=1cm,y=1cm,
+  etape/.style={circle,fill=encre,text=white,font=\sffamily\scriptsize\bfseries,
+                inner sep=0pt,minimum size=4.6mm},
+  modu/.style={rounded corners=1.5pt,font=\ttfamily\scriptsize,text=white,inner sep=2.5pt,
+               minimum height=4.6mm,minimum width=33mm,anchor=west},
+  fonc/.style={font=\ttfamily\scriptsize,anchor=west,text=encre},
+  quoi/.style={font=\sffamily\scriptsize,anchor=west,text=gris,text width=5.95cm}]
+  \def\pas{0.82}
+  \draw[trait,line width=1.4pt] (0,0) -- (0,-11*\pas);
+  \foreach \i/\m/\c/\f/\q in {
+    1/{hooks/claude\_code.py}/cPorte/{run\_pretooluse}/{lit l'appel d'outil de l'agent (JSON sur l'entrée standard)},
+    2/{guard.py}/cOrch/{Guard.evaluate}/{point d'entrée unique, pour toutes les portes},
+    3/{guard.py}/cOrch/{\_early\_refusal}/{configuration illisible ; sous-commande d'état lancée par l'agent},
+    4/{classify.py}/gris/{classify\_pipeline}/{la lecture historique du texte, gardée pour le chemin hérité},
+    5/{engine/}/cMoteur/{predict $\rightarrow$ simulate $\rightarrow$ verdict}/{analyse, invocations, règles, FS virtuel : l'impact et son jugement},
+    6/{guard.py}/cOrch/{\_control\_plane\_refusal}/{un fichier de \texttt{demo\_cli} touché : ESCALATE, sans discussion},
+    7/{guard.py}/cOrch/{\_engine\_facts | \_unread\_facts}/{chemin moteur, ou ligne non lue : filet ou point de contrôle},
+    8/{recovery.py}/cRecup/{snapshot\_set}/{la copie, tout ou rien, \emph{avant} la décision},
+    9/{context.py}/cOrch/{build\_context}/{environnement déclaré d'abord ; comparaison avec l'intention},
+    10/{decide.py}/encre/{decide}/{le décideur unique, pur, avec \texttt{policy.py}},
+    11/{receipts.py}/cRecup/{append\_receipt}/{le reçu chaîné (SHA-256), pour \emph{chaque} décision},
+    12/{hooks/claude\_code.py}/cPorte/{\_emit}/{allow, ask, deny --- ou réécriture vers \texttt{demo\_cli sh -g}}}
+  {
+    \node[etape] at (0,{-(\i-1)*\pas}) {\i};
+    \node[modu,fill=\c] at (0.45,{-(\i-1)*\pas}) {\m};
+    \node[fonc] at (4.05,{-(\i-1)*\pas}) {\f};
+    \node[quoi] at (9.45,{-(\i-1)*\pas}) {\q};
+  }
+\end{tikzpicture}
