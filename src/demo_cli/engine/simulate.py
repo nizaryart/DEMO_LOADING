@@ -702,9 +702,8 @@ class World:
             return state, None
         if tool == "false":
             return None, state
-        if inv.powershell:
-            self.impact.not_covered("powershell")
-            return state, before
+        if inv.powershell or tool.lower() in ("powershell", "pwsh"):
+            return self.powershell(inv, state, depth, before)
         if inv.payload is not None:
             self.subshell(inv.payload, state, depth)
             return state, self.merge(before, state)
@@ -765,6 +764,19 @@ class World:
                 elif eff.kind == MKDIR:
                     for p in paths:
                         self.mkdir(state, p, "parents" in parsed.flags)
+        return state, self.merge(before, state)
+
+    def powershell(self, inv: Invocation, state: State, depth: int, before: State):
+        """A PowerShell command named inside a POSIX line. Until C3 this was
+        "not covered" and the old text rules judged it; the PowerShell reader
+        reads it now, on this same world, so its effects join the line's.
+        model.py has already stripped the outer quoting (command.nested_ps)."""
+        with self.budget.paused():
+            from .ps_ops import PsRunner
+            from ..ps_model import parse as ps_parse
+        text = inv.command.nested_ps
+        state = PsRunner(self).run_script(
+            ps_parse(text if text is not None else inv.text), state, depth + 1)
         return state, self.merge(before, state)
 
     def launched(self, inv: Invocation, tool: str) -> Optional[Tuple[Invocation, str]]:

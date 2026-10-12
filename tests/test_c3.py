@@ -455,7 +455,8 @@ def test_45_a_command_word_that_is_not_known_before_it_runs(tmp_path):
     "no effect" - it is a line we cannot read."""
     proj = _project(tmp_path)
     assert _destroys(proj, "& $c a.txt") == ("ESCALATE", {})
-    assert _destroys(proj, "$c = 'Remove-Item'; & $c a.txt") == ("ESCALATE", {})
+    assert _destroys(proj, "Remove-Item $p") == ("ESCALATE", {})
+    # (a name this line DOES set is read instead - test 48.)
 
 
 def test_46_a_filter_in_the_pipeline_does_not_empty_it(tmp_path):
@@ -468,3 +469,25 @@ def test_46_a_filter_in_the_pipeline_does_not_empty_it(tmp_path):
         proj, "Get-ChildItem | Where-Object { $_.Name -like '*.tmp' } | Remove-Item")
     assert decision == "ESCALATE"
     assert {"t1.tmp", "t2.tmp"} <= set(destroys), "the filtered items are inside the superset"
+
+
+def test_47_an_assignment_written_without_spaces_is_still_an_assignment(tmp_path):
+    """`$t="a.txt"` with no spaces around the = is one token to a lexer that
+    does not treat = as a separator, so the assignment was missed and the
+    later `$t` stayed unknown. PowerShell writes it both ways."""
+    proj = _project(tmp_path)
+    assert _destroys(proj, '$t="a.txt"; Remove-Item $t') == ("REVERSIBLE", {"a.txt": "DELETE"})
+    assert _destroys(proj, '$t = "a.txt"; Remove-Item $t') == ("REVERSIBLE", {"a.txt": "DELETE"})
+    # A value that merely CONTAINS = is not an assignment.
+    assert _destroys(proj, "Remove-Item a=b.txt") == ("ALLOW", {})
+
+
+def test_48_a_command_named_by_a_variable_this_line_set_is_read(tmp_path):
+    """POSIX has always read `X=rm; $X a.txt` by resolving X from the line.
+    The same shape in PowerShell must get the same answer - one engine, one
+    reading. Only a name nobody set stays unreadable."""
+    proj = _project(tmp_path)
+    assert _destroys(proj, "$c='Remove-Item'; & $c a.txt") == ("REVERSIBLE", {"a.txt": "DELETE"})
+    assert _destroys(proj, "$c='rm'; & $c a.txt") == ("REVERSIBLE", {"a.txt": "DELETE"})
+    assert _destroys(proj, "& $c a.txt") == ("ESCALATE", {})          # nobody set it
+    assert _destroys(proj, "$c='Get-ChildItem'; & $c") == ("ALLOW", {})

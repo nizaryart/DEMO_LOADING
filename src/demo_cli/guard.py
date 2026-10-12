@@ -759,8 +759,8 @@ class Guard:
             return "unknown"
         if words & policy.CODE_RUNNERS or words & self._started_by_path(command):
             return "runner"
-        if dialect == POWERSHELL and any(w.lower().endswith(".ps1") for w in words):
-            return "runner"          # `.\x.ps1`, `& C:\x.ps1`: code we do not read
+        if any(w.lower().endswith(".ps1") for w in words):
+            return "runner"          # a .ps1 from either shell: code we do not read
         return "plain"
 
     @staticmethod

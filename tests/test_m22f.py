@@ -140,7 +140,9 @@ def test_4_text_run_as_a_command_is_read(tmp_path: Path):
 # regex rule fires on: PowerShell / cmd.exe text inside a POSIX line (the old
 # rules keep them until C3), and words that are not tools (`a`, a function the
 # line defines, the `read` builtin: the runtime net's in M2.3).
-AUDIT_UNCOVERED = {"Remove-Item", "REMOVE-ITEM", "Clear-Content", "del", "powershell", "read",
+# "powershell" left this set with C3: the reader reads a nested PowerShell
+# command, so it is no longer an uncovered word.
+AUDIT_UNCOVERED = {"Remove-Item", "REMOVE-ITEM", "Clear-Content", "del", "read",
                    "a", "f"}
 
 

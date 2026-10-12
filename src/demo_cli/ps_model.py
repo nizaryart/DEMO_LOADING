@@ -398,6 +398,8 @@ class _Lexer:
         inner: List[PsScript] = []          # $( ) met inside, quoted or not
         while self.i < self.n:
             ch = self.s[self.i]
+            if ch == "=" and pieces == ["variable"]:
+                break          # `$c=value`: the = ends the name, this is an assignment
             if ch in _SPECIAL and ch not in "'\"":   # quotes are pieces, not ends
                 break
             if ch in "<>" or self.s[self.i:self.i + 2] == "*>":

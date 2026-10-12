@@ -236,11 +236,21 @@ class PsRunner:
             return state, None, []
 
         if cmd.words and cmd.words[0].expands:
-            # `& $c`, `$_.Name`, a name built while it runs: what executes is
-            # not knowable, so the line is not understood - never "no effect"
-            # (A9, pipe_4: a filter block made the whole pipeline look empty).
-            self.impact.not_understood(cmd.text, "the command word is not known before it runs")
-            return state, None, []
+            # A variable this line SET names a command we can read: POSIX has
+            # always resolved `X=rm; $X a.txt` from state.vars, and the same
+            # line in PowerShell must get the same answer - one engine, one
+            # reading. Only a name nobody set is unknowable; that is not
+            # "no effect", it is a line we cannot read (A9, pipe_4).
+            resolved = self._known(cmd.words[0], state)
+            if resolved is None:
+                self.impact.not_understood(
+                    cmd.text, "the command word is not known before it runs")
+                return state, None, []
+            head = PsWord(cmd.words[0].raw, resolved, cmd.words[0].start,
+                          cmd.words[0].end, "bare")
+            cmd = PsCommand(words=[head] + list(cmd.words[1:]),
+                            redirects=cmd.redirects, amp=cmd.amp,
+                            is_expression=cmd.is_expression, line=cmd.line)
 
         if cmd.name.lower().endswith(".ps1") or "/" in cmd.name or "\\" in cmd.name:
             # `.\cleanup.ps1`, `& C:\x.ps1`: a script this engine does not

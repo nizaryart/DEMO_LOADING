@@ -197,7 +197,8 @@ CODE_RUNNERS = frozenset({
 # keeps the old rules (M5). Since C3 this list no longer touches a line in the
 # PowerShell dialect: the engine reads those (ruling PS6).
 OLD_RULES_KEEP = frozenset({
-    "powershell", "pwsh", "cmd", "Remove-Item", "REMOVE-ITEM", "ri", "del", "erase", "rd",
+    # "powershell" / "pwsh" left with C3: the reader handles them now.
+    "cmd", "Remove-Item", "REMOVE-ITEM", "ri", "del", "erase", "rd",
     "Clear-Content", "clc", "Set-Content", "Out-File", "Move-Item", "mi", "move", "Copy-Item",
     "cpi", "copy", "Rename-Item", "ren", "rni", "New-Item", "ni", "Stop-Service", "spsv",
     "Remove-Service", "Set-Service", "New-Service", "Restart-Service", "Start-Service",
