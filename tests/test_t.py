@@ -59,10 +59,10 @@ def test_protection_rows_cases():
     assert r6[1] == (
         "ok",
         "protection: claude_code",
-        "covered by the demo_cli filesystem mount; PowerShell commands are judged by text rules only",
+        "covered by the demo_cli filesystem mount; PowerShell commands are read by the engine (C3)",
     )
     assert "covered by the demo_cli filesystem mount" in r6[1][2]
-    assert "PowerShell commands are judged by text rules only" in r6[1][2]
+    assert "PowerShell commands are read by the engine (C3)" in r6[1][2]
 
     # Case 7: Windows + mount_running not True (checkpoint disabled)
     f7 = Facts(os_name="nt", agents=("claude_code",), mount_running=False, checkpoint_enabled=False)
@@ -70,10 +70,10 @@ def test_protection_rows_cases():
     assert r7[1] == (
         "warn",
         "protection: claude_code",
-        "NOT covered: the filesystem mount is not running (run demo_cli setup / mount), escalated for review; PowerShell commands are judged by text rules only",
+        "NOT covered: the filesystem mount is not running (run demo_cli setup / mount), escalated for review; PowerShell commands are read by the engine (C3)",
     )
     assert "NOT covered" in r7[1][2]
-    assert "PowerShell commands are judged by text rules only" in r7[1][2]
+    assert "PowerShell commands are read by the engine (C3)" in r7[1][2]
 
     # Case 8: Windows + mount_running not True (checkpoint enabled)
     f8 = Facts(os_name="nt", agents=("claude_code",), mount_running=False, checkpoint_enabled=True)
@@ -81,10 +81,10 @@ def test_protection_rows_cases():
     assert r8[1] == (
         "warn",
         "protection: claude_code",
-        "NOT covered: the filesystem mount is not running (run demo_cli setup / mount), whole-workspace checkpoint; PowerShell commands are judged by text rules only",
+        "NOT covered: the filesystem mount is not running (run demo_cli setup / mount), whole-workspace checkpoint; PowerShell commands are read by the engine (C3)",
     )
     assert "NOT covered" in r8[1][2]
-    assert "PowerShell commands are judged by text rules only" in r8[1][2]
+    assert "PowerShell commands are read by the engine (C3)" in r8[1][2]
 
 
 def test_doctor_threat_model_output(tmp_path, capsys):

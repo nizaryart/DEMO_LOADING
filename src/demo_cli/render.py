@@ -133,7 +133,8 @@ def feedback_url_for(r: "GuardResult") -> str:
         "**What demo_cli decided**\n"
         f"- decision: {d.decision}\n"
         f"- reason: {redact(d.reason)}\n"
-        f"- matched rule: {r.classification.matched_rule or '-'}\n"
+        f"- decided by: {getattr(r, 'decided_by', None) or '-'}\n"
+        f"- matched rule (classifier label): {r.classification.matched_rule or '-'}\n"
         f"- command: `{command[:200]}`\n\n"
         "**What I expected instead**\n"
         "<!-- e.g. this should have been allowed / should have snapshotted / "
@@ -164,6 +165,8 @@ def render_result(r: GuardResult, version: str) -> None:
     lines.append(kv("type", r.classification.action_type
                     + (" · pipeline" if r.classification.is_pipeline else "")
                     + (" · remote-exec" if r.classification.remote_exec else "")))
+    if getattr(r, "decided_by", None):
+        lines.append(kv("decided by", r.decided_by))
     if r.classification.matched_rule:
         lines.append(kv("matched rule", r.classification.matched_rule))
     if r.classification.nonrecoverable_surface:

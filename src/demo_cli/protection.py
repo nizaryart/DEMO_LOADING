@@ -45,7 +45,9 @@ def rows(f: Facts) -> List[Tuple[str, str, str]]:
         label = f"protection: {agent}"
         key = agent.replace(" ", "_")
         if is_win:
-            ps_suffix = "; PowerShell commands are judged by text rules only"
+            # C3: PowerShell is read by the same engine as POSIX. (Until C3
+            # this said "judged by text rules only" - true then, false now.)
+            ps_suffix = "; PowerShell commands are read by the engine (C3)"
             if f.mount_running is True:
                 status = "ok"
                 detail = f"covered by the demo_cli filesystem mount{ps_suffix}"

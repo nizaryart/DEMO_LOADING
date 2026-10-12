@@ -129,7 +129,7 @@ def test_5_the_receipt_records_that_a_person_may_approve(tmp_path):
         assert (r.decision.decision, r.decision.approvable) == (ESCALATE, want), cmd
         last = _last_receipt(tmp_path)
         assert last["approvable"] is want, cmd
-        assert last["receipt_version"] == RECEIPT_VERSION == "2.3"
+        assert last["receipt_version"] == RECEIPT_VERSION == "2.4"
 
 
 def test_6_a_target_declared_production_in_the_config(tmp_path):

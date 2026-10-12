@@ -126,9 +126,12 @@ def test_an_engine_over_budget_changes_nothing_and_says_so(tmp_path, monkeypatch
 def test_powershell_is_not_simulated_in_b(tmp_path):
     r = _run(_project(tmp_path), "rm a.txt")
     assert r.prediction["decision"] == "REVERSIBLE", "control: POSIX is simulated"
+    # C3: PowerShell IS simulated now - the same engine, reached through its
+    # own front end. The pin that said "skipped" recorded the gap C3 closes.
     r = _run(_project(tmp_path / "ps"), "Remove-Item a.txt", dialect="powershell")
-    assert r.prediction == {"engine": "shadow-1", "skipped": "powershell",
-                            "ms": r.prediction["ms"]}
+    assert "skipped" not in r.prediction
+    assert r.prediction["decision"] == "REVERSIBLE", "the engine reads PowerShell too"
+    assert r.prediction["destroys"] == {"a.txt": "DELETE"}
 
 
 def test_the_prediction_is_recorded_and_the_chain_holds(tmp_path):
@@ -140,7 +143,7 @@ def test_the_prediction_is_recorded_and_the_chain_holds(tmp_path):
     assert last["decision"] == "REVERSIBLE"
     assert last["prediction"]["decision"] == "REVERSIBLE"
     assert sorted(last["prediction"]["destroys"]) == ["a.txt", "b.txt"]
-    assert last["receipt_version"] == RECEIPT_VERSION == "2.3"     # 2.2: C2a (remote kinds); 2.3: `approvable` (msg 085)
+    assert last["receipt_version"] == RECEIPT_VERSION == "2.4"     # 2.2: C2a (remote kinds); 2.3: `approvable` (msg 085); 2.4: `decided_by` (C3)
     assert verify_chain(os.path.join(str(root), ".demo_cli", "receipts.jsonl")).ok
     assert r.prediction == last["prediction"]
 

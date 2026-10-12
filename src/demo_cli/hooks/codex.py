@@ -320,6 +320,12 @@ def _dialect() -> str:
     of eleven dialect-taking functions, the only behavioural difference
     measured is whether a backtick escapes the next character when splitting
     segments (2026-09-14).
+
+    THAT STOPPED BEING TRUE WITH C3 (V24, 2026-10-11): the dialect now picks
+    the PARSER, and `mv a.txt b.txt` read only as PowerShell lost a capture
+    a POSIX reading makes. So on Windows the caller passes
+    dialect_guessed=True and the guard reads the line in both dialects,
+    capturing what either shell would destroy (ruling PS8).
     """
     return POWERSHELL if os.name == "nt" else POSIX
 
@@ -383,6 +389,10 @@ def run_pretooluse(stdin, stdout) -> int:
                 session_id=data.get("session_id", "unknown"),
                 dialect=_dialect(),
                 door="agent",
+                # PS8 / V24: on Windows the dialect above is a GUESS (Codex
+                # sends "Bash" while running PowerShell), so the line is read
+                # in both dialects and the readings combined.
+                dialect_guessed=os.name == "nt",
             )
     except AgentDirectoryUnreachable as exc:
         # WE CANNOT STAND WHERE THE AGENT STANDS, so we cannot resolve what it

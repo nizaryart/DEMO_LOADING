@@ -106,7 +106,10 @@ CONTROL_PLANE_COMMANDS = [
      "echo x >> ~/other.sh", "ALLOW"),
     ("Remove-Item -Recurse -Force .demo_cli", POWERSHELL,
      "Remove-Item -Recurse -Force dir", "REVERSIBLE"),
-    ("Set-Content .demo_cli.toml x", POWERSHELL, "Set-Content notes.txt x", "ESCALATE"),
+    # C3: the control is REVERSIBLE now - the engine reads Set-Content and
+    # copies notes.txt first. The command under test still escalates: the
+    # control plane is checked before any of that.
+    ("Set-Content .demo_cli.toml x", POWERSHELL, "Set-Content notes.txt x", "REVERSIBLE"),
 ]
 
 

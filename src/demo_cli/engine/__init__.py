@@ -1,8 +1,11 @@
 """The engine: understand a command the new way, simulate its effects,
 and judge them.
 
-    parse (model.py) -> Invocation -> rules -> effects -> simulate -> Impact
-                     -> decision
+    POSIX:      parse (model.py)    -> Invocation -> rules -> effects
+    PowerShell: parse (ps_model.py) -> binder (ps_bind.py) -> effects   (C3)
+                both                -> simulate -> Impact -> decision
+
+The two front ends meet at the same World: one simulation, one verdict.
 
 The engine decides on the guard's engine path (M2.1); the prediction in the
 receipt is the same judgement, recorded. DEMO_CLI_SHADOW_ENGINE=0 turns it off.
@@ -33,16 +36,19 @@ def enabled() -> bool:
 
 def predict(command: str, cfg, rules: Optional[Tuple] = None,
             budget_ms: Optional[float] = None, cwd: Optional[str] = None,
-            explicit_db: Optional[str] = None, db_url: Optional[str] = None) -> Prediction:
-    """POSIX only. Raises on a bug or on the budget; predict_safely does not.
+            explicit_db: Optional[str] = None, db_url: Optional[str] = None,
+            dialect: str = "posix") -> Prediction:
+    """Raises on a bug or on the budget; predict_safely does not.
     `explicit_db` / `db_url`: the check door's --db / --db-url (C2a, Q3) -
-    the database a bare SQL line runs against."""
+    the database a bare SQL line runs against. `dialect` picks the front end
+    that READS the line (C3): POSIX or PowerShell. Everything after the
+    reading - simulation, effects, verdict - is shared."""
     from .rules import RULES
     from .simulate import simulate
     from .verdict import verdict
     impact = simulate(command, rules or RULES, cwd=cwd, root=cfg.project_root,
                       budget_ms=BUDGET_MS if budget_ms is None else budget_ms,
-                      sql_target=(explicit_db, db_url))
+                      sql_target=(explicit_db, db_url), dialect=dialect)
     decision, why = verdict(impact, cfg)
     return Prediction(impact, decision, why)
 
@@ -54,10 +60,8 @@ def predict_safely(command: str, dialect: str, cfg, explicit_db: Optional[str] =
         return None
     t0 = time.perf_counter()
     try:
-        if dialect != "posix":
-            out = {"engine": ENGINE, "skipped": dialect}      # PowerShell arrives in C
-        else:
-            out = _render(predict(command, cfg, explicit_db=explicit_db, db_url=db_url), cfg)
+        out = _render(predict(command, cfg, explicit_db=explicit_db, db_url=db_url,
+                              dialect=dialect), cfg)
     except Exception as exc:
         from .simulate import BudgetExceeded
         why = "budget" if isinstance(exc, BudgetExceeded) else f"{type(exc).__name__}: {exc}"
@@ -95,4 +99,56 @@ def _render(p: Prediction, cfg) -> dict:
            "truncated": truncated}
     if imp.computed:
         out["computed"] = [[t[:120], o[:200]] for t, o in imp.computed[:10]]
+    return out
+
+
+def combine_guessed(ps_impact, posix_impact):
+    """PS8 (Nizar, 2026-10-11): one line, read in BOTH dialects, because the
+    door could not say which shell runs it (Codex on Windows sends the tool
+    name "Bash" while running PowerShell - V24).
+
+    The tool's own rule decides how the two readings combine: the unknown is
+    not safe, and here the unknown is the SHELL. So:
+      * whatever either reading destroys is captured - a superset, which is
+        what keeps a REVERSIBLE earned;
+      * a remote surface either reading reaches is reached;
+      * what either reading cannot read stays unread - EXCEPT a PowerShell
+        binding error, which means PowerShell itself would refuse to run the
+        line, so the POSIX reading is the one that matters;
+      * a word the POSIX reading does not know but PowerShell resolves as a
+        cmdlet (`Remove-Item`) is not "uncovered": in a POSIX shell it would
+        be "command not found" and do nothing.
+    One engine, two inputs we cannot tell apart - not two logics.
+    """
+    from .effects import Impact
+    from .ps_bind import resolve
+    out = Impact()
+    for imp in (ps_impact, posix_impact):
+        for path, how in imp.destroys.items():
+            out.destroy(path, how, path in imp.destroyed_dirs)
+        for c in imp.created:
+            if c not in out.created:
+                out.created.append(c)
+        out.creates |= imp.creates
+        out.changes |= imp.changes
+        out.touched |= imp.touched
+        out.within |= imp.within
+        for label, kind in imp.remote.items():
+            out.reach(label, kind)
+        out.databases.update(imp.databases)
+        out.no_capture.update(imp.no_capture)
+        out.db_urls.update(imp.db_urls)
+        out.computed.extend(imp.computed)
+    refused = set(ps_impact.refused)
+    for item in ps_impact.unknown:
+        if item not in refused:
+            out.not_understood(*item)
+    for item in posix_impact.unknown:
+        out.not_understood(*item)
+    for word in ps_impact.uncovered:
+        out.not_covered(word)
+    for word in posix_impact.uncovered:
+        if resolve(word.split()[0]) is None:
+            out.not_covered(word)
+    out.refused = list(ps_impact.refused)
     return out

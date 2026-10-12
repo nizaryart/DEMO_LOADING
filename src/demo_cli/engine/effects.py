@@ -68,7 +68,7 @@ class Impact:
     """
     __slots__ = ("destroys", "destroyed_dirs", "created", "creates", "changes",
                  "touched", "remote", "unknown", "uncovered", "within", "databases",
-                 "no_capture", "db_urls", "computed")
+                 "no_capture", "db_urls", "computed", "refused")
 
     def __init__(self) -> None:
         self.destroys: Dict[str, str] = {}
@@ -88,6 +88,12 @@ class Impact:
         self.no_capture: Dict[str, str] = {}  # "db:host/name" -> why
         self.db_urls: Dict[str, str] = {}
         self.computed: List[Tuple[str, str]] = []   # (a $( ) the engine read, its output) - I1b
+        # PS8: lines PowerShell itself would REFUSE to run (a binding error:
+        # an unknown or ambiguous parameter, too many values). Also listed in
+        # `unknown`, so a single reading stays strict; only the two-dialect
+        # reading of PS8 may set them aside, because there the other shell
+        # may be the one that runs the line.
+        self.refused: List[Tuple[str, str]] = []
 
     def reach(self, label: str, kind: str) -> None:
         """A remote surface is reached; the same one twice keeps the kind

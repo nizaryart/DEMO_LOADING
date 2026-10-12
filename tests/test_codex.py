@@ -50,7 +50,7 @@ def _receipts(tmp_path):
 def test_codex_denies_unresolvable_rm_rf(tmp_path):
     out_dir = tmp_path.parent / "srv_data"
     out_dir.mkdir(exist_ok=True)
-    rc, raw = _run(_shell(f"rm -rf {out_dir}", tmp_path), tmp_path)  # M2.0-C3: existing outside path escalates
+    rc, raw = _run(_shell(f"rm -rf {out_dir.as_posix()}", tmp_path), tmp_path)  # M2.0-C3: existing outside path escalates
     assert rc == 0
     assert _decision(raw) == "deny"
 
@@ -61,7 +61,12 @@ def test_codex_snapshots_a_resolvable_target_and_stays_silent(tmp_path):
     build = tmp_path / "build"
     build.mkdir()
     (build / "out.txt").write_text("artifact")
-    rc, raw = _run(_shell(f"rm -rf {build}", tmp_path), tmp_path)
+    # PS8 / V24 (2026-10-11): forward slashes. On Windows an UNQUOTED
+    # backslash path deletes nothing in either shell - PowerShell refuses
+    # `-rf` ("A parameter cannot be found that matches parameter name 'rf'",
+    # verified on 5.1) and bash eats the backslashes - so it no longer
+    # exercises a capture. This spelling deletes in both shells.
+    rc, raw = _run(_shell(f"rm -rf {build.as_posix()}", tmp_path), tmp_path)
     assert rc == 0
     assert raw == ""
     assert _snapshots(tmp_path), "a recovery point must exist before the delete"
@@ -130,7 +135,7 @@ def test_plain_string_command_is_used_as_is():
 def test_argv_list_wrapper_command_is_classified_end_to_end(tmp_path):
     out_dir = tmp_path.parent / "srv_data"
     out_dir.mkdir(exist_ok=True)
-    payload = _shell(["bash", "-lc", f"rm -rf {out_dir}"], tmp_path)  # M2.0-C3: existing outside path escalates
+    payload = _shell(["bash", "-lc", f"rm -rf {out_dir.as_posix()}"], tmp_path)  # M2.0-C3: existing outside path escalates
     _, raw = _run(payload, tmp_path)
     assert _decision(raw) == "deny"        # the wrapper alone would match no rule
 

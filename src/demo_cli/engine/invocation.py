@@ -35,7 +35,7 @@ class Invocation:
         self.wrappers = wrappers          # sudo, xargs, env, nohup, ...
         self.subs = subs                  # $( ) / `` / <( ): run BEFORE the command
         self.payload = payload            # sh -c "...", env -S '...', cmd /c
-        self.powershell = powershell      # a powershell -Command payload (C)
+        self.powershell = powershell      # a powershell -Command payload inside a POSIX line
         self.heredocs = heredocs          # (redirect, body as a script, body $( )s)
         self.sep = sep
         self.depth = depth

@@ -27,9 +27,9 @@ from .context import redact
 from .decide import INVARIANT
 from .version import release_tag
 
-RECEIPT_VERSION = "2.3"   # 2.1: optional `prediction` (Part B); 2.2: prediction.remote is
+RECEIPT_VERSION = "2.4"   # 2.1: optional `prediction` (Part B); 2.2: prediction.remote is
 #                           {label: kind}, + databases / no_capture (C2a); 2.3: `approvable`
-#                           (the ask channel)
+#                           (the ask channel); 2.4: `decided_by` (C3)
 GENESIS = "0" * 64
 
 # A sha256 hex digest as it appears in a torn line's surviving text. Used to
@@ -197,14 +197,21 @@ class Receipt:
     chain: str = CHAIN_MAIN
     # Peer chain head hash at write time for cross-chain causal ordering.
     peer_head: Optional[str] = None
-    # What the shadow engine (engine/) would have concluded: recorded only,
-    # read by nothing that decides (Part B). None from every other writer.
+    # The engine's reading of the line (engine/). Recorded since Part B; it has
+    # DECIDED the lines it reads since M2.1 - see `decided_by`. None from every
+    # other writer.
     prediction: Optional[Dict] = None
     group_id: Optional[str] = None
     # The ask channel: a person may approve this ESCALATE on the spot
     # (policy.ESCALATION_CHANNEL). It records that the question COULD be asked,
     # never that anyone answered yes - no door sees the answer.
     approvable: bool = False
+    # C3: WHAT decided - the engine (and which reading: POSIX, PowerShell, or
+    # both when the door only guessed the dialect), the engine's route for a
+    # line it did not fully read, or the old text rules after an engine
+    # failure. `matched_rule` stays the old classifier's name for the command:
+    # a label, which since M2.3b / C3 no longer says what decided.
+    decided_by: Optional[str] = None
     receipt_hash: str = ""
 
     def finalize(self) -> "Receipt":

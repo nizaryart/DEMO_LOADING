@@ -232,10 +232,19 @@ def test_no_recovery_entry_on_escalate(tmp_path):
 
 
 def test_hook_never_claims_a_recovery_point_it_did_not_capture(tmp_path):
+    """A delete demo_cli cannot capture is refused WITHOUT promising an undo.
+
+    C3 changed what makes this case uncapturable. Deleting a path that does
+    not exist destroys nothing, so that is no longer a refusal at all (the
+    engine reads it; the old text rule only saw the words "Remove-Item
+    -Recurse -Force"). The honest uncapturable case is a real file OUTSIDE
+    the project, which no project-scoped recovery store can hold.
+    """
     (tmp_path / ".demo_cli.toml").write_text('mode = "enforce"\n')
-    missing = tmp_path / "ghost"
+    outside = tmp_path.parent / "outside_the_project.txt"
+    outside.write_text("real content, and not ours to capture\n")
     payload = {"tool_name": "PowerShell", "cwd": str(tmp_path),
-               "tool_input": {"command": f"Remove-Item -Recurse -Force {missing}"}}
+               "tool_input": {"command": f"Remove-Item -Recurse -Force {outside}"}}
     out = io.StringIO()
     run_pretooluse(io.StringIO(json.dumps(payload)), out)
     hook_out = json.loads(out.getvalue())["hookSpecificOutput"]

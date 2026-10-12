@@ -199,10 +199,14 @@ def test_engine_budget_overrun_falls_back_never_allow(tmp_path, monkeypatch):
 
 
 def test_powershell_command_unchanged(tmp_path):
+    (tmp_path / "a.txt").write_text("a\n")      # C3 reads the line, so give it a real file
     cfg = Config(project_root=str(tmp_path), mode="enforce")
     g = Guard(config=cfg)
     with agent_directory(str(tmp_path)):
         r = g.evaluate("Remove-Item a.txt", dialect="powershell")
 
     assert r.prediction is not None
-    assert r.prediction.get("skipped") == "powershell"
+    # C3: no longer skipped - the PowerShell front end reads the line and the
+    # shared engine decides it.
+    assert r.prediction.get("skipped") is None
+    assert r.prediction["decision"] == "REVERSIBLE"

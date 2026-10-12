@@ -16,7 +16,7 @@ What it models, and what the current string layer does not:
     to the real command word;
   * comments, escaped separators, operators inside $( ).
 
-PowerShell is not modelled in this slice.
+PowerShell has its own reader, ps_model.py (C3); this file stays POSIX.
 """
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class Command:
     cmd_index: int = 0           # first word of the real command
     clause: bool = False         # for/case/select/function header: nothing runs
     nested: Optional[Script] = None       # sh -c "..." payload
-    nested_ps: Optional[str] = None       # powershell -Command payload (not modelled)
+    nested_ps: Optional[str] = None       # powershell -Command payload (text kept for C3)
     payload: Tuple[int, int] = (0, 0)     # word index range holding the payload
     depth: int = 0               # ( ) subshell nesting where the command starts
 

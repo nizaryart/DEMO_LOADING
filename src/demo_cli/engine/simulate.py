@@ -1084,7 +1084,8 @@ def preload(command: str, sql_target: Tuple[Optional[str], Optional[str]]) -> No
 
 def simulate(command: str, rules: Tuple[Rule, ...] = RULES, cwd: Optional[str] = None,
              budget_ms: float = 10.0, root: Optional[str] = None,
-             sql_target: Tuple[Optional[str], Optional[str]] = (None, None)) -> Impact:
+             sql_target: Tuple[Optional[str], Optional[str]] = (None, None),
+             dialect: str = "posix") -> Impact:
     """The Impact of `command` if it ran now, from `cwd` (default: here).
     `sql_target` is the check door's (--db, --db-url): with it, or when the
     line starts with an UPPERCASE SQL keyword, the line is SQL, not shell
@@ -1094,6 +1095,19 @@ def simulate(command: str, rules: Tuple[Rule, ...] = RULES, cwd: Optional[str] =
     world = World(rules, Budget(budget_ms), root=os.path.abspath(root) if root else here)
     world.sql_target = sql_target
     start = State({}, here, here, {})
+    if dialect == "powershell":
+        # C3: the other front end. It reads the line and calls the SAME world
+        # (delete, write, copy, move, create), so what comes out is the same
+        # Impact a POSIX line produces.
+        #
+        # The import is PAUSED out of the budget, as the POSIX side does for
+        # its resolvers: loading the generated binder tables is work done
+        # once per process, not analysis of this line, and charging it to the
+        # first PowerShell command made that command overrun and retry.
+        with world.budget.paused():
+            from .ps_ops import PsRunner
+            from ..ps_model import parse as ps_parse
+        return world.finish(PsRunner(world).run_script(ps_parse(command), start, 0))
     if _is_bare_sql(command, sql_target):
         from .sqlclients import run_bare_sql                  # lazy: SQL lines only
         if any(sql_target):

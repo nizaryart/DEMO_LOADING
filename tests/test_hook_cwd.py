@@ -268,11 +268,14 @@ def test_the_project_root_is_still_refused(lab):
         "hook_event_name": "PreToolUse", "tool_name": "Bash",
         "tool_input": {"command": "rm a.txt b.txt"},
         "cwd": str(proj), "session_id": "s"})), out)
-    # Codex on Windows runs PowerShell (hooks/codex.py _dialect, observed 2026-09-13):
-    # the command is PowerShell there and takes the PowerShell path.
-    expected = "ESCALATE" if os.name == "nt" else ("REVERSIBLE" if ENGINE_PATH else "ESCALATE")
+    # PS8 (2026-10-11): on Windows Codex's dialect is a guess, so the line is
+    # read as PowerShell AND as POSIX. PowerShell refuses `rm a.txt b.txt`
+    # (verified on 5.1: "A positional parameter cannot be found"), the POSIX
+    # reading captures exactly the two files - the same answer as Linux, and
+    # the same exact capture, so the restore below now runs on both systems.
+    expected = "REVERSIBLE" if ENGINE_PATH else "ESCALATE"
     assert _receipts(proj)[-1]["decision"] == expected
-    if os.name != "nt" and ENGINE_PATH:
+    if ENGINE_PATH:
         gid = _receipts(proj)[-1]["group_id"]
         entries = recovery.find_group(str(proj / ".demo_cli" / "recovery"), gid)
         entry = {"kind": "group", "entries": entries}
@@ -292,9 +295,11 @@ def test_the_home_directory_collapse_still_escalates(lab):
         "hook_event_name": "PreToolUse", "tool_name": "Bash",
         "tool_input": {"command": "rm -f ~/x1 ~/x2"},
         "cwd": str(sub), "session_id": "s"})), out)
-    # Codex on Windows runs PowerShell (hooks/codex.py _dialect, observed 2026-09-13):
-    # the command is PowerShell there and takes the PowerShell path (ESCALATE).
-    expected = "ESCALATE" if os.name == "nt" else ("ALLOW" if ENGINE_PATH else "ESCALATE")
+    # PS8 (2026-10-11): read in both dialects on Windows. PowerShell refuses
+    # `rm -f` (-f is ambiguous: -Filter / -Force, verified on 5.1) and the
+    # POSIX reading finds nothing to delete - the Linux answer. What this test
+    # guards is unchanged: the cwd collapse is never captured (below).
+    expected = "ALLOW" if ENGINE_PATH else "ESCALATE"
     assert _receipts(proj)[-1]["decision"] == expected
     assert _captured(proj) == []
 

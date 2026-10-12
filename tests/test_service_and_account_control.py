@@ -125,7 +125,10 @@ def test_a_structural_approval_can_still_let_a_restart_through(tmp_path, monkeyp
     cfg = Config(mode="enforce", project_root=str(tmp_path),
                  approval_key_env="DEMO_CLI_APPROVER_KEY")
     assert cfg.approver_key == key
-    cmd = "Restart-Service myapp"
+    # Ruling PS7: a RESTART leaves the service running, so it is SERVICE_KEEP
+    # (allowed and listed), exactly as `systemctl start` already was. A STOP
+    # is the service loss, and it is the one an approval token overrides.
+    cmd = "Stop-Service myapp"
     g = Guard(config=cfg)
     assert g.evaluate(cmd, dialect=POWERSHELL).decision.decision == ESCALATE
     token = approval.sign(cmd, key)

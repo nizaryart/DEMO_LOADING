@@ -193,8 +193,9 @@ CODE_RUNNERS = frozenset({
 })
 # A line the engine marks NOT UNDERSTOOD goes to the runtime net, else a
 # checkpoint, else it ESCALATES (M3). Any other word with no rule has no
-# effect (the floor). PowerShell and cmd.exe text inside a POSIX line keeps
-# the old rules until C3 (M5):
+# effect (the floor). A POSIX line that NAMES a PowerShell or cmd.exe word
+# keeps the old rules (M5). Since C3 this list no longer touches a line in the
+# PowerShell dialect: the engine reads those (ruling PS6).
 OLD_RULES_KEEP = frozenset({
     "powershell", "pwsh", "cmd", "Remove-Item", "REMOVE-ITEM", "ri", "del", "erase", "rd",
     "Clear-Content", "clc", "Set-Content", "Out-File", "Move-Item", "mi", "move", "Copy-Item",

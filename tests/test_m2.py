@@ -255,9 +255,13 @@ def test_m2_c4_classify_flags_ignored_on_engine_path(tmp_path, monkeypatch):
         assert r_posix.decision.decision == REVERSIBLE
         assert_restores(r_posix.recovery_entry, tmp_path, {"a.txt": a_bytes})
 
-        # Control: PowerShell stays on old path -> reads classify -> ESCALATE
+        # C3: PowerShell is on the engine path too, so the faked classify
+        # flags are ignored in BOTH dialects - the same line, the same
+        # answer, whichever shell wrote it. (Before C3 this was the control
+        # showing the old text path still read those flags and escalated.)
         r_ps = g.evaluate("Remove-Item a.txt", dialect="powershell")
-        assert r_ps.decision.decision == ESCALATE
+        assert r_ps.decision.decision == REVERSIBLE
+        assert_restores(r_ps.recovery_entry, tmp_path, {"a.txt": a_bytes})
 
 
 # ---------------------------------------------------------------------

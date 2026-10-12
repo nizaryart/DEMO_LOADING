@@ -375,13 +375,17 @@ def _agent_state_change(command: str, dialect: str) -> Optional[str]:
 
 def _engine_predict(command: str, dialect: str, cfg: Config,
                     explicit_db: Optional[str] = None,
-                    db_url: Optional[str] = None):
-    """Run the engine once. Returns (prediction_dict, impact)."""
+                    db_url: Optional[str] = None, guessed: bool = False):
+    """Run the engine once - or, when the door only GUESSED the dialect, once
+    per dialect with the two readings combined (PS8). Returns
+    (prediction_dict, impact)."""
+    if guessed and dialect == POWERSHELL:
+        return _engine_predict_both(command, cfg, explicit_db, db_url)
     if os.environ.get("DEMO_CLI_SHADOW_ENGINE", "1").strip() == "0":
         return None, None
     import time
     t0 = time.perf_counter()
-    if dialect != POSIX:
+    if dialect not in (POSIX, POWERSHELL):
         out = {"engine": "shadow-1", "skipped": dialect}
         out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return out, None
@@ -394,11 +398,12 @@ def _engine_predict(command: str, dialect: str, cfg: Config,
         else:
             cwd = os.path.abspath(cfg.project_root or os.getcwd())
         try:
-            pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url)
+            pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url,
+                           dialect=dialect)
         except BudgetExceeded:
             retried = True
             pred = predict(command, cfg, cwd=cwd, explicit_db=explicit_db, db_url=db_url,
-                           budget_ms=RETRY_BUDGET_MS)
+                           budget_ms=RETRY_BUDGET_MS, dialect=dialect)
         out = _render(pred, cfg)
         if retried:
             out["retried"] = True
@@ -412,6 +417,37 @@ def _engine_predict(command: str, dialect: str, cfg: Config,
             out["retried"] = True
         out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return out, None
+
+
+def _engine_predict_both(command: str, cfg: Config, explicit_db: Optional[str],
+                         db_url: Optional[str]):
+    """PS8: read the line as PowerShell AND as POSIX and combine the two
+    impacts (engine.combine_guessed). If one reading fails, the other stands
+    alone; if both fail, the line goes where any engine failure goes."""
+    import time
+    from .engine import _render, combine_guessed
+    from .engine.verdict import verdict
+    t0 = time.perf_counter()
+    ps_out, ps_imp = _engine_predict(command, POWERSHELL, cfg, explicit_db, db_url)
+    px_out, px_imp = _engine_predict(command, POSIX, cfg, explicit_db, db_url)
+    if ps_imp is None and px_imp is None:
+        return ps_out, None
+    if ps_imp is None or px_imp is None:
+        out, imp = (px_out, px_imp) if ps_imp is None else (ps_out, ps_imp)
+        out = dict(out)
+        out["dialect"] = "guessed: only one reading succeeded"
+        return out, imp
+    imp = combine_guessed(ps_imp, px_imp)
+
+    class _P:                                    # the shape _render expects
+        pass
+    p = _P()
+    p.impact = imp
+    p.decision, p.why = verdict(imp, cfg)
+    out = _render(p, cfg)
+    out["dialect"] = "guessed: read as PowerShell and as POSIX (PS8)"
+    out["ms"] = round((time.perf_counter() - t0) * 1000, 2)
+    return out, imp
 
 
 def _shadow_prediction(command: str, dialect: str, cfg: Config,
@@ -435,9 +471,10 @@ class GuardResult:
     mismatches: List[Tuple[str, str, str]] = field(default_factory=list)
     affected_paths: List[str] = field(default_factory=list)
     receipt: Optional[Receipt] = None
-    prediction: Optional[dict] = None       # the shadow engine's; decides nothing
+    prediction: Optional[dict] = None       # the engine's reading (it decides what it reads)
     rewrite: Optional[str] = None           # command to run under behavioral supervisor
     group_id: Optional[str] = None
+    decided_by: Optional[str] = None        # C3: see Receipt.decided_by
 
     @property
     def allowed(self) -> bool:
@@ -619,7 +656,8 @@ class Guard:
                  intent: Optional[Intent] = None, actual_env: Optional[str] = None,
                  approval_token: Optional[str] = None, agent_id: str = "unknown",
                  session_id: str = "unknown", dialect: str = POSIX,
-                 door: Optional[str] = None, can_supervise: bool = False) -> GuardResult:
+                 door: Optional[str] = None, can_supervise: bool = False,
+                 dialect_guessed: bool = False) -> GuardResult:
         """`dialect` says which shell wrote this text - POSIX or POWERSHELL.
         It decides how line continuations are folded, and the two spellings are
         not interchangeable (see classify.join_continuations). The adapters know
@@ -632,21 +670,32 @@ class Guard:
         early = self._early_refusal(command, dialect, door, intent, agent_id, session_id)
         if early: return early
         c = classify_pipeline(command, dialect)
-        prediction, impact = _engine_predict(command, dialect, self.config, explicit_db, db_url)
+        prediction, impact = _engine_predict(command, dialect, self.config, explicit_db, db_url,
+                                             guessed=dialect_guessed)
         refused = self._control_plane_refusal(command, dialect, door, c, impact, prediction, intent, agent_id, session_id)
         if refused: return refused
         route = None if self._engine_applies(dialect, impact) else self._unread_route(command, dialect, impact)
+        reading = ("PowerShell and POSIX readings (dialect guessed)" if dialect_guessed
+                   and dialect == POWERSHELL else
+                   "PowerShell reading" if dialect == POWERSHELL else "POSIX reading")
         if self._engine_applies(dialect, impact):
             f = self._engine_facts(command, dialect, c, impact, target_path, explicit_db, db_url)
+            decided_by = f"engine, {reading}"
         elif route is not None:
             f = self._unread_facts(route, command, dialect, c, impact, target_path, explicit_db,
                                    db_url, can_supervise, intent, actual_env)
+            decided_by = f"engine, {reading}: not fully read ({route} route)"
         else:
-            engine_error = (prediction or {}).get("error") if dialect == POSIX and impact is None else None
+            # B0's guard (an engine failure never becomes a silent ALLOW) now
+            # covers PowerShell too: since C3 it is read by the same engine.
+            engine_error = ((prediction or {}).get("error")
+                            if dialect in (POSIX, POWERSHELL) and impact is None else None)
             f = self._legacy_facts(command, dialect, c, target_path, explicit_db, db_url, can_supervise, intent, actual_env, engine_error=engine_error)
+            decided_by = "old text rules" + (" (the engine failed)" if engine_error else "")
         ctx, mismatches, approval_ok = self._context(command, f, intent, actual_env, approval_token)
         decision = self._decide(command, f, ctx, mismatches, approval_ok)
-        return self._record(command, c, f, ctx, decision, intent, prediction, dialect, agent_id, session_id)
+        return self._record(command, c, f, ctx, decision, intent, prediction, dialect, agent_id,
+                            session_id, decided_by=decided_by)
 
     def _early_refusal(self, command: str, dialect: str, door: Optional[str],
                        intent: Intent, agent_id: str, session_id: str) -> Optional[GuardResult]:
@@ -679,26 +728,39 @@ class Guard:
         return None
 
     def _engine_applies(self, dialect: str, impact) -> bool:
-        return dialect == POSIX and impact is not None and not impact.uncovered and not impact.unknown
+        """C3: a line the engine reads FULLY is decided by the engine, in
+        either dialect. There is no second opinion and no merge with the old
+        text rules - one reading, one decider (the POSIX half of this is
+        M2.3b; PowerShell joins it here)."""
+        return (dialect in (POSIX, POWERSHELL) and impact is not None
+                and not impact.uncovered and not impact.unknown)
 
     def _unread_route(self, command: str, dialect: str, impact) -> Optional[str]:
         """M2.3a (rulings M1-M5): which way a POSIX line the engine did not
         fully read goes, now that the old text rules no longer decide it.
-        None = the old rules still do: PowerShell, a line that names a
-        PowerShell / cmd.exe word (M5, until C3), or an engine that failed.
+        None = the old rules still do: a POSIX line that names a PowerShell
+        or cmd.exe word (M5), or an engine that failed. A PowerShell line is
+        routed like a POSIX one since C3 (ruling PS6).
           'unknown' - something on the line could not be read (M3)
           'runner'  - a program that runs code this engine does not read (M1)
           'plain'   - only words with no rule: they have no effect (the floor)"""
         from . import policy
-        if dialect != POSIX or impact is None:
+        if dialect not in (POSIX, POWERSHELL) or impact is None:
             return None
         words = {u.split()[0] for u in impact.uncovered}
-        if words & policy.OLD_RULES_KEEP:
+        if dialect == POSIX and words & policy.OLD_RULES_KEEP:
+            # M5: a POSIX line that NAMES a PowerShell or cmd.exe word still
+            # goes to the old text rules. A PowerShell line does not: C3 is
+            # its reader now (ruling PS6), and deferring would have let
+            # `cmd /c del a.txt` through, because no old rule flags a bare
+            # `del` inside cmd.
             return None
         if impact.unknown or _unparsed_remote(impact):
             return "unknown"
         if words & policy.CODE_RUNNERS or words & self._started_by_path(command):
             return "runner"
+        if dialect == POWERSHELL and any(w.lower().endswith(".ps1") for w in words):
+            return "runner"          # `.\x.ps1`, `& C:\x.ps1`: code we do not read
         return "plain"
 
     @staticmethod
@@ -1232,7 +1294,8 @@ class Guard:
 
     def _record(self, command: str, c: Classification, f: _Facts, ctx: Context,
                 decision: Decision, intent: Intent, prediction, dialect: str,
-                agent_id: str, session_id: str) -> GuardResult:
+                agent_id: str, session_id: str,
+                decided_by: Optional[str] = None) -> GuardResult:
         preview_count = getattr(decision, "preview_count", None)
         preview_rows, preview_cols = getattr(decision, "preview_rows", []), getattr(decision, "preview_cols", [])
         mismatches = getattr(decision, "mismatches", [])
@@ -1248,7 +1311,8 @@ class Guard:
             context_mismatches=[list(m) for m in mismatches],
             pipeline_segments=c.segments if c.is_pipeline else [], remote_exec=c.remote_exec,
             dialect=dialect, agent_id=agent_id, session_id=session_id,
-            prediction=prediction, group_id=gid, approvable=decision.approvable)
+            prediction=prediction, group_id=gid, approvable=decision.approvable,
+            decided_by=decided_by)
         _record_receipt(self.config.receipts_path, receipt)
 
         return GuardResult(
@@ -1256,7 +1320,7 @@ class Guard:
             target=f.target, recovery_entry=f.entry, preview_count=preview_count,
             preview_rows=preview_rows, preview_cols=preview_cols, mismatches=mismatches,
             affected_paths=f.affected_paths, receipt=receipt, prediction=prediction,
-            rewrite=f.rewrite, group_id=gid)
+            rewrite=f.rewrite, group_id=gid, decided_by=decided_by)
     def _runtime_net_or_checkpoint(
         self,
         c: Classification,
