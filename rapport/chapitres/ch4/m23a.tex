@@ -26,7 +26,9 @@ M2.3a applique les arbitrages M1--M5 :
     sur des fichiers jetables ;
   \item \textbf{V18, première étape} --- les filets et le point de contrôle disent qu'ils ne
     couvrent que le projet ;
-  \item \textbf{M5} --- le texte PowerShell garde les anciennes règles jusqu'à C3 ;
+  \item \textbf{M5} --- le texte PowerShell garde les anciennes règles jusqu'à C3 (depuis C3
+    et C3b, une ligne PowerShell n'y passe plus ; une ligne POSIX qui nomme une cmdlet
+    PowerShell ou un mot de \cmd{cmd.exe} y passe encore) ;
   \item partout, \textbf{l'ancienne règle garde une capture ou une escalade, jamais son ALLOW}.
 \end{itemize}
 
@@ -35,7 +37,10 @@ bougé sont toutes devenues plus strictes ; sur le portail, 6 lignes bougent, to
 
 \subsection{M2.3b : l'ancien chemin ne décide plus aucune ligne POSIX}
 M2.3b termine la sortie. Depuis cette partie, l'ancien chemin à expressions régulières ne sert
-plus qu'au texte PowerShell et \cmd{cmd.exe} (jusqu'à C3) et au cas où le moteur échoue.
+plus qu'au texte PowerShell et \cmd{cmd.exe}, et au cas où le moteur échoue. Depuis C3 et C3b
+(§\ref{sec:c3b}), aucune ligne PowerShell n'y passe plus ; restent le texte \cmd{cmd.exe}, une
+ligne POSIX qui nomme une cmdlet PowerShell ou un mot de \cmd{cmd.exe} (60 des 806 lignes POSIX
+du portail, toutes de ce type), et le cas où le moteur échoue.
 \begin{itemize}
   \item \textbf{Le moteur lit ce que l'ancien chemin capturait} : une valeur connue sur la ligne,
     lue comme l'option qu'elle est (\cmd{X=-rf; rm \$X src}) ; un script littéral envoyé à un

@@ -122,7 +122,7 @@ ligne :
 \end{itemize}
 
 \subsection{Les vulnérabilités du stage}
-Le journal des vulnérabilités (V1--V22) distingue ce qui est corrigé, ce qui a été vérifié et
+Le journal des vulnérabilités (V1--V24) distingue ce qui est corrigé, ce qui a été vérifié et
 n'est pas une faille, et ce qui reste ouvert : le tableau~\ref{tab:v-corrigees} liste les
 vulnérabilités corrigées, le tableau~\ref{tab:v-ouvertes} celles qui restent ouvertes.
 
@@ -173,6 +173,10 @@ V12 & PowerShell non analysé : \cmd{iex "Remove-Item a.txt"}, \cmd{Write-Output
 V18 (2) & Une destruction hors du projet par du code non lu n'était ni sauvegardée ni
   enregistrée par le filet. & Moyenne & Revue de code (M2.3a) & V18 (\commitVdixhuit) : le filet
   Linux enregistre chaque fichier détruit hors du projet \\
+V24 & Sous Windows, le \textit{hook} Codex ne déclare pas son dialecte : il était deviné d'après
+  le système, donc lu comme du PowerShell, et \cmd{mv a.txt b.txt} perdait la capture que la
+  lecture POSIX voyait. & Moyenne & Revue de conception (C3) & C3 (\cmd{ef80ed8}) : union des
+  impacts des deux lectures (PS8) \\
 --- & \cmd{source ./x.sh} vu comme sans effet ; code téléchargé exécuté par
   \cmd{bash <(curl \ldots)} ou \cmd{aws s3 cp \ldots{} - | bash} autorisé. & --- & Sondes & M2.3a \\
 --- & \cmd{undo} impossible sur un fichier passé en \cmd{chmod 444}/\cmd{000} ; plantage du

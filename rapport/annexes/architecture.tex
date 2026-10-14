@@ -60,7 +60,7 @@ tableau~\ref{tab:archi-familles}. C3, en tirets, est décrit à la section~\ref{
 
 \section{Où sont les lignes}
 La figure~\ref{fig:couches} répond à une question simple : où est passé l'effort ? Le moteur porte
-43\,\% du code, et les trois cinquièmes du moteur sont dans ses familles ---
+47\,\% du code, et plus de la moitié du moteur est dans ses familles ---
 la connaissance de ce que font \nboutils{} outils, écrite comme des données et vérifiée par
 leurs exemples. Le décideur, lui, tient en quelques centaines de lignes : c'est voulu. Une
 décision doit pouvoir se relire en entier ; ce qui est long, c'est de \emph{savoir} ce qu'une
@@ -169,7 +169,7 @@ tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
 \fichier{hooks/claude\_code.py} & 415 & \textit{Hook} PreToolUse de Claude Code : lit l'appel
   d'outil, appelle le garde, répond allow, ask ou deny, ou réécrit la commande vers
   \cmd{demo\_cli sh -g}. \\
-\fichier{hooks/codex.py} & 524 & \textit{Hook} de Codex : la même décision, exprimée par refus
+\fichier{hooks/codex.py} & 534 & \textit{Hook} de Codex : la même décision, exprimée par refus
   seul. \\
 \fichier{hooks/cursor.py} & 187 & \textit{Hook} \cmd{beforeShellExecution} de Cursor, fermé en
   cas d'échec. \\
@@ -181,7 +181,7 @@ tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
 \fichier{guarded.py} & 451 & \cmd{demo\_cli guarded} : lance l'agent avec toutes les couches
   qui peuvent l'être, et dit lesquelles manquent. \\
 \multicolumn{3}{@{}l}{\textcolor{cOrch}{\sffamily\bfseries 2 --- Orchestration}} \\
-\fichier{guard.py} & \num{1461} & L'orchestrateur : \cmd{Guard.evaluate} enchaîne les étapes
+\fichier{guard.py} & \num{1525} & L'orchestrateur : \cmd{Guard.evaluate} enchaîne les étapes
   nommées (figure~\ref{fig:trajet}) ; \cmd{evaluate\_file\_edit} pour la porte fichier. \\
 \fichier{config.py} & 661 & \fichier{.demo\_cli.toml} : mode (observation ou application),
   cibles déclarées, espace de travail propre au projet. \\
@@ -197,7 +197,7 @@ tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
 \multicolumn{3}{@{}l}{\textcolor{cMoteur!80!black}{\sffamily\bfseries 3 --- Moteur : le cœur}} \\
 \fichier{model.py} & 845 & L'analyse POSIX unique : mots et citations, substitutions
   imbriquées, \textit{heredocs}, enveloppes. \\
-\fichier{engine/\_\_init\_\_.py} & 98 & Le point d'entrée : \cmd{predict}, son budget de temps,
+\fichier{engine/\_\_init\_\_.py} & 154 & Le point d'entrée : \cmd{predict}, son budget de temps,
   la prédiction écrite dans le reçu. \\
 \fichier{engine/invocation.py} & 182 & De l'analyse aux invocations : une par commande qui
   s'exécute, avec ses enveloppes et ses scripts imbriqués. \\
@@ -211,27 +211,39 @@ tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
   \\
 \fichier{engine/resolvers.py} & \num{1065} & Les outils qu'un gabarit ne peut pas exprimer
   (\cmd{cp}, \cmd{sed}, \cmd{tar}, \cmd{rsync}, \cmd{find}, \cmd{dd}\ldots). \\
-\fichier{engine/simulate.py} & \num{1110} & La simulation sur un système de fichiers virtuel :
+\fichier{engine/simulate.py} & \num{1136} & La simulation sur un système de fichiers virtuel :
   ensembles d'états, origine du contenu, budget. \\
-\fichier{engine/effects.py} & 111 & Le vocabulaire des effets
+\fichier{engine/effects.py} & 117 & Le vocabulaire des effets
   (tableau~\ref{tab:effets}). \\
 \fichier{engine/deferred.py} & 128 & Les lieux où du code s'exécute plus tard sans être nommé
   (profil du shell, \textit{hooks} git, tâches planifiées). \\
+\multicolumn{3}{@{}l}{\textcolor{cMoteur!80!black}{\sffamily\bfseries 3 bis --- Moteur : le frontal PowerShell (C3)}} \\
+\fichier{ps\_model.py} & 686 & L'analyse PowerShell : script, instructions, \textit{pipelines},
+  commandes, citations, \textit{here-strings}, blocs de script, affectations ; ce qui sort de la
+  grammaire est non compris, avec sa raison. \\
+\fichier{engine/ps\_tables\_data.py} & 423 & Les tables générées depuis PowerShell 5.1 :
+  \cthreecmdlets{} cmdlets, \cthreealias{} alias, jeux de paramètres. \\
+\fichier{engine/ps\_bind.py} & 260 & Le lieur de paramètres : ce que PowerShell lierait à chaque
+  mot. \\
+\fichier{engine/rules\_powershell.py} & 133 & Ce que fait chaque cmdlet, comme des données, avec
+  ses exemples. \\
+\fichier{engine/ps\_ops.py} & 580 & L'exécution d'une ligne PowerShell sur le \cmd{World} du
+  moteur. \\
 \multicolumn{3}{@{}l}{\textcolor{encre}{\sffamily\bfseries 4 --- Décider}} \\
 \fichier{engine/verdict.py} & 113 & Le jugement d'un impact, dans l'ordre convenu. \\
-\fichier{policy.py} & 238 & La politique unique : décision par surface, canal ask ou deny,
+\fichier{policy.py} & 240 & La politique unique : décision par surface, canal ask ou deny,
   indices de récupération. \\
-\fichier{decide.py} & 251 & Le décideur unique, pur, à l'ordre de branches fixe. \\
+\fichier{decide.py} & 253 & Le décideur unique, pur, à l'ordre de branches fixe. \\
 \multicolumn{3}{@{}l}{\textcolor{cRecup}{\sffamily\bfseries 5 --- Récupérer, tracer}} \\
 \fichier{recovery.py} & \num{1139} & Les captures tout-ou-rien, les groupes, la restauration
   (\cmd{undo}). \\
 \fichier{checkpoint.py} & 213 & Le point de contrôle de tout le projet, optionnel et borné. \\
 \fichier{preview.py} & 146 & L'aperçu SQL (DRY\_RUN) : lignes touchées et échantillon. \\
 \fichier{diff.py} & 190 & Ce qui a changé depuis le dernier point de récupération. \\
-\fichier{receipts.py} & 903 & Le registre chaîné : ajout sous verrou, vérification de la
+\fichier{receipts.py} & 910 & Le registre chaîné : ajout sous verrou, vérification de la
   chaîne, liens entre chaînes. \\
 \multicolumn{3}{@{}l}{\textcolor{cFilet}{\sffamily\bfseries 6 --- Filets d'exécution}} \\
-\fichier{syscall\_guard.py} & 528 & Linux : le garde ptrace (section~\ref{sec:filets}). \\
+\fichier{syscall\_guard.py} & 625 & Linux : le garde ptrace (section~\ref{sec:filets}). \\
 \fichier{fsguard.py} & 234 & Windows : le jugement --- quelles opérations de fichier
   détruisent. \\
 \fichier{fsmount.py} & \num{1095} & Windows : le système de fichiers WinFsp et son montage. \\
@@ -249,9 +261,9 @@ tableau~\ref{tab:archi-familles}), dans l'ordre de la carte.
 \multicolumn{3}{@{}l}{\textcolor{gris}{\sffamily\bfseries 7 --- Installation, diagnostic, affichage}} \\
 \fichier{doctor.py} & 532 & Le diagnostic : \textit{hooks}, montage, tâche, dépendances. \\
 \fichier{deps.py} & 296 & Ce qui manque, et la commande exacte qui le corrige. \\
-\fichier{protection.py} & 115 & Le modèle de menace, et l'état des protections actives. \\
+\fichier{protection.py} & 117 & Le modèle de menace, et l'état des protections actives. \\
 \fichier{lifecycle.py} & 628 & \cmd{setup} et \cmd{teardown}, étape par étape. \\
-\fichier{render.py} & 611 & L'affichage : couleurs des décisions, \cmd{NO\_COLOR}. \\
+\fichier{render.py} & 614 & L'affichage : couleurs des décisions, \cmd{NO\_COLOR}. \\
 \fichier{completion.py} & 401 & La complétion pour bash, zsh, fish et PowerShell. \\
 \fichier{\_\_init\_\_.py} & 40 & L'API publique et l'invariant. \\
 \fichier{version.py} & 23 & La version, à un seul endroit. \\

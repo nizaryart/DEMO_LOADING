@@ -1,10 +1,11 @@
 % chiffres.tex — TOUS les chiffres du rapport, au même endroit.
 % Quand le projet avance, on met à jour ce fichier, pas les chapitres.
-% Source de chaque valeur en commentaire. État : commit 7d2a2aa (2026-10-09).
+% Source de chaque valeur en commentaire. État : commit 1fdc659 (C3b), remesuré le 2026-10-13
+% (copie du code, jamais le dépôt vivant). État précédent : 7d2a2aa (2026-10-09).
 
 % ---- Référence
-\newcommand{\commitref}{\texttt{7d2a2aa}}
-\newcommand{\datecommitref}{9 octobre 2026}
+\newcommand{\commitref}{\texttt{1fdc659}}
+\newcommand{\datecommitref}{12 octobre 2026}     % git log -1 --format=%cd --date=short 1fdc659 -> 2026-10-12
 
 % ---- Point de départ : WePwn/demo_cli v0.4.0-beta.8 (19/07/2026)
 \newcommand{\betaversion}{0.4.0-beta.8}
@@ -16,22 +17,22 @@
 \newcommand{\betadecisions}{5}
 
 % ---- Aujourd'hui (commit de référence)
-\newcommand{\lignessrc}{\num{34200}}         % wc -l src/**/*.py (34 180)
-\newcommand{\lignestests}{\num{29000}}       % wc -l tests/**/*.py (28 983)
-\newcommand{\fichierstests}{134}             % tests/test_*.py
-\newcommand{\fonctionstests}{\num{1728}}     % def test_ (avant paramétrisation)
+\newcommand{\lignessrc}{\num{36500}}         % wc -l src/**/*.py (36 537)
+\newcommand{\lignestests}{\num{29900}}       % wc -l tests/**/*.py (29 892)
+\newcommand{\fichierstests}{138}             % tests/test_*.py
+\newcommand{\fonctionstests}{\num{1787}}     % def test_ (avant paramétrisation)
 \newcommand{\nbregles}{72}                   % engine.rules.all_rules()
 \newcommand{\nbexemples}{774}                % exemples de règles = tests
 \newcommand{\nboutils}{214}                  % noms d'outils couverts
-\newcommand{\nbfamilles}{12}                 % familles chargées à la demande
+\newcommand{\nbfamilles}{12}                 % familles chargées à la demande (rules_powershell.py, 13e fichier rules_*, est rangé avec C3)
 \newcommand{\nbnonverifiees}{9}              % règles verified=False
 \newcommand{\nbsurfaces}{38}                 % lignes de policy.ESCALATION_CHANNEL
-\newcommand{\nbcommits}{52}                  % git log jusqu'à 7d2a2aa
+\newcommand{\nbcommits}{55}                  % 52 jusqu'à 7d2a2aa + 3 (git rev-list --count : 212 -> 215 ; V18, C3, C3b)
 \newcommand{\nbcorpus}{922}                  % commandes du portail de décision
 
 % ---- Tests (chiffres officiels à fournir : Linux et Windows)
-\newcommand{\testslinux}{\num{3483} réussis, 19 ignorés}
-\newcommand{\testswindows}{\num{3398} réussis, 104 ignorés}
+\newcommand{\testslinux}{\num{3593} réussis, 21 ignorés}     % suite du dépôt à l'atterrissage de C3b (land_part.sh, étape 7)
+\newcommand{\testswindows}{\num{3501} réussis, 111 ignorés}  % nizar_win_check.ps1 après C3b (+ les 2 échecs git connus)
 
 % ---- Fouille des registres (brief C3, rapport d'analyse A4)
 \newcommand{\nbregistres}{107}
@@ -51,8 +52,8 @@
 \newcommand{\cthreecmdlets}{252}
 \newcommand{\cthreealias}{158}
 % ---- Architecture complète (annexe E), mesurée au commit de référence
-\newcommand{\nbmodules}{80}                  % fichiers .py sous src/demo_cli
-\newcommand{\nbfonctions}{\num{1054}}        % ast : 849 fonctions de module + 205 méthodes (hors 55 imbriquées)
-\newcommand{\nbclasses}{71}                  % ast.ClassDef
-\newcommand{\nbimports}{257}                 % imports internes module -> module (ast)
+\newcommand{\nbmodules}{85}                  % fichiers .py sous src/demo_cli
+\newcommand{\nbfonctions}{\num{1084}}        % ast : 878 fonctions de module + 206 méthodes de classe (hors 93 imbriquées) ; méthode de 2026-10-13, le découpage de 7d2a2aa n'a pas pu être reproduit
+\newcommand{\nbclasses}{83}                  % ast.ClassDef
+\newcommand{\nbimports}{260}                 % paires distinctes module -> module internes (ast)
 \newcommand{\nbsouscommandes}{31}            % add_parser de cli.py, hors les 2 de « target »

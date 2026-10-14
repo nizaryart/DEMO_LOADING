@@ -185,8 +185,11 @@ Decision
   Recovery point captured before the action; reversible.
 \end{terminal}
 
-La règle « le plus strict gagne » reste en vigueur là où l'ancien chemin sert encore : le texte
-\cmd{cmd.exe}, les constructions PowerShell que C3 ne lit pas, et le cas où le moteur échoue (B0).
+La règle « le plus strict gagne » ne vaut plus que là où l'ancien chemin sert encore : le texte
+\cmd{cmd.exe}, une ligne POSIX qui nomme une cmdlet PowerShell (M5), et le cas où le moteur
+échoue (B0). Une construction PowerShell que C3 ne lit pas
+n'y retourne pas : elle est non comprise, et suit le même chemin qu'une ligne POSIX non lue
+--- filet, sinon point de contrôle, sinon escalade.
 
 % ------------------------------------------------------------------
 \subsection{Les fichiers de \texorpdfstring{\demo}{demo\_cli} : le plan de contrôle}

@@ -28,8 +28,11 @@ Portail de décision (\nbcorpus{} commandes) & Windows : 0 ligne différente ; L
 Corpus élargi (validation de M2.3b) & \nbcorpuslarge{} commandes rejouées avant et après \\
 Couverture sur 88 incidents réels (red-team \#008) & de 75\,\% à 90\,\% des enregistrements, de 44\,\% à 81\,\% des
   commandes uniques \\
-Temps du moteur sur les \nbexemples{} exemples (Linux) & médiane 0,29\,ms ; 95\,\% sous
-  0,79\,ms ; maximum 1,30\,ms (budget : 10\,ms CPU) \\
+Temps du moteur sur les \nbexemples{} exemples (Linux, temps CPU, meilleur de trois) & médiane
+  0,41\,ms ; 95\,\% sous 0,87\,ms ; maximum 1,70\,ms (budget : 10\,ms CPU) \\
+Logique qui décide (champ \cmd{decided\_by} des reçus) & 116 lignes PowerShell du portail :
+  0 décidée par les anciennes règles ; 806 lignes POSIX : 60, toutes des lignes qui nomment une
+  cmdlet PowerShell ou un mot de \cmd{cmd.exe} (M5) \\
 \bottomrule
 \end{tabularx}
 \end{table}

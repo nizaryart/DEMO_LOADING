@@ -35,6 +35,8 @@ GROUPS = {
  'reseau': ['egress.py', 'egress_addon.py'],
  'outil': ['doctor.py', 'deps.py', 'protection.py', 'lifecycle.py', 'render.py',
            'completion.py', '__init__.py', 'version.py'],
+ 'c3': ['ps_model.py', 'engine/ps_tables_data.py', 'engine/ps_bind.py',
+        'engine/rules_powershell.py', 'engine/ps_ops.py'],
 }
 FAM = [  # (nom affiché, fichiers, nb outils)
  ('système', ['engine/rules_system.py', 'engine/system_ops.py', 'engine/system_data.py'], 92),
@@ -52,7 +54,7 @@ FAM = [  # (nom affiché, fichiers, nb outils)
 ]
 allf = [m for g in GROUPS.values() for m in g] + [f for _, fs, _ in FAM for f in fs]
 assert sorted(allf) == sorted(L), (set(L) - set(allf), set(allf) - set(L))
-assert len(allf) == len(set(allf)) == 80
+assert len(allf) == len(set(allf)) == len(L)
 
 MAXL = 1800  # échelle commune des barres de taille (cli.py, le plus long, fait 1 783 lignes)
 STEP = 0.52
@@ -105,7 +107,7 @@ def sub(x, y, t, col):
 
 def tot(names): return sum(n(m) for m in names)
 
-P('% Figure E.1 — La carte complète de demo_cli : les 80 modules, groupés par rôle.\n'
+P(f'% Figure E.1 — La carte complète de demo_cli : les {len(L)} modules, groupés par rôle.\n'
   '% GÉNÉRÉE par notes/gen_carte.py depuis les tailles réelles (lignes par module,\n'
   '% commit de référence). Ne pas modifier à la main : relancer le script.\n')
 P('\\begin{tikzpicture}[x=1cm,y=1cm,\n'
@@ -145,7 +147,8 @@ P('\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at
 mx = X['moteur']; m0 = -0.3
 fam_files = [f for _, fs, _ in FAM for f in fs]
 P(card(mx, T, R['moteur'], BAS, 'cMoteur', 3, 'Moteur : comprendre et simuler',
-       len(GROUPS['coeur']) + len(fam_files), tot(GROUPS['coeur']) + tot(fam_files)))
+       len(GROUPS['coeur']) + len(fam_files) + len(GROUPS['c3']),
+       tot(GROUPS['coeur']) + tot(fam_files) + tot(GROUPS['c3'])))
 P(sub(mx + 0.2, m0 + 0.04, 'le cœur', 'cMoteur!65!black'))
 P(column(GROUPS['coeur'], mx + 0.2, m0, 3.6, 'cMoteur', keys=('model.py', 'engine/simulate.py', 'engine/rules.py')))
 fx = mx + 4.05
@@ -156,13 +159,16 @@ for i, (nom, fs, nt) in enumerate(FAM):
 cy = -6.62
 P(card(mx + 0.15, cy, R['moteur'] - 0.15, BAS + 0.15, 'cMoteur!70!black', 'C3',
        'Le frontal PowerShell, sur le même \\texttt{World}', dashed=True).replace('minimum size=3.3mm', 'minimum size=3.3mm,inner xsep=1pt'))
-c3 = ['ps\\_model.py', 'ps\\_tables.py', 'ps\\_bind.py', 'ps\\_invocation.py', 'rules\\_powershell.py', 'ps\\_ops.py']
-for i, m in enumerate(c3):
-    P(chip(mx + 0.35 + (i % 3) * 2.47, cy - 0.58 - (i // 3) * STEP, 2.32, f'\\texttt{{{m}}}', None,
-           'cMoteur', dashed=True))
-P(f'\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=7.3cm] at ({mx+0.35},{cy-1.62}) '
-  f'{{Tous dans \\texttt{{engine/}} sauf \\texttt{{ps\\_model.py}} ; avec \\texttt{{engine/ps51\\_bindings.json}} : '
-  f'{{\\cthreecmdlets}} cmdlets et {{\\cthreealias}} alias de PowerShell 5.1.}};\n')
+c3_rows = [(['ps_model.py', 'engine/ps_bind.py', 'engine/ps_ops.py'], 2.47, 2.32),
+           (['engine/ps_tables_data.py', 'engine/rules_powershell.py'], 3.72, 3.57)]
+assert sorted(sum((r for r, _, _ in c3_rows), [])) == sorted(GROUPS['c3'])
+for row, (mods, dx_, w_) in enumerate(c3_rows):
+    for i, m in enumerate(mods):
+        P(chip(mx + 0.35 + i * dx_, cy - 0.58 - row * STEP, w_,
+               f'\\texttt{{{tex(m.split("/")[-1])}}}', n(m), 'cMoteur', dashed=True))
+P(f'\\node[font=\\sffamily\\tiny,text=gris,anchor=north west,text width=6.9cm] at ({mx+0.35},{cy-1.62}) '
+  f'{{Tous dans \\texttt{{engine/}} sauf \\texttt{{ps\\_model.py}} ; tables générées depuis PowerShell 5.1 : '
+  f'{{\\cthreecmdlets}} cmdlets, {{\\cthreealias}} alias.}};\n')
 
 # 4 Décider, 5 Récupérer
 dx, rx = X['decider'], X['recup']
@@ -217,6 +223,7 @@ lay = [('Portes', GROUPS['portes']), ('Orchestration', GROUPS['orch']),
        ('Couche texte (héritée)', GROUPS['texte']),
        ('Moteur : cœur', GROUPS['coeur']),
        ('Moteur : 12 familles', [f for _, fs, _ in FAM for f in fs]),
+       ('Moteur : frontal PowerShell', GROUPS['c3']),
        ('Décider', GROUPS['decider']), ('Récupérer, tracer', GROUPS['recup']),
        ('Filets d\'exécution', GROUPS['linux'] + GROUPS['windows'] + GROUPS['reseau']),
        ('Installation, diagnostic', GROUPS['outil'])]

@@ -105,25 +105,23 @@ tableau~\ref{tab:c3-modules} présente ses modules.
 \toprule
 \textbf{Module} & \textbf{Rôle} \\
 \midrule
-\fichier{ps\_model.py} & Analyseur lexical et syntaxique : script, instructions,
+\fichier{ps\_model.py} (hors de \fichier{engine/}) & Analyseur lexical et syntaxique : script, instructions,
   \textit{pipelines}, commandes (nom, paramètres, arguments, redirections, positions dans la
   source), chaînes littérales et extensibles, \textit{here-strings}, blocs de script,
   sous-expressions, affectations. Tout ce qui sort de la grammaire est marqué non compris, avec
   sa raison. \\
-\fichier{engine/ps51\_bindings.json}, \fichier{engine/ps\_tables.py} & Les tables générées
+\fichier{engine/ps\_tables\_data.py} & Les tables générées
   (PS2) : cmdlets, alias, jeux de paramètres, positions, commutateurs, entrée de
   \textit{pipeline}, alias de paramètres, paramètres communs ; chargées à la demande. \\
 \fichier{engine/ps\_bind.py} & Le lieur : alias $\rightarrow$ cmdlet, \cmd{-Nom} et
   \cmd{-Nom:valeur}, plus court préfixe non ambigu, liaison positionnelle par jeu de paramètres,
   liaison de \textit{pipeline} par valeur puis par nom de propriété. \\
-\fichier{engine/ps\_invocation.py} & L'invocation PowerShell, pendant de l'invocation POSIX :
-  texte, profondeur, séparateur, sous-expressions exécutées d'abord, charge (\cmd{iex},
-  \cmd{-Command}, \cmd{-EncodedCommand}), redirections, paramètres liés. \\
 \fichier{engine/rules\_powershell.py} & Les règles des cmdlets \emph{comme des données}, avec
   leurs exemples : une famille de plus, chargée à la demande. \\
 \fichier{engine/ps\_ops.py} & L'exécuteur PowerShell sur le \cmd{World} : instructions,
   \textit{pipelines}, blocs de script là où ils s'exécutent, \cmd{iex} littéral,
-  \cmd{-EncodedCommand}, exécuteurs \cmd{\&} et \cmd{-File}, redirections. Il appelle les mêmes
+  \cmd{-EncodedCommand}, exécuteurs \cmd{\&} et \cmd{-File}, redirections, paramètres liés. Il
+  appelle les mêmes
   opérations que les outils POSIX (supprimer, remplacer, écrire, copier, déplacer, créer). \\
 \bottomrule
 \end{tabularx}
@@ -131,9 +129,14 @@ tableau~\ref{tab:c3-modules} présente ses modules.
 
 Dans l'orchestrateur, les trois portes qui ne laissaient passer que le POSIX --- la prédiction du
 moteur, le choix du chemin moteur, le routage des lignes non lues --- acceptent aussi
-PowerShell, et une étape de fusion applique la règle « le plus strict gagne » entre la réponse de
-C3 et celle des anciennes règles PowerShell. Une ligne POSIX qui contient
-\cmd{powershell -Command "\ldots"} passe sa charge au frontal PowerShell.
+PowerShell. Rien d'autre n'a été ajouté : une ligne que le moteur lit entièrement est décidée par
+le moteur, dans les deux dialectes, sans second avis (arbitrage PS6). Une étape de fusion « le plus
+strict gagne » entre la réponse de C3 et celle des anciennes règles PowerShell avait été
+envisagée, puis écartée : elle aurait constitué une troisième logique, distincte à la fois du
+moteur et des anciennes règles, alors que tout le sens de M2.3 et de C3 est qu'il n'y ait plus
+qu'une seule lecture. Le champ \cmd{decided\_by} des reçus (version 2.4) le rend vérifiable : sur
+les 116 lignes PowerShell du portail, aucune n'est décidée par les anciennes règles. Une ligne
+POSIX qui contient \cmd{powershell -Command "\ldots"} passe sa charge au frontal PowerShell.
 
 \subsection{Fonctionnement}
 \begin{description}[style=nextline,leftmargin=0.6cm,font=\sffamily\bfseries]
@@ -195,8 +198,8 @@ C3 et celle des anciennes règles PowerShell. Une ligne POSIX qui contient
 \end{description}
 
 Une ligne \cmd{cmd /c \ldots} n'est pas du PowerShell : elle garde les règles textuelles
-(arbitrage PS3). Les anciennes règles PowerShell restent en place, mais ne gardent que leurs
-captures et leurs escalades, jamais leur ALLOW : la réponse la plus stricte l'emporte. C3 ne lit
+(arbitrage PS3). Les anciennes règles PowerShell, elles, ne décident plus aucune ligne
+PowerShell depuis C3b (§\ref{sec:c3b}). C3 ne lit
 pas les chaînes construites à l'exécution, les classes, les fonctions (\cmd{param()},
 \cmd{begin/process/end}), \cmd{switch}, \cmd{try}, la décomposition de paramètres (\cmd{@x}),
 \cmd{--\%}, les appels de membres dynamiques ni les modules ; les scripts \cmd{.ps1} sont des
@@ -204,7 +207,7 @@ exécuteurs de code. Sous Windows, ces lignes vont au montage WinFsp, sinon à u
 contrôle, sinon elles escaladent ; sous Linux, les mêmes lignes reçoivent les réponses Linux :
 le moteur est indépendant du système, seul le filet diffère.
 
-\subsection{Les arbitrages PS1--PS5}
+\subsection{Les arbitrages PS1--PS8}
 \begin{itemize}
   \item \textbf{PS1} --- un analyseur PowerShell écrit en Python, dans le processus du
     \textit{hook} ; l'analyseur de PowerShell lui-même sert d'oracle dans les tests sous Windows.
@@ -216,7 +219,18 @@ le moteur est indépendant du système, seul le filet diffère.
   \item \textbf{PS5} --- une livraison en étapes : (a) analyseur, lieur, cmdlets de fichiers et
     lectures, branchement au moteur ; (b) \textit{pipelines}, \cmd{\$( )}, blocs de script,
     \cmd{iex}, \cmd{-EncodedCommand}, \cmd{\&}, \cmd{-File} ; (c) retrait des règles textuelles
-    PowerShell, en perspective.
+    PowerShell, fait dans C3b.
+  \item \textbf{PS6} --- une seule logique : une ligne PowerShell que le moteur lit entièrement
+    est décidée par le moteur, sans fusion ni second avis avec les anciennes règles. C'est cet
+    arbitrage qui a fait écarter l'étape de fusion envisagée.
+  \item \textbf{PS7} --- les verbes de service suivent les mêmes réponses que leurs équivalents
+    POSIX : \cmd{Start-Service}, \cmd{Restart-Service} et \cmd{Resume-Service} laissent le
+    service en marche, \cmd{New-Service} est une création ; comme \cmd{systemctl start}, ils sont
+    autorisés et listés.
+  \item \textbf{PS8} --- quand le dialecte est \emph{deviné} et non déclaré (Codex sous
+    Windows), la ligne est lue dans les deux dialectes et c'est l'union des impacts qui est
+    retenue ; sans cela, \cmd{mv a.txt b.txt} lu comme du PowerShell perdait la capture que la
+    lecture POSIX voyait (V24).
 \end{itemize}
 
 \subsection{Validation}
@@ -228,6 +242,34 @@ PowerShell lui-même : une seule exécution de \cmd{powershell.exe} analyse tout
 \cmd{[System.Management.Automation.Language.Parser]::ParseInput} et donne, pour chaque élément de
 \textit{pipeline}, le nom de la commande, ses paramètres et ses arguments. L'analyse et la
 simulation d'une ligne PowerShell tiennent dans le budget de 10\,ms du moteur. Le portail de \nbcorpus{} commandes et le portail Windows ont été rejoués :
-chaque ligne qui bouge est plus stricte ou arbitrée. Les anciennes règles PowerShell restent en
-place jusqu'à ce que les décisions de C3 les égalent ou les dépassent sur chaque ligne du
-portail.
+chaque ligne qui bouge est plus stricte ou arbitrée. Les anciennes règles PowerShell sont
+restées en place jusqu'à ce que les décisions de C3 les égalent ou les dépassent sur chaque ligne
+du portail ; depuis C3b, elles ne décident plus aucune ligne PowerShell, ni aucune commande
+\cmd{powershell -c} lancée depuis une ligne POSIX.
+
+\subsection{C3b : terminer C3, et rendre le portail capable d'échouer}
+\label{sec:c3b}
+C3 avait laissé trois points ouverts, et la revue en a fait apparaître un quatrième. Tous sont
+petits, et tous suppriment un endroit où deux lectures de la même situation pouvaient donner deux
+réponses :
+\begin{itemize}
+  \item une commande PowerShell nommée dans une ligne POSIX (\cmd{powershell -c "\ldots"},
+    \cmd{pwsh -c "\ldots"}) passait encore aux anciennes règles textuelles ; le moteur la lit
+    désormais. C'était le dernier endroit où une ligne PowerShell atteignait les expressions
+    régulières (PS6) ;
+  \item une commande nommée par une variable que la ligne elle-même affecte : le POSIX
+    résolvait depuis toujours \cmd{X=rm; \$X a.txt} et capturait \cmd{a.txt}, alors que la même
+    forme en PowerShell, \cmd{\$c='Remove-Item'; \& \$c a.txt}, était refusée comme illisible.
+    Elle est résolue ; seul un nom que personne n'a défini reste inconnu ;
+  \item une affectation écrite sans espaces, \cmd{\$t="a.txt"}, formait un seul mot pour
+    l'analyseur lexical : l'affectation était manquée et le \cmd{\$t} suivant devenait inconnu.
+    Le \cmd{=} termine désormais un mot qui est exactement une variable ;
+  \item un script \cmd{.ps1} lancé depuis l'un ou l'autre shell est un exécuteur de code
+    (arbitrage M1), et non une ligne illisible : il va au filet, sinon à un point de contrôle,
+    sinon il est autorisé avec la note qui dit qu'aucune capture n'a été faite --- la réponse que
+    reçoit \cmd{python x.py}.
+\end{itemize}
+Deux tests nouveaux échouent sur le code d'avant C3b et passent après ; \fichier{test\_c3.py}
+compte 48 tests. Sur le portail, 4 lignes bougent sous Linux et 12 sous Windows
+(§\ref{sec:portail-aveugle}). La même partie a corrigé l'instrument de mesure lui-même : le
+portail ne pouvait pas échouer sur environ 70 de ses lignes (§\ref{sec:portail-aveugle}).

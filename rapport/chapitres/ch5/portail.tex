@@ -40,6 +40,12 @@ M2.2c, d, e & 0 & système, effet LATER, préfiltre généré \\
 M2.2f & 10 & derniers outils signalés \\
 M2.3a & 6 & toutes plus strictes \\
 M2.3b & 65 & plus strictes ou arbitrées (Rb1--Rb4) ; référence Windows enregistrée à part \\
+C3 & 57 & 30 étiquettes, 2 plus strictes, 25 plus permissives : 3 arbitrées (PS7), 4 faits
+  PowerShell vérifiés, 18 dont la cible n'existait pas (§\ref{sec:portail-aveugle}) \\
+Répertoire d'essai & 29 + 36 & l'instrument, pas l'outil : les fichiers manquants ajoutés en
+  deux passes (§\ref{sec:portail-aveugle}) \\
+C3b & 4 / 12 & Linux / Windows : 2 captures gagnées, 1 plus stricte ; sous Windows, 9
+  redirections \cmd{/tmp} intraduisibles \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -64,9 +70,40 @@ vérifié} : la suppression d'un fichier absent (rien n'est détruit), un texte 
 métadonnées d'un envoi (une donnée, pas du code), un outil de migration qui crée seulement un
 fichier local.
 
+\subsection{L'instrument aveugle}
+\label{sec:portail-aveugle}
+En préparant C3b, l'examen des 25 lignes devenues plus permissives avec C3 a révélé que 18
+d'entre elles ne disaient rien du moteur : elles visaient des fichiers que le répertoire d'essai
+du portail ne créait jamais (\fichier{test.txt}, \fichier{victim.txt}, puis \fichier{notes.txt}
+et \fichier{x}). Une suppression d'un fichier absent ne détruit rien ; ces lignes passaient donc
+quelle que soit la décision du moteur. Sur ces lignes, le portail ne pouvait pas échouer.
+
+La correction a porté sur l'instrument, pas sur l'outil : les fichiers manquants ont été ajoutés
+en deux passes, et les deux références ont été réenregistrées. 29 puis 36 lignes ont bougé sur
+chaque système, et \emph{aucune} ligne ne nommant pas l'un de ces fichiers n'a bougé. Ces lignes
+capturent désormais un vrai fichier : une régression sur elles ferait enfin échouer le portail.
+Deux lignes restent sans portée (\cmd{T=\$(cat x); rm \$T}, car \fichier{x} contient un texte
+qui ne nomme aucun fichier), et quatre cibles du corpus restent absentes du répertoire d'essai
+(\fichier{dist}, \fichier{proj}, \fichier{canary.txt}, \fichier{important.txt}) : les lignes qui
+les visent ne peuvent toujours pas échouer. Le point est connu et assumé.
+
+\begin{pourquoi}[Pourquoi c'est un résultat de méthode]
+Un test vert ne prouve rien tant qu'on n'a pas montré qu'il \emph{peut} échouer. C'est
+l'exigence du test qui échoue sur le code d'avant (§\ref{sec:fail-old}), appliquée cette fois à
+l'instrument de mesure lui-même. Le défaut n'était visible ni dans le code ni dans les
+résultats : seulement en se demandant pourquoi une ligne bougeait.
+\end{pourquoi}
+
 \subsection{Deux références, une par système}
 Le portail a été réenregistré séparément pour Windows : 21 lignes ne bougent que sous Windows ---
 des chemins POSIX absolus impossibles à traduire en chemins Windows, donc non compris ---, et
-toutes y sont plus strictes ou de même décision. Au commit de référence, le portail ne montre
+toutes y sont plus strictes ou de même décision. C3b a répété la leçon : 4 lignes bougent sous
+Linux, 12 sous Windows. Les 9 lignes propres à Windows ont la même forme,
+\cmd{powershell.exe -Command "Remove-Item -Force victim.txt" > /tmp/log} : le moteur lit la
+suppression, mais la redirection vers \fichier{/tmp} ne peut pas être traduite en chemin
+Windows ; la ligne n'est donc pas entièrement lue et escalade (M3), alors que la même ligne avec
+\cmd{> out.log} reste réversible. Avant C3b, les anciennes règles ignoraient la redirection et
+capturaient. Sous Linux, ces lignes sont identiques : validée sur un seul système, la partie
+serait passée sans que personne ne le voie. Au commit de référence, le portail ne montre
 aucune ligne différente sous Windows, et une seule sous Linux, qui dépend des fichiers présents
 sur la machine.

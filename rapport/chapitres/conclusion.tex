@@ -18,7 +18,7 @@ décideur.
 Au-delà des fonctionnalités, le stage a produit une manière de travailler adaptée à un logiciel
 de sécurité : des parties courtes, des arbitrages écrits avant le code, des tests qui échouent
 sur le code d'avant, et un portail de \nbcorpus{} commandes qui montre chaque décision qui
-change. Le travail offensif l'a mise à l'épreuve : les vulnérabilités ont été consignées (V1--V22),
+change. Le travail offensif l'a mise à l'épreuve : les vulnérabilités ont été consignées (V1--V24),
 dont les plus graves --- une tâche élevée qui exécutait du code modifiable par l'agent, du SQL
 non lu autorisé, des outils qui détruisaient des fichiers sans être vus --- sont corrigées et
 couvertes par des tests.
@@ -37,9 +37,10 @@ ne considérer un résultat comme acquis que lorsqu'un test a montré qu'il pouv
 
 \section*{Perspectives}
 \begin{itemize}
-  \item \textbf{PowerShell} : étendre la grammaire PowerShell lue par C3 (classes, fonctions,
-    modules) et retirer les dernières règles textuelles PowerShell une fois leurs décisions
-    égalées sur chaque ligne du portail.
+  \item \textbf{PowerShell et \cmd{cmd.exe}} : étendre la grammaire PowerShell lue par C3
+    (classes, fonctions, modules), et faire lire par le moteur les derniers textes qui passent
+    encore par les règles textuelles : \cmd{cmd.exe}, et une cmdlet PowerShell écrite dans une
+    ligne POSIX.
   \item \textbf{Au-delà du projet} : décider d'éventuels blocages hors du projet à partir des
     reçus que le filet Linux enregistre désormais (V18, troisième étape).
   \item \textbf{Vitesse du filet Linux} : passer de ptrace à seccomp avec notification, et étendre

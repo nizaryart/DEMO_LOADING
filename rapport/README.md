@@ -34,7 +34,7 @@ latexmk -c -outdir=build                # nettoyer les fichiers intermédiaires
 | `figures/captures/` | captures d'écran ; tant qu'un fichier manque, un cadre indique quoi capturer |
 | `references.bib` | sources consultées (aucune citation inventée) |
 | `notes/analyse_code.md` | notes d'analyse du code source (commit 3c94414) |
-| `annexes/architecture.tex` | annexe E : l'architecture complète (carte des 80 modules, lignes par couche, trajet d'une commande, carte des modules) |
+| `annexes/architecture.tex` | annexe E : l'architecture complète (carte des 85 modules, lignes par couche, trajet d'une commande, carte des modules) |
 | `notes/gen_carte.py` | génère `figures/tikz/figE_carte.tex` et `figE_couches.tex` depuis le code (voir ci-dessous) |
 
 ## Conventions
